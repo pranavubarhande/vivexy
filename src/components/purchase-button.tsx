@@ -36,7 +36,6 @@ export default function PurchaseButton({ itemId, itemType }: PurchaseButtonProps
           router.refresh()
         })
       }}
-      disabled={isPending}
     >
       {isPending ? "Processing..." : "Purchase"}
     </ShinyButton>
