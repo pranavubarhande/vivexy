@@ -41,6 +41,7 @@ import useSignOut from "@/hooks/useSignOut"
 import { useRouter } from "next/navigation"
 import { useSessionStore } from "@/state/session"
 import { useTheme } from "next-themes"
+import { DISABLE_CREDIT_BILLING_SYSTEM } from "@/constants"
 
 export function NavUser() {
   const { session, isLoading } = useSessionStore();
@@ -93,12 +94,14 @@ export function NavUser() {
               <div className="grid flex-1 gap-0.5 text-left text-sm leading-tight">
                 <span className="font-semibold overflow-hidden text-ellipsis whitespace-nowrap">{displayName}</span>
                 <span className="truncate text-xs text-muted-foreground">{user.email}</span>
-                <Badge variant="secondary" className="w-fit text-[10px]" onClick={() => {
-                  setOpenMobile(false)
-                  router.push('/dashboard/billing')
-                }}>
-                  {user.currentCredits} credits
-                </Badge>
+                {!DISABLE_CREDIT_BILLING_SYSTEM && (
+                  <Badge variant="secondary" className="w-fit text-[10px]" onClick={() => {
+                    setOpenMobile(false)
+                    router.push('/dashboard/billing')
+                  }}>
+                    {user.currentCredits} credits
+                  </Badge>
+                )}
               </div>
               <ChevronsUpDown className="ml-auto size-4" />
             </SidebarMenuButton>
@@ -118,9 +121,11 @@ export function NavUser() {
                 <div className="grid flex-1 gap-0.5 text-left text-sm leading-tight">
                   <span className="font-semibold">{displayName}</span>
                   <span className="truncate text-xs text-muted-foreground">{user.email}</span>
-                  <Badge variant="secondary" className="w-fit text-[10px]">
-                    {user.currentCredits} credits
-                  </Badge>
+                  {!DISABLE_CREDIT_BILLING_SYSTEM && (
+                    <Badge variant="secondary" className="w-fit text-[10px]">
+                      {user.currentCredits} credits
+                    </Badge>
+                  )}
                 </div>
               </div>
             </DropdownMenuLabel>
