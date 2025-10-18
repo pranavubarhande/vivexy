@@ -17,9 +17,11 @@ interface SessionActions {
   setSession: (session: SessionValidationResult) => void;
   clearSession: () => void;
   refetchSession: () => void;
+  setSelectedTeam: (teamId: string | undefined) => void;
 
   // Team related selectors
   teams: () => KVSession['teams'] | undefined;
+  selectedTeam: () => string | undefined;
   isTeamMember: (teamId: string) => boolean;
   hasTeamRole: (teamId: string, roleId: string, isSystemRole?: boolean) => boolean;
   hasTeamPermission: (teamId: string, permission: string) => boolean;
@@ -39,8 +41,22 @@ export const useSessionStore = create(
       clearSession: () => set({ session: null, isLoading: false, lastFetched: null }),
       refetchSession: () => set({ isLoading: true }),
 
+      setSelectedTeam: (teamId: string | undefined) => {
+        const currentSession = get().session;
+        if (currentSession) {
+          set({
+            session: {
+              ...currentSession,
+              selectedTeam: teamId,
+            }
+          });
+        }
+      },
+
       // Team related selectors
       teams: () => get().session?.teams,
+
+      selectedTeam: () => get().session?.selectedTeam,
 
       isTeamMember: (teamId: string) => {
         return !!get().session?.teams?.some(team => team.id === teamId);

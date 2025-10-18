@@ -46,9 +46,10 @@ type Data = {
     email: string
   }
   teams: {
+    id: string
     name: string
     logo: ComponentType
-    plan: string
+    role: string
   }[]
   navMain: NavMainItem[]
   projects: NavItem[]
@@ -64,11 +65,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       // Map teams from session to the format expected by TeamSwitcher
       const teamData = session.teams.map(team => {
         return {
+          id: team.id,
           name: team.name,
           // TODO Get the actual logo when we implement team avatars
           logo: Building2,
-          // Default plan - you might want to add plan data to your team structure
-          plan: team.role.name || "Member"
+          role: team.role.name || "Member",
         };
       });
 

@@ -169,7 +169,8 @@ export async function createSession({
     user,
     authenticationType,
     passkeyCredentialId,
-    teams: teamsWithPermissions
+    teams: teamsWithPermissions,
+    selectedTeam: teamsWithPermissions?.length > 0 ? teamsWithPermissions?.[0]?.id : undefined
   });
 }
 

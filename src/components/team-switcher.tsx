@@ -1,6 +1,6 @@
 "use client"
 
-import * as React from "react"
+import { useCallback, useMemo, type ElementType } from "react"
 import { Building2, ChevronsUpDown, Plus } from "lucide-react"
 
 import {
@@ -19,27 +19,53 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import Link from "next/link"
+import { useSessionStore } from "@/state/session"
+import { useServerAction } from "zsa-react"
+import { updateSelectedTeamAction } from "@/actions/session.action"
+import { toast } from "sonner"
 
 export function TeamSwitcher({
   teams,
 }: {
   teams: {
+    id: string
     name: string
-    logo: React.ElementType
-    plan: string
+    logo: ElementType
+    role: string
   }[]
 }) {
   const { isMobile, setOpenMobile } = useSidebar()
-  const [activeTeam, setActiveTeam] = React.useState<typeof teams[0] | null>(null)
+  const session = useSessionStore()
+  const selectedTeamId = session.selectedTeam()
+  const setSelectedTeam = session.setSelectedTeam
 
-  // Update activeTeam when teams change or on initial render
-  React.useEffect(() => {
-    if (teams.length > 0 && (!activeTeam || !teams.find(t => t.name === activeTeam.name))) {
-      setActiveTeam(teams[0])
-    }
-  }, [teams, activeTeam])
+  const { execute: updateSelectedTeam, isPending } = useServerAction(updateSelectedTeamAction)
+
+  // Find the active team based on selectedTeamId from session
+  const activeTeam = useMemo(() => {
+    if (!selectedTeamId) return teams[0] || null
+
+    // Find the matching team in the props by ID
+    return teams.find(t => t.id === selectedTeamId) || teams[0] || null
+  }, [selectedTeamId, teams])
 
   const LogoComponent = activeTeam?.logo || Building2
+
+  const handleTeamChange = useCallback(async (team: typeof teams[0]) => {
+    // Optimistically update local state
+    setSelectedTeam(team.id)
+
+    // Call server action to persist
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const [_data, error] = await updateSelectedTeam({ selectedTeam: team.id })
+
+    if (error) {
+      console.error("Failed to update selected team:", error)
+      // Revert optimistic update
+      setSelectedTeam(selectedTeamId)
+      toast.error("Failed to update selected team")
+    }
+  }, [selectedTeamId, setSelectedTeam, updateSelectedTeam])
 
   return (
     <SidebarMenu>
@@ -57,7 +83,7 @@ export function TeamSwitcher({
                 <span className="truncate font-semibold">
                   {activeTeam?.name || "No Team"}
                 </span>
-                <span className="truncate text-xs">{activeTeam?.plan || "Select a team"}</span>
+                <span className="truncate text-xs capitalize">{activeTeam?.role || "Member"}</span>
               </div>
               <ChevronsUpDown className="ml-auto" />
             </SidebarMenuButton>
@@ -74,9 +100,10 @@ export function TeamSwitcher({
             {teams.length > 0 ? (
               teams.map((team, index) => (
                 <DropdownMenuItem
-                  key={team.name}
-                  onClick={() => setActiveTeam(team)}
+                  key={team.id}
+                  onClick={() => handleTeamChange(team)}
                   className="gap-2 p-2"
+                  disabled={isPending}
                 >
                   <div className="flex size-6 items-center justify-center rounded-sm border">
                     <team.logo className="size-4 shrink-0" />

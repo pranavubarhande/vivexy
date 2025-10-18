@@ -45,6 +45,10 @@ export interface KVSession {
     permissions: string[];
   }[];
   /**
+   * The ID of the currently selected team for this session
+   */
+  selectedTeam?: string;
+  /**
    *  !!!!!!!!!!!!!!!!!!!!!
    *  !!!   IMPORTANT   !!!
    *  !!!!!!!!!!!!!!!!!!!!!
@@ -63,16 +67,17 @@ export interface KVSession {
  * IF YOU MAKE ANY CHANGES TO THE KVSESSION TYPE ABOVE, YOU NEED TO INCREMENT THIS VERSION.
  * THIS IS HOW WE TRACK WHEN WE NEED TO UPDATE THE SESSIONS IN THE KV STORE.
  */
-export const CURRENT_SESSION_VERSION = 3;
+export const CURRENT_SESSION_VERSION = 4;
 
 export async function getKV() {
   const { env } = getCloudflareContext();
   return env.NEXT_INC_CACHE_KV;
 }
 
-export interface CreateKVSessionParams extends Omit<KVSession, "id" | "createdAt" | "expiresAt"> {
+export interface CreateKVSessionParams extends Omit<KVSession, "id" | "createdAt" | "expiresAt" | "selectedTeam"> {
   sessionId: string;
   expiresAt: Date;
+  selectedTeam?: string;
 }
 
 export async function createKVSession({
@@ -82,7 +87,8 @@ export async function createKVSession({
   user,
   authenticationType,
   passkeyCredentialId,
-  teams
+  teams,
+  selectedTeam
 }: CreateKVSessionParams): Promise<KVSession> {
   const { cf } = getCloudflareContext();
   const headersList = await headers();
@@ -106,6 +112,7 @@ export async function createKVSession({
     authenticationType,
     passkeyCredentialId,
     teams,
+    selectedTeam,
     version: CURRENT_SESSION_VERSION
   };
 
@@ -220,6 +227,41 @@ export async function deleteKVSession(sessionId: string, userId: string): Promis
   }
 
   await kv.delete(getSessionKey(userId, sessionId));
+}
+
+export async function updateKVSessionSelectedTeam(sessionId: string, userId: string, selectedTeam: string | undefined): Promise<KVSession | null> {
+  const session = await getKVSession(sessionId, userId);
+  if (!session) return null;
+
+  const updatedSession: KVSession = {
+    ...session,
+    selectedTeam,
+  };
+
+  const kv = await getKV();
+
+  if (!kv) {
+    throw new Error("Can't connect to KV store");
+  }
+
+  // Calculate the remaining TTL from the existing expiration
+  const remainingTtl = Math.floor((session.expiresAt - Date.now()) / 1000);
+
+  // Only update if the session hasn't expired
+  if (remainingTtl > 0) {
+    await kv.put(
+      getSessionKey(userId, sessionId),
+      JSON.stringify(updatedSession),
+      {
+        expirationTtl: remainingTtl
+      }
+    );
+  } else {
+    // Session has expired, return null
+    return null;
+  }
+
+  return updatedSession;
 }
 
 export async function getAllSessionIdsOfUser(userId: string) {

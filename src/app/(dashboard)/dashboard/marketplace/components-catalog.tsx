@@ -5,6 +5,7 @@ import SeparatorWithText from "@/components/separator-with-text"
 import { NavUser } from "@/components/nav-user"
 import { Button } from "@/components/ui/button"
 import { PageHeader } from "@/components/page-header"
+import { ComponentProps } from "react"
 
 interface MarketplaceComponent {
   id: string
@@ -15,22 +16,20 @@ interface MarketplaceComponent {
   preview: () => React.ReactNode
 }
 
-interface Team {
-  name: string
-  iconName: string
-  plan: string
-}
+type Team = ComponentProps<typeof TeamSwitcher>['teams'][number];
 
 const demoTeams: Team[] = [
   {
+    id: "acme-inc",
     name: "Acme Inc",
-    iconName: "boxes",
-    plan: "Pro Plan",
+    logo: Boxes,
+    role: "admin",
   },
   {
+    id: "monsters-inc",
     name: "Monsters Inc",
-    iconName: "boxes",
-    plan: "Free Plan",
+    logo: Boxes,
+    role: "member",
   },
 ]
 
