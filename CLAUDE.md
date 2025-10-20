@@ -2,6 +2,8 @@
 
 This document provides comprehensive context and guidelines for AI assistants working on this project.
 
+**For additional project information, features, and setup instructions, refer to the README.md file in the project root.**
+
 ## Project Overview
 
 This is a comprehensive, production-ready Next.js SaaS template designed to run on Cloudflare Workers with OpenNext. It includes authentication, team management, billing, and other common SaaS features needed to launch a modern web application.
