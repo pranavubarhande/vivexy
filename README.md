@@ -1,175 +1,344 @@
-# Cloudflare Workers SaaS Template
+# 🚀 SaaS Template - Next.js + Prisma + Tailwind + shadcn/ui
 
-[![.github/workflows/deploy.yml](https://github.com/LubomirGeorgiev/cloudflare-workers-nextjs-saas-template/actions/workflows/deploy.yml/badge.svg)](https://github.com/LubomirGeorgiev/cloudflare-workers-nextjs-saas-template/actions/workflows/deploy.yml)
+A modern, full-stack SaaS (Software as a Service) template built with Next.js 16, Prisma, PostgreSQL, Tailwind CSS, and shadcn/ui components. This template includes authentication, team management, subscription billing with Stripe, and a beautiful, responsive dashboard.
 
-# [Live Demo](https://nextjs-saas-template.lubomirgeorgiev.com/sign-up)
-# [Github Repo](https://github.com/LubomirGeorgiev/cloudflare-workers-nextjs-saas-template)
+![Next.js](https://img.shields.io/badge/Next.js-16.0.0-black) ![Prisma](https://img.shields.io/badge/Prisma-6.18.0-blue) ![Tailwind](https://img.shields.io/badge/Tailwind-4.0-blue) ![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue) ![Stripe](https://img.shields.io/badge/Stripe-19.1.0-purple)
 
-This is a SaaS template for Cloudflare Workers. It uses the [OpenNext](https://opennext.js.org/cloudflare) framework to build a SaaS application.
+## ✨ Features
 
-Have a look at the [project plan](./cursor-docs/project-plan.md) to get an overview of the project.
+### 🔐 Authentication & Authorization
 
-> [!TIP]
-> This template is brought to you by 👉 [AgenticDev](https://agenticdev.agency/?ref=github-readme-nextjs-template) 👈 - where we help businesses automate operations and boost productivity through custom AI implementations. Just like this open-source project demonstrates technical excellence, we deliver:
->
-> - Process automation with LLM-powered workflows
-> - AI strategy consulting for sustainable scaling
-> - Custom SaaS development using cutting-edge stacks
->
-> Hundrets of developers already trust our codebase - Just Imagine what we could build for your business.
+- **JWT-based authentication** with secure token management
+- **Role-based access control** (User, Admin, Super Admin)
+- **Password hashing** with bcrypt
+- **Session management** with NextAuth.js
 
-# Supported Features:
+### 👥 Team Management
 
-- 🔐 Authentication with Lucia Auth
-  - 📧 Email/Password Sign In
-  - 📝 Email/Password Sign Up
-  - 🔑 WebAuthn/Passkey Authentication
-  - 🌐 Google OAuth/SSO Integration
-  - 🔄 Forgot Password Flow
-  - 🔒 Change Password
-  - ✉️ Email Verification
-  - 🗝️ Session Management with Cloudflare KV
-  - 🤖 Turnstile Captcha Integration
-  - ⚡ Rate Limiting for Auth Endpoints
-  - 🛡️ Protected Routes and Layouts
-  - 📋 Session Listing and Management
-  - 🔒 Anti-Disposable Email Protection
-- 💾 Database with Drizzle and Cloudflare D1
-  - 🏗️ Type-safe Database Operations
-  - 🔄 Automatic Migration Generation
-  - 💻 SQLite for Local Development
-  - ⚡ Efficient Data Fetching
-  - 🔍 Type-safe Queries
-- 📨 Email Service with React Email and Resend or Brevo
-  - 🎨 Beautiful Email Templates
-  - 👀 Email Preview Mode
-  - 🔧 Local Email Development Server
-  - 📬 Transactional Emails
-  - ✉️ Email Verification Flow
-  - 📱 Responsive Email Templates
-- 🚀 Deployment with Github Actions
-  - ⚙️ Automatic Deployments
-  - 🔐 Environment Variables Management
-  - 📦 Database Migrations
-  - 🔄 Comprehensive CI/CD Pipeline
-  - 🧹 Cache Purging
-  - ✅ Type Checking
-- 🎨 Modern UI
-  - 🎨 Tailwind CSS
-  - 🧩 Shadcn UI Components
-  - 🌓 Dark/Light Mode
-  - 📱 Responsive Design
-  - ⚡ Loading States and Animations
-  - 🔔 Toast Notifications
-  - ⚙️ Settings Dashboard
-  - 🏠 Landing Page
-  - ✨ Beautiful Email Templates
-  - 👤 Profile Settings Page
-  - 🎯 Form Validation States
-- 💳 Credit Billing System
-  - 💰 Credit-based Pricing Model
-  - 🔄 Monthly Credit Refresh
-  - 📊 Credit Usage Tracking
-  - 💳 Stripe Payment Integration
-  - 📜 Transaction History
-  - 📦 Credit Package Management
-  - 💸 Pay-as-you-go Model
-  - 📈 Usage Analytics
-- 👑 Admin Dashboard
-  - 👥 User Management
-- ✨ Validations with Zod and React Hook Form
-  - 🛡️ Type-safe Form Validations
-  - 🔒 Server-side Validations
-  - 🔍 Client-side Validations
-  - 🧹 Input Sanitization
-  - ⚡ Real-time Validation
-  - 🔄 Form State Management
-- 👨‍💻 Developer Experience
-  - 🧪 Local Development Setup
-  - 📘 TypeScript Support
-  - 🔍 ESLint Configuration
-  - ✨ Prettier Configuration
-  - 🔐 Type-safe Environment Variables
-  - 🏗️ Cloudflare Types Generation
-  - 🤖 AI-powered Development with Cursor
-  - 📚 Comprehensive Documentation
-  - 📐 Project Structure Best Practices
-- ⚡ Edge Computing
-  - 🌍 Global Deployment with Cloudflare Workers
-  - 🚀 Zero Cold Starts
-  - 💨 Edge Caching
-  - ⚛️ React Server Components
-  - 🖥️ Server-side Rendering
-  - 💾 Edge Database with D1
-  - 🗄️ Session Storage with KV
-  - ⚡ API Rate Limiting
-- 🏢 Multi-tenancy Support
-  - 👥 Organization Management
-  - 👤 User Roles and Permissions
-  - 🔍 Tenant Isolation
-  - 🔄 Resource Sharing Controls
-  - 📊 Per-tenant Analytics
-  - 🔐 Tenant-specific Configurations
-  - 💼 Team Collaboration Features
+- **Multi-team support** with role-based permissions (Owner, Admin, Member)
+- **Team invitations** via email with token-based verification
+- **Member management** with role assignment
+- **Team creation and deletion** with proper access controls
 
-## Planned features (TODO):
+### 💳 Subscription & Billing
 
-- [ ] Add an eslint rule to check for unused imports and exports
-- [ ] Add an eslint rule to check for unused variables and functions
-- [ ] Upgrade to Tailwind 4 and fix the errors and visual regressions. Already started here https://github.com/LubomirGeorgiev/cloudflare-workers-nextjs-saas-template/tree/tailwind-4-upgrade
-- [ ] Update Meta SEO tags 🔍
-- [ ] Dynamic OpenGraph images 📸
-- [ ] sitemap.xml 📄
-- [ ] robots.txt 📄
-- [ ] Multi-language support (i18n) 🌐
-- [ ] Notifications 🔔
-- [ ] Webhooks 🔗
+- **Stripe integration** for payment processing
+- **Multiple subscription plans** (Free, Pro, Enterprise)
+- **Invoice management** with PDF generation
+- **Webhook handling** for payment events
+- **Subscription lifecycle management**
 
-# Running it locally
+### 🎨 Modern UI/UX
 
-1. `pnpm install`
-2.  Copy `.dev.vars.example` to `.dev.vars` and fill in the values.
-3.  Copy `.env.example` to `.env` and fill in the values.
-4. `pnpm db:migrate:dev` - Creates a local SQLite database and applies migrations
-5. `pnpm dev`
-6.  Open http://localhost:3000
+- **shadcn/ui components** for consistent design
+- **Tailwind CSS** for styling with custom theme
+- **Dark/Light mode** support with next-themes
+- **Responsive design** for all screen sizes
+- **Beautiful dashboard** with charts and analytics
 
-## Changes to wrangler.jsonc
+### 🛠️ Developer Experience
 
-After making a change to wrangler.jsonc, you need to run `pnpm cf-typegen` to generate the new types.
+- **TypeScript** for type safety
+- **ESLint & Prettier** for code quality
+- **React Query** for data fetching and caching
+- **React Hook Form** with Zod validation
+- **Hot reload** in development
 
-## Things to change and customize before deploying to production
-1. Go to `src/constants.ts` and update it with your project details
-2. Update `.cursor/rules/001-main-project-context.mdc` with your project specification so that Cursor AI can give you better suggestions
-3. Update the footer in `src/components/footer.tsx` with your project details and links
-4. Optional: Update the color palette in `src/app/globals.css`
-5. Update the metadata in `src/app/layout.tsx` with your project details
+## 📋 Prerequisites
 
-## Deploying to Cloudflare with Github Actions
+Before you begin, ensure you have the following installed:
 
-1. Create D1 and KV namespaces
-2. Set either `RESEND_API_KEY` or `BREVO_API_KEY` as a secret in your Cloudflare Worker depending on which email service you want to use.
-3. Create a Turnstile catcha in your Cloudflare account, and set the `NEXT_PUBLIC_TURNSTILE_SITE_KEY` as a Github Actions variable.
-4. Set `TURNSTILE_SECRET_KEY` as a secret in your Cloudflare Worker.
-5. Update the `wrangler.jsonc` file with the new database and KV namespaces, env variables and account id. Search for "cloudflare-workers-nextjs-saas-template" recursively in the whole repository and change that to the name of your project. Don't forget that the name you choose at the top of the wrangler.jsonc should be the same as `services->[0]->service` in the same file.
-6. Go to https://dash.cloudflare.com/profile/api-tokens and click on "Use template" next to "Edit Cloudflare Workers". On the next, page add the following permissions in addition to the ones from the template:
-    - Account:AI Gateway:Edit
-    - Account:Workers AI:Edit
-    - Account:Workers AI:Read
-    - Account:Queues:Edit
-    - Account:Vectorize:Edit
-    - Account:D1:Edit
-    - Account:Cloudflare Images:Edit
-    - Account:Workers KV Storage:Edit
-    - Zone:Cache Purge:Purge
-7. Add the API token to the Github repository secrets as `CLOUDFLARE_API_TOKEN`
-8. Add the Cloudflare account id to the Github repository variables as `CLOUDFLARE_ACCOUNT_ID`
-9. Optional: If you want clear the CDN cache on deploy, add `CLOUDFLARE_ZONE_ID` to the Github repository variables for the zone id of your domain. This is the zone id of your domain, not the account id.
-10. Push to the main branch
+- **Node.js** 18.0 or later
+- **npm** or **yarn** or **pnpm** or **bun**
+- **PostgreSQL** 12.0 or later
+- **Git** for version control
 
-## Email templates
-If you want to preview and edit the email templates you can:
-1. `pnpm email:dev`
-2. Open http://localhost:3001
-3. Edit the email templates in the `src/react-email` folder
-4. For inspiration you can checkout https://react.email/templates
+## 🚀 Installation
+
+1. **Clone the repository**
+
+   ```bash
+   git clone https://github.com/your-username/saas-template-nextjs-prisma-tailwind-shadcn.git
+   cd saas-template-nextjs-prisma-tailwind-shadcn
+   ```
+
+2. **Install dependencies**
+
+   ```bash
+   npm install
+   # or
+   yarn install
+   # or
+   pnpm install
+   # or
+   bun install
+   ```
+
+3. **Set up environment variables**
+
+   Copy the example environment file and configure it:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   Update the `.env` file with your configuration:
+
+   ```env
+   # Database
+   DATABASE_URL="postgresql://username:password@localhost:5432/saas_template?schema=public"
+
+   # Next.js
+   NEXT_PUBLIC_APP_URL="http://localhost:3000"
+   NEXTAUTH_URL="http://localhost:3000"
+   NEXTAUTH_SECRET="your-nextauth-secret-key"
+
+   # JWT Authentication
+   JWT_SECRET="your-super-secret-jwt-key-change-in-production"
+   JWT_EXPIRES_IN="7d"
+
+   # Stripe Configuration
+   STRIPE_SECRET_KEY="sk_test_your_stripe_secret_key"
+   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY="pk_test_your_stripe_publishable_key"
+   STRIPE_WEBHOOK_SECRET="whsec_your_webhook_secret"
+
+   # Email Configuration (optional)
+   SMTP_HOST=""
+   SMTP_PORT=""
+   SMTP_USER=""
+   SMTP_PASS=""
+
+   # Development
+   NODE_ENV="development"
+   ```
+
+4. **Set up the database**
+
+   Make sure PostgreSQL is running, then run:
+
+   ```bash
+   npx prisma generate
+   npx prisma db push
+   ```
+
+   This will create the database tables based on your Prisma schema.
+
+5. **Seed the database (optional)**
+
+   If you want sample data, you can create a seed script in `prisma/seed.ts` and run:
+
+   ```bash
+   npx prisma db seed
+   ```
+
+## 🏃‍♂️ Development
+
+1. **Start the development server**
+
+   ```bash
+   npm run dev
+   # or
+   yarn dev
+   # or
+   pnpm dev
+   # or
+   bun dev
+   ```
+
+2. **Open your browser**
+
+   Navigate to [http://localhost:3000](http://localhost:3000) to see the application.
+
+3. **Additional development commands**
+
+   ```bash
+   # Build for production
+   npm run build
+
+   # Start production server
+   npm run start
+
+   # Lint code
+   npm run lint
+
+   # Format code
+   npm run format
+
+   # Check formatting
+   npm run format:check
+   ```
+
+## 📁 Project Structure
+
+```markdown
+├── app/ # Next.js App Router
+│ ├── (auth)/ # Authentication pages
+│ ├── (dashboard)/ # Protected dashboard pages
+│ ├── api/ # API routes
+│ └── globals.css # Global styles
+├── components/ # React components
+│ ├── ui/ # shadcn/ui components
+│ ├── auth/ # Authentication components
+│ ├── dashboard/ # Dashboard components
+│ └── shared/ # Shared components
+├── hooks/ # Custom React hooks
+├── lib/ # Utility libraries
+│ ├── middleware.ts # Next.js middleware
+│ ├── prisma.ts # Prisma client
+│ └── utils.ts # Helper functions
+├── services/ # API service functions
+├── types/ # TypeScript type definitions
+└── prisma/ # Database schema and migrations
+└── schema.prisma # Prisma schema
+```
+
+## 🔧 Configuration
+
+### Database Configuration
+
+The project uses Prisma with PostgreSQL. Update the `DATABASE_URL` in your `.env` file to match your database setup.
+
+### Authentication Configuration
+
+- **JWT_SECRET**: Generate a secure random string for JWT signing
+- **NEXTAUTH_SECRET**: Generate a secure random string for NextAuth
+
+### Stripe Configuration
+
+Follow these steps to enable pricing and billing with Stripe. You can use either Payment Links or Price IDs. If a plan has a Payment Link configured, the app opens it directly; otherwise it falls back to creating a Checkout Session with the Price ID.
+
+1. Create a [Stripe account](https://stripe.com) and switch to Test Mode.
+2. In Stripe Dashboard, get your API keys and set envs:
+
+   ```env
+   STRIPE_SECRET_KEY="sk_test_..."
+   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY="pk_test_..."
+   STRIPE_WEBHOOK_SECRET="whsec_..."  # filled after step 6
+
+   # Optional: plan display prices shown in UI
+   NEXT_PUBLIC_PRO_PRICE_USD="29"
+   NEXT_PUBLIC_ENTERPRISE_PRICE_USD="99"
+
+   # EITHER: use Payment Links (copy from Stripe Dashboard)
+   NEXT_PUBLIC_STRIPE_PAYMENT_LINK_PRO="https://buy.stripe.com/test_..."
+   NEXT_PUBLIC_STRIPE_PAYMENT_LINK_ENTERPRISE="https://buy.stripe.com/test_..."
+
+   # OR: use recurring Price IDs (Products → Prices)
+   NEXT_PUBLIC_STRIPE_PRICE_ID_PRO="price_..."
+   NEXT_PUBLIC_STRIPE_PRICE_ID_ENTERPRISE="price_..."
+   ```
+
+3. If using Price IDs, ensure each Product Price is set to "recurring" (monthly) to create subscriptions.
+4. Ensure `NEXT_PUBLIC_APP_URL` is set (e.g., `http://localhost:3000`).
+5. Start the app and open the Billing page. Choosing a plan will either open a Payment Link or create a Checkout Session.
+6. Set up webhooks (required for invoices and subscription updates):
+
+   ```bash
+   # Install Stripe CLI and run:
+   stripe listen --forward-to localhost:3000/api/stripe/webhook
+   ```
+
+   Copy the `Signing secret` from the CLI output and set it as `STRIPE_WEBHOOK_SECRET` in `.env`.
+
+7. Test the flow using Stripe test cards (e.g., `4242 4242 4242 4242`).
+
+#### How the app uses your Stripe config
+
+- UI plan config: `config/billing.ts` reads the envs above to display plans and determine Payment Link vs Checkout.
+- Checkout (Price IDs): `POST /api/stripe/checkout` creates a Checkout Session and redirects to Stripe.
+- Webhooks: `POST /api/stripe/webhook` verifies signature, logs the full event, and updates `subscriptions` and `invoices`.
+- Logs: Stripe events are persisted to the database table `stripe_event_logs`.
+
+If an invoice cannot be mapped to a user by email, you can optionally set `STRIPE_FALLBACK_USER_ID` in `.env` to attribute records.
+
+### Email Configuration (Optional)
+
+Configure SMTP settings in `.env` if you want to send invitation emails and hook it to auth flow. Currently its not being used:
+
+- **SMTP_HOST**: Your SMTP server hostname
+- **SMTP_PORT**: SMTP server port (usually 587)
+- **SMTP_USER**: SMTP username
+- **SMTP_PASS**: SMTP password
+
+## 🌟 Key Features Explained
+
+### Authentication Flow
+
+1. Users register/login through the auth pages
+2. JWT tokens are generated and stored in cookies
+3. Protected routes check for valid authentication
+4. Role-based permissions control access to features
+
+### Team Management
+
+1. Users can create and own multiple teams
+2. Team owners can invite members via email
+3. Role-based permissions (Owner, Admin, Member)
+4. Members can be assigned different roles with appropriate permissions
+
+### Subscription Management
+
+1. Multiple subscription plans with different features
+2. Stripe integration for secure payment processing
+3. Invoice generation and management
+4. Webhook handling for subscription events
+
+## 🚀 Deployment
+
+### Vercel (Recommended)
+
+1. Push your code to GitHub
+2. Connect your repository to [Vercel](https://vercel.com)
+3. Add environment variables in Vercel dashboard
+4. Deploy automatically on every push
+
+### Other Platforms
+
+This project can be deployed on any platform that supports Node.js:
+
+- **Railway**
+- **Render**
+- **DigitalOcean App Platform**
+- **AWS**
+- **Google Cloud**
+
+### Environment Variables for Production
+
+Make sure to update these environment variables for production:
+
+- Set `NODE_ENV=production`
+- Use production database URL
+- Use production Stripe keys
+- Generate new JWT and NextAuth secrets
+- Set proper `NEXT_PUBLIC_APP_URL`
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/amazing-feature`
+3. Commit your changes: `git commit -m 'Add amazing feature'`
+4. Push to the branch: `git push origin feature/amazing-feature`
+5. Open a Pull Request
+
+### Development Guidelines
+
+- Follow the existing code style and conventions
+- Write tests for new features
+- Update documentation as needed
+- Use conventional commits
+
+## 📝 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🆘 Support
+
+If you need help or have questions:
+
+1. Check the [Issues](https://github.com/pranavubarhande/saas-template-nextjs-prisma-tailwind-shadcn/issues) page
+2. Create a new issue with detailed information
+3. Join our Discord community (if available)
+
+---
+
+**Happy coding!** 🎉
