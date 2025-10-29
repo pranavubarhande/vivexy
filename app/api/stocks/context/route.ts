@@ -2,11 +2,22 @@ import { NextRequest, NextResponse } from 'next/server';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { parseStringPromise } from 'xml2js';
+import YahooFinance from 'yahoo-finance2';
+
+type HistoricalData = {
+  date: Date;
+  open?: number;
+  high?: number;
+  low?: number;
+  close?: number;
+  volume?: number;
+};
 
 const HEADERS = {
   'User-Agent':
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0 Safari/537.36',
 };
+const yahooFinance = new YahooFinance();
 
 const toCsvBlock = (rows: Record<string, string>[], headers: string[]): string => {
   const lines = [headers.join(',')];
@@ -293,13 +304,14 @@ export async function GET(request: NextRequest) {
     const format = searchParams.get('format') || 'json'; // 'json' or 'csv'
     const count = Math.min(parseInt(searchParams.get('count') || '10', 10), 20);
 
-    if (!stock || !type)
+    if (!type)
       return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
 
     const companyUrl = `https://www.screener.in/company/${stock}/consolidated/`;
 
     // Handle fundamentals
     if (type === 'fundamentals') {
+      if (!stock) return NextResponse.json({ error: 'Missing stock' }, { status: 400 });
       if (!subtype) {
         const fundamentals = await scrapeFundamentals(companyUrl);
         
@@ -377,6 +389,7 @@ export async function GET(request: NextRequest) {
 
     // Handle news
     if (type === 'news') {
+      if (!stock) return NextResponse.json({ error: 'Missing stock' }, { status: 400 });
       const newsItems = await getGoogleNews(stock, count);
       
       if (format === 'csv') {
@@ -401,6 +414,214 @@ export async function GET(request: NextRequest) {
         count: newsItems.length,
         data: newsItems
       });
+    }
+
+    // Handle stock quotes
+    if (type === 'quote') {
+      if (!stock) return NextResponse.json({ error: 'Missing stock' }, { status: 400 });
+      const interval = searchParams.get('interval') || '1d';
+      const days = parseInt(searchParams.get('days') || '30', 10);
+      
+      // Map intervals to yahoo-finance2 format (only '1d', '1wk', '1mo' are valid for historical data)
+      const intervalMap: Record<string, '1d' | '1wk' | '1mo'> = {
+        '1d': '1d',
+        '1wk': '1wk',
+        '1mo': '1mo'
+      };
+      
+      // Default to '1d' if an invalid interval is provided
+      const validInterval = interval in intervalMap ? interval as keyof typeof intervalMap : '1d';
+
+      if (!(interval in intervalMap)) {
+        console.warn(`Invalid interval '${interval}' provided, defaulting to '1d'`);
+      }
+
+      if (isNaN(days) || days < 1 || days > 3650) {
+        return NextResponse.json(
+          { error: 'Days must be a number between 1 and 3650' },
+          { status: 400 }
+        );
+      }
+
+      try {
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setDate(endDate.getDate() - days);
+
+        const queryOptions = {
+          period1: Math.floor(startDate.getTime() / 1000),
+          period2: Math.floor(endDate.getTime() / 1000),
+          interval: intervalMap[validInterval],
+        };
+
+        const data = await yahooFinance.historical(stock, queryOptions);
+
+        if (format === 'csv') {
+          const headers = ['date', 'open', 'high', 'low', 'close', 'volume'];
+const rows = (data as HistoricalData[]).map((item) => ({
+            date: item.date.toISOString(),
+            open: item.open?.toString() || '',
+            high: item.high?.toString() || '',
+            low: item.low?.toString() || '',
+            close: item.close?.toString() || '',
+            volume: item.volume?.toString() || '0'
+          }));
+          
+          const csv = toCsvBlock(rows, headers);
+          return new NextResponse(csv, {
+            headers: {
+              'Content-Type': 'text/csv',
+              'Content-Disposition': `attachment; filename="${stock}_quote_${interval}_${days}d.csv"`
+            }
+          });
+        }
+
+        return NextResponse.json({
+          success: true,
+          stock,
+          type: 'quote',
+          interval,
+          days,
+data: (data as HistoricalData[]).map((item) => ({
+            date: item.date.toISOString(),
+            open: item.open,
+            high: item.high,
+            low: item.low,
+            close: item.close,
+            volume: item.volume
+          }))
+        });
+      } catch (error) {
+        console.error('Error fetching stock quote:', error);
+        return NextResponse.json(
+          { 
+            error: 'Failed to fetch stock quote', 
+            details: error instanceof Error ? error.message : String(error) 
+          },
+          { status: 500 }
+        );
+      }
+    }
+
+    // Handle yfinance multi-endpoint proxy
+    if (type === 'yfinance') {
+      const { searchParams } = new URL(request.url);
+      const subtype = searchParams.get('subtype') || '';
+      const count = Math.min(parseInt(searchParams.get('count') || '10', 10), 50);
+      const supported = [
+        'historical',
+        'quote',
+        'quoteSummary',
+        'search',
+        'insights',
+        'options',
+        'recommendationsBySymbol',
+        'screener'
+      ];
+
+      if (!subtype || !supported.includes(subtype)) {
+        return NextResponse.json({
+          success: false,
+          error: 'Invalid or missing subtype',
+          available_subtypes: supported
+        }, { status: 400 });
+      }
+
+      try {
+        if (subtype === 'quote') {
+          if (!stock) return NextResponse.json({ error: 'Missing stock' }, { status: 400 });
+          const data = await yahooFinance.quote(stock);
+          return NextResponse.json({ success: true, type: 'yfinance', subtype, stock, data });
+        }
+
+        if (subtype === 'quoteSummary') {
+          if (!stock) return NextResponse.json({ error: 'Missing stock' }, { status: 400 });
+          const modulesParam = searchParams.get('modules') || '';
+          const allowedModules = [
+            'assetProfile','balanceSheetHistory','balanceSheetHistoryQuarterly','calendarEvents','cashflowStatementHistory','cashflowStatementHistoryQuarterly','defaultKeyStatistics','earnings','earningsHistory','earningsTrend','financialData','fundOwnership','fundPerformance','fundProfile','incomeStatementHistory','incomeStatementHistoryQuarterly','indexTrend','industryTrend','insiderHolders','insiderTransactions','institutionOwnership','majorDirectHolders','majorHoldersBreakdown','netSharePurchaseActivity','price','quoteType','recommendationTrend','secFilings','sectorTrend','summaryDetail','summaryProfile','upgradeDowngradeHistory'
+          ] as const;
+          type AllowedModule = typeof allowedModules[number];
+          const modules = modulesParam
+            .split(',')
+            .map((m) => m.trim())
+            .filter((m): m is AllowedModule => (allowedModules as readonly string[]).includes(m) );
+          if (!modules.length) {
+            return NextResponse.json({
+              success: false,
+              error: 'modules parameter is required (comma-separated)',
+            }, { status: 400 });
+          }
+          const data = await yahooFinance.quoteSummary(stock, { modules });
+          return NextResponse.json({ success: true, type: 'yfinance', subtype, stock, modules, data });
+        }
+
+        if (subtype === 'historical') {
+          if (!stock) return NextResponse.json({ error: 'Missing stock' }, { status: 400 });
+          const interval = searchParams.get('interval') || '1d';
+          const days = Math.min(parseInt(searchParams.get('days') || '30', 10), 3650);
+          const endDate = new Date();
+          const startDate = new Date();
+          startDate.setDate(endDate.getDate() - days);
+          const intervalMap: Record<string, '1d' | '1wk' | '1mo'> = { '1d': '1d', '1wk': '1wk', '1mo': '1mo' };
+          const validInterval = interval in intervalMap ? (interval as keyof typeof intervalMap) : '1d';
+          const data = await yahooFinance.historical(stock, {
+            period1: Math.floor(startDate.getTime() / 1000),
+            period2: Math.floor(endDate.getTime() / 1000),
+            interval: intervalMap[validInterval]
+          });
+          return NextResponse.json({ success: true, type: 'yfinance', subtype, stock, interval: intervalMap[validInterval], days, data });
+        }
+
+        
+
+        if (subtype === 'search') {
+          const q = (searchParams.get('q') ?? '').trim();
+          if (!q) {
+            return NextResponse.json({ success: false, error: 'q parameter is required' }, { status: 400 });
+          }
+          const data = await yahooFinance.search(q, { quotesCount: count });
+          return NextResponse.json({ success: true, type: 'yfinance', subtype, query: q, count, data });
+        }
+
+        
+
+        if (subtype === 'insights') {
+          if (!stock) return NextResponse.json({ error: 'Missing stock' }, { status: 400 });
+          const data = await yahooFinance.insights(stock);
+          return NextResponse.json({ success: true, type: 'yfinance', subtype, stock, data });
+        }
+
+        if (subtype === 'options') {
+          if (!stock) return NextResponse.json({ error: 'Missing stock' }, { status: 400 });
+          const dateParam = searchParams.get('date');
+          let data;
+          if (dateParam) {
+            const ts = parseInt(dateParam, 10);
+            const d = isNaN(ts) ? undefined : new Date(ts * 1000);
+            data = await yahooFinance.options(stock, d ? { date: d } : undefined);
+          } else {
+            data = await yahooFinance.options(stock);
+          }
+          return NextResponse.json({ success: true, type: 'yfinance', subtype, stock, data });
+        }
+
+        if (subtype === 'recommendationsBySymbol') {
+          if (!stock) return NextResponse.json({ error: 'Missing stock' }, { status: 400 });
+          const data = await yahooFinance.recommendationsBySymbol(stock);
+          return NextResponse.json({ success: true, type: 'yfinance', subtype, stock, data });
+        }
+
+        if (subtype === 'screener') {
+          const scrId = (searchParams.get('scrId') || 'day_gainers');
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const data = await yahooFinance.screener(scrId as any, { count } as any);
+          return NextResponse.json({ success: true, type: 'yfinance', subtype, scrId, count, data });
+        }
+
+        return NextResponse.json({ error: 'Unhandled yfinance subtype' }, { status: 400 });
+      } catch (error) {
+        return NextResponse.json({ success: false, error: 'yfinance request failed', details: error instanceof Error ? error.message : String(error) }, { status: 500 });
+      }
     }
 
     return NextResponse.json({ error: 'Unsupported type' }, { status: 400 });
