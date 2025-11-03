@@ -29,7 +29,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html className="overflow-hidden" lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning className="overflow-hidden">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >

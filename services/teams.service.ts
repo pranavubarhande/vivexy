@@ -5,7 +5,7 @@ import {
   UpdateTeamData,
   TeamMember,
   InviteMemberData,
-} from '@/types/user';
+} from '@/types/team';
 
 // Teams API calls
 export const teamsService = {

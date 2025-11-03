@@ -27,12 +27,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <SidebarProvider className="overflow-hidden">
+    <SidebarProvider>
       <AppSidebar className="relative" />
       <div className="flex flex-1 flex-col">
-        <DashboardHeader heading={titleFromPath(pathname)} />
-        <div className="flex flex-col gap-4 p-4 pt-0 h-[calc(100vh-3.5rem)] overflow-auto no-scrollbar">
-          {children}
+       {!pathname.includes('/chat') && <DashboardHeader heading={titleFromPath(pathname)} />}
+        <div className="flex flex-col gap-4 p-4 pt-0 h-[calc(100vh-3.5rem)] overflow-auto">           {children}
         </div>
       </div>
     </SidebarProvider>

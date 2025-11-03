@@ -153,7 +153,7 @@ export default function LandingPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="h-screen no-scrollbar bg-background flex flex-col overflow-auto">
       {/* Navigation */}
       <motion.nav
         initial={{ opacity: 0, y: -20 }}
