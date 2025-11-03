@@ -7,7 +7,7 @@ export const ROUTES = {
   settings: '/settings',
   teams: '/teams',
   billing: '/billing',
-  chat: (chatId?: string) => chatId ? `/chat/${chatId}` : '/chat',
+  chat: (chatId?: string) => (chatId ? `/chat/${chatId}` : '/chat'),
 } as const;
 
 // Publicly accessible informational pages (no auth required, even if logged in)

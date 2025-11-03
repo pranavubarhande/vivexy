@@ -136,47 +136,56 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                         return chat.messages && chat.messages.length > 0;
                       })
                       .map((chat) => {
-                      const chatHref = ROUTES.chat(chat.id);
-                      const active = pathname === chatHref;
-                      return (
-                        <SidebarMenuItem key={chat.id}>
-                          <div className="flex items-center justify-between w-full">
-                            <SidebarMenuButton asChild isActive={active} className="flex-1">
-                              <Link
-                                href={chatHref}
-                                className="flex items-center gap-2"
+                        const chatHref = ROUTES.chat(chat.id);
+                        const active = pathname === chatHref;
+                        return (
+                          <SidebarMenuItem key={chat.id}>
+                            <div className="flex items-center justify-between w-full">
+                              <SidebarMenuButton
+                                asChild
+                                isActive={active}
+                                className="flex-1"
                               >
-                                <MessageSquare size={14} />
-                                <span className="truncate text-xs">
-                                  {chat.title || 'New Chat'}
-                                </span>
-                              </Link>
-                            </SidebarMenuButton>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (confirm('Are you sure you want to delete this chat?')) {
-                                  deleteChat.mutate(chat.id, {
-                                    onSuccess: () => {
-                                      // If this was the currently selected chat, navigate to dashboard
-                                      if (pathname === ROUTES.chat(chat.id)) {
-                                        window.location.href = ROUTES.dashboard;
-                                      }
-                                    },
-                                  });
-                                }
-                              }}
-                              disabled={deleteChat.isPending}
-                              className="h-6 w-6 p-0 opacity-50 hover:opacity-100"
-                            >
-                              <Trash2 size={10} />
-                            </Button>
-                          </div>
-                        </SidebarMenuItem>
-                      );
-                    })}
+                                <Link
+                                  href={chatHref}
+                                  className="flex items-center gap-2"
+                                >
+                                  <MessageSquare size={14} />
+                                  <span className="truncate text-xs">
+                                    {chat.title || 'New Chat'}
+                                  </span>
+                                </Link>
+                              </SidebarMenuButton>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (
+                                    confirm(
+                                      'Are you sure you want to delete this chat?'
+                                    )
+                                  ) {
+                                    deleteChat.mutate(chat.id, {
+                                      onSuccess: () => {
+                                        // If this was the currently selected chat, navigate to dashboard
+                                        if (pathname === ROUTES.chat(chat.id)) {
+                                          window.location.href =
+                                            ROUTES.dashboard;
+                                        }
+                                      },
+                                    });
+                                  }
+                                }}
+                                disabled={deleteChat.isPending}
+                                className="h-6 w-6 p-0 opacity-50 hover:opacity-100"
+                              >
+                                <Trash2 size={10} />
+                              </Button>
+                            </div>
+                          </SidebarMenuItem>
+                        );
+                      })}
                   </SidebarMenu>
                 )}
               </div>

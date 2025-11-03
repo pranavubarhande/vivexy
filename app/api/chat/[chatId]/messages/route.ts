@@ -1,6 +1,10 @@
 import { withAuth } from '@/middlewares/auth';
 import { NextRequest, NextResponse } from 'next/server';
-import { getChatMessages, createMessage, updateMessage } from '@/business-logic/chat';
+import {
+  getChatMessages,
+  createMessage,
+  updateMessage,
+} from '@/business-logic/chat';
 import { prisma } from '@/lib/prisma';
 
 export const GET = withAuth(async (request: NextRequest, user, { params }) => {
@@ -31,7 +35,12 @@ export const PUT = withAuth(async (request: NextRequest, user) => {
       );
     }
 
-    const updatedMessage = await updateMessage(messageId, content.trim(), user.id, modelId);
+    const updatedMessage = await updateMessage(
+      messageId,
+      content.trim(),
+      user.id,
+      modelId
+    );
     return NextResponse.json(updatedMessage);
   } catch (error) {
     console.error('Error updating message:', error);
@@ -73,10 +82,7 @@ export const POST = withAuth(async (request: NextRequest, user, { params }) => {
     });
 
     if (!chat) {
-      return NextResponse.json(
-        { error: 'Chat not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Chat not found' }, { status: 404 });
     }
 
     const message = await createMessage(

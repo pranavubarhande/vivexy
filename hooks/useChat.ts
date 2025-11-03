@@ -79,8 +79,13 @@ export const useSendMessage = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ chatId, data }: { chatId: string; data: CreateMessageData }) =>
-      ChatService.sendMessage(chatId, data),
+    mutationFn: ({
+      chatId,
+      data,
+    }: {
+      chatId: string;
+      data: CreateMessageData;
+    }) => ChatService.sendMessage(chatId, data),
     onSuccess: (_, { chatId }) => {
       queryClient.invalidateQueries({ queryKey: ['messages', chatId] });
       queryClient.invalidateQueries({ queryKey: ['chat', chatId] });
@@ -93,8 +98,17 @@ export const useUpdateMessage = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ chatId, messageId, content, modelId }: { chatId: string; messageId: string; content: string; modelId?: string }) =>
-      ChatService.updateMessage(chatId, messageId, content, modelId),
+    mutationFn: ({
+      chatId,
+      messageId,
+      content,
+      modelId,
+    }: {
+      chatId: string;
+      messageId: string;
+      content: string;
+      modelId?: string;
+    }) => ChatService.updateMessage(chatId, messageId, content, modelId),
     onSuccess: (_, { chatId }) => {
       queryClient.invalidateQueries({ queryKey: ['messages', chatId] });
       queryClient.invalidateQueries({ queryKey: ['chat', chatId] });

@@ -2,7 +2,12 @@ import { ChatOpenAI } from '@langchain/openai';
 import { ChatAnthropic } from '@langchain/anthropic';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
-import { HumanMessage, AIMessage, SystemMessage, BaseMessage } from '@langchain/core/messages';
+import {
+  HumanMessage,
+  AIMessage,
+  SystemMessage,
+  BaseMessage,
+} from '@langchain/core/messages';
 
 export interface LLMMessage {
   role: 'user' | 'assistant' | 'system';
@@ -36,7 +41,7 @@ export class LangChainLLMService {
   }
 
   private convertToLangChainMessages(messages: LLMMessage[]): BaseMessage[] {
-    return messages.map(msg => {
+    return messages.map((msg) => {
       switch (msg.role) {
         case 'user':
           return new HumanMessage(msg.content);
@@ -97,14 +102,25 @@ export class LangChainLLMService {
       return {
         content: response.content as string,
         model: modelId,
-        usage: usage ? {
-          promptTokens: usage.promptTokens || usage.prompt_tokens || usage.input_tokens,
-          completionTokens: usage.completionTokens || usage.completion_tokens || usage.output_tokens,
-          totalTokens: usage.totalTokens || usage.total_tokens || ((usage.input_tokens || 0) + (usage.output_tokens || 0)),
-        } : undefined,
+        usage: usage
+          ? {
+              promptTokens:
+                usage.promptTokens || usage.prompt_tokens || usage.input_tokens,
+              completionTokens:
+                usage.completionTokens ||
+                usage.completion_tokens ||
+                usage.output_tokens,
+              totalTokens:
+                usage.totalTokens ||
+                usage.total_tokens ||
+                (usage.input_tokens || 0) + (usage.output_tokens || 0),
+            }
+          : undefined,
       };
     } catch (error) {
-      throw new Error(`${provider} API error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `${provider} API error: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 

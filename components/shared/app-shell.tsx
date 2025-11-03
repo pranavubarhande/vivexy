@@ -6,6 +6,7 @@ import { PUBLIC_ROUTES, AUTH_ROUTES } from '@/constants/routes';
 import { AppSidebar } from '@/components/dashboard/sidebar';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { DashboardHeader } from '@/components/dashboard/header';
+import { cn } from '@/utils/common';
 
 function titleFromPath(pathname: string) {
   const parts = pathname.split('/').filter(Boolean);
@@ -30,8 +31,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <SidebarProvider>
       <AppSidebar className="relative" />
       <div className="flex flex-1 flex-col">
-       {!pathname.includes('/chat') && <DashboardHeader heading={titleFromPath(pathname)} />}
-        <div className="flex flex-col gap-4 p-4 pt-0 h-[calc(100vh-3.5rem)] overflow-auto">           {children}
+        {!pathname.includes('/chat') && (
+          <DashboardHeader heading={titleFromPath(pathname)} />
+        )}
+        <div
+          className={cn(
+            'flex flex-col gap-4 p-4 pt-0 h-[calc(100vh-3.5rem)] overflow-auto',
+            pathname.includes('/chat') && 'h-[calc(100vh)]'
+          )}
+        >
+          {' '}
+          {children}
         </div>
       </div>
     </SidebarProvider>

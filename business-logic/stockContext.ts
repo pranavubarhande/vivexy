@@ -59,7 +59,9 @@ export const findTableByHeadingHtml = (
     const sectionId = `#${ht.toLowerCase().replace(/\s+/g, '-').replace(/&/g, '')}`;
     const section = $(sectionId);
     if (section.length) {
-      const table = section.find('table.data-table').first() || section.find('table').first();
+      const table =
+        section.find('table.data-table').first() ||
+        section.find('table').first();
       if (table && table.length) return table;
     }
 
@@ -68,7 +70,8 @@ export const findTableByHeadingHtml = (
       .filter((i, el) => re.test($(el).attr('id') || ''))
       .first();
     if (byId && byId.length) {
-      const t = byId.find('table.data-table').first() || byId.find('table').first();
+      const t =
+        byId.find('table.data-table').first() || byId.find('table').first();
       if (t && t.length) return t;
     }
   }
@@ -80,10 +83,13 @@ export const findTableByHeadingHtml = (
       for (const ht of headingTexts) {
         if (title.includes(ht.toLowerCase())) {
           const parent = $(n).parent();
-          const parentTable = parent.find('table.data-table').first() || parent.find('table').first();
+          const parentTable =
+            parent.find('table.data-table').first() ||
+            parent.find('table').first();
           if (parentTable && parentTable.length) return parentTable;
 
-          let sibling: unknown | null = (n as unknown as { next?: unknown }).next ?? null;
+          let sibling: unknown | null =
+            (n as unknown as { next?: unknown }).next ?? null;
           let steps = 0;
           while (sibling && steps < 20) {
             const $s = $(sibling as never);
@@ -106,7 +112,8 @@ export const findTableByHeadingHtml = (
       .first();
     if (byClass && byClass.length) {
       const t =
-        byClass.find('table.data-table').first() || byClass.find('table').first();
+        byClass.find('table.data-table').first() ||
+        byClass.find('table').first();
       if (t && t.length) return t;
     }
   }
@@ -118,7 +125,8 @@ export const findTableByHeadingHtml = (
       const text = $(el).text().trim().toLowerCase();
       if (text.includes(ht.toLowerCase())) {
         const parent = $(el).parent();
-        const table = parent.next('table').first() || parent.find('table').first();
+        const table =
+          parent.next('table').first() || parent.find('table').first();
         if (table && table.length) {
           foundTable = table;
           return false as unknown as void;
@@ -131,9 +139,14 @@ export const findTableByHeadingHtml = (
   return foundTable;
 };
 
-export const scrapeFundamentals = async (companyUrl: string): Promise<Record<string, string>> => {
+export const scrapeFundamentals = async (
+  companyUrl: string
+): Promise<Record<string, string>> => {
   try {
-    const response = await axios.get(companyUrl, { headers: HEADERS, timeout: 20000 });
+    const response = await axios.get(companyUrl, {
+      headers: HEADERS,
+      timeout: 20000,
+    });
     const $ = cheerio.load(response.data);
 
     const keys = [
@@ -192,7 +205,10 @@ export const scrapeFinancialSheets = async (companyUrl: string) => {
   };
 
   try {
-    const response = await axios.get(companyUrl, { headers: HEADERS, timeout: 20000 });
+    const response = await axios.get(companyUrl, {
+      headers: HEADERS,
+      timeout: 20000,
+    });
     const $ = cheerio.load(response.data);
 
     const targets: Array<[string[], keyof typeof result]> = [
@@ -216,8 +232,8 @@ export const scrapeFinancialSheets = async (companyUrl: string) => {
         parsed.headers.length > 0
           ? parsed.headers
           : parsed.rows.length > 0
-          ? Object.keys(parsed.rows[0])
-          : [];
+            ? Object.keys(parsed.rows[0])
+            : [];
 
       if (headers.length > 0 && parsed.rows.length > 0) {
         result[key] = {
@@ -240,7 +256,9 @@ export const getGoogleNews = async (query: string, count = 10) => {
     const url = `https://news.google.com/rss/search?q=${encodedQuery}&hl=en-IN&gl=IN&ceid=IN:en`;
     const response = await axios.get(url, { headers: HEADERS, timeout: 15000 });
 
-    const result = await parseStringPromise(response.data, { explicitArray: false });
+    const result = await parseStringPromise(response.data, {
+      explicitArray: false,
+    });
     const items = result?.rss?.channel?.item || [];
     const newsItems = (Array.isArray(items) ? items : [items]) as Array<{
       title?: string | { _: string };
@@ -249,7 +267,8 @@ export const getGoogleNews = async (query: string, count = 10) => {
     }>;
 
     return newsItems.slice(0, count).map((item) => ({
-      title: typeof item.title === 'object' ? item.title._ || '' : item.title || '',
+      title:
+        typeof item.title === 'object' ? item.title._ || '' : item.title || '',
       link: typeof item.link === 'object' ? item.link._ || '' : item.link || '',
       published_at: item.pubDate ? new Date(item.pubDate).toISOString() : '',
     }));

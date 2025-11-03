@@ -53,12 +53,20 @@ export class ChatService {
     return response.data;
   }
 
-  static async sendMessage(chatId: string, data: CreateMessageData): Promise<MessageWithModel> {
+  static async sendMessage(
+    chatId: string,
+    data: CreateMessageData
+  ): Promise<MessageWithModel> {
     const response = await axiosInstance.post(`/chat/${chatId}/messages`, data);
     return response.data;
   }
 
-  static async updateMessage(chatId: string, messageId: string, content: string, modelId?: string): Promise<MessageWithModel> {
+  static async updateMessage(
+    chatId: string,
+    messageId: string,
+    content: string,
+    modelId?: string
+  ): Promise<MessageWithModel> {
     const response = await axiosInstance.put(`/chat/${chatId}/messages`, {
       messageId,
       content,

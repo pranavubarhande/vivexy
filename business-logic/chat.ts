@@ -62,7 +62,11 @@ export const createChat = async (data: CreateChatData, userId: string) => {
   });
 };
 
-export const updateChatTitle = async (chatId: string, title: string, userId: string) => {
+export const updateChatTitle = async (
+  chatId: string,
+  title: string,
+  userId: string
+) => {
   const updatedChat = await prisma.chat.updateMany({
     where: {
       id: chatId,
@@ -125,7 +129,11 @@ export const getChatMessages = async (chatId: string, userId: string) => {
   });
 };
 
-export const createMessage = async (chatId: string, data: CreateMessageData, userId: string) => {
+export const createMessage = async (
+  chatId: string,
+  data: CreateMessageData,
+  userId: string
+) => {
   // Verify the chat belongs to the user
   const chat = await prisma.chat.findFirst({
     where: {
@@ -170,7 +178,7 @@ export const createMessage = async (chatId: string, data: CreateMessageData, use
 
       // Convert to LLM format and add the new user message
       const llmMessages = [
-        ...conversationMessages.map(msg => ({
+        ...conversationMessages.map((msg) => ({
           role: msg.role.toLowerCase() as 'user' | 'assistant' | 'system',
           content: msg.content,
         })),
@@ -182,7 +190,11 @@ export const createMessage = async (chatId: string, data: CreateMessageData, use
 
       // Generate AI response
       const llmService = createLLMService();
-      const aiResponse = await llmService.generateResponse(llmMessages, model.provider, model.modelId);
+      const aiResponse = await llmService.generateResponse(
+        llmMessages,
+        model.provider,
+        model.modelId
+      );
 
       // Create user message
       const userMessage = await prisma.message.create({
@@ -224,7 +236,8 @@ export const createMessage = async (chatId: string, data: CreateMessageData, use
         where: { chatId },
       });
 
-      if (messageCount === 2) { // User message + AI response just created
+      if (messageCount === 2) {
+        // User message + AI response just created
         try {
           // Use Gemini for title generation
           const geminiModel = await prisma.lLMModel.findFirst({
@@ -244,7 +257,10 @@ export const createMessage = async (chatId: string, data: CreateMessageData, use
               geminiModel.modelId
             );
 
-            const generatedTitle = titleResponse.content.trim().replace(/^["']|["']$/g, '').substring(0, 50);
+            const generatedTitle = titleResponse.content
+              .trim()
+              .replace(/^["']|["']$/g, '')
+              .substring(0, 50);
 
             if (generatedTitle && generatedTitle !== 'New Chat') {
               await prisma.chat.update({
@@ -284,7 +300,12 @@ export const createMessage = async (chatId: string, data: CreateMessageData, use
   });
 };
 
-export const updateMessage = async (messageId: string, content: string, userId: string, modelId?: string) => {
+export const updateMessage = async (
+  messageId: string,
+  content: string,
+  userId: string,
+  modelId?: string
+) => {
   // First verify the message belongs to the user
   const message = await prisma.message.findFirst({
     where: {
@@ -340,7 +361,7 @@ export const updateMessage = async (messageId: string, content: string, userId: 
     });
 
     // Convert to LLM format
-    const llmMessages = conversationMessages.map(msg => ({
+    const llmMessages = conversationMessages.map((msg) => ({
       role: msg.role.toLowerCase() as 'user' | 'assistant' | 'system',
       content: msg.content,
     }));
@@ -353,7 +374,11 @@ export const updateMessage = async (messageId: string, content: string, userId: 
       });
 
       if (model) {
-        const aiResponse = await llmService.generateResponse(llmMessages, model.provider, model.modelId);
+        const aiResponse = await llmService.generateResponse(
+          llmMessages,
+          model.provider,
+          model.modelId
+        );
 
         // Create AI response message
         await prisma.message.create({
@@ -379,7 +404,8 @@ export const updateMessage = async (messageId: string, content: string, userId: 
           where: { chatId: message.chatId },
         });
 
-        if (messageCount === 2) { // User message + AI response just created
+        if (messageCount === 2) {
+          // User message + AI response just created
           try {
             // Use Gemini for title generation
             const geminiModel = await prisma.lLMModel.findFirst({
@@ -399,7 +425,10 @@ export const updateMessage = async (messageId: string, content: string, userId: 
                 geminiModel.modelId
               );
 
-              const generatedTitle = titleResponse.content.trim().replace(/^["']|["']$/g, '').substring(0, 50);
+              const generatedTitle = titleResponse.content
+                .trim()
+                .replace(/^["']|["']$/g, '')
+                .substring(0, 50);
 
               if (generatedTitle && generatedTitle !== 'New Chat') {
                 await prisma.chat.update({

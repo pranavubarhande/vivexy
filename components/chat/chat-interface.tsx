@@ -1,11 +1,25 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useChat, useCreateChat, useMessages, useSendMessage, useLLMModels, useUpdateChatTitle, useUpdateMessage } from '@/hooks/useChat';
+import {
+  useChat,
+  useCreateChat,
+  useMessages,
+  useSendMessage,
+  useLLMModels,
+  useUpdateChatTitle,
+  useUpdateMessage,
+} from '@/hooks/useChat';
 import { ROUTES } from '@/constants/routes';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { MessageSquare, Send, Plus, Edit3, Check, X } from 'lucide-react';
 import { MessageWithModel } from '@/services/chat.service';
@@ -15,8 +29,12 @@ interface ChatInterfaceProps {
   selectedChatId?: string;
 }
 
-export default function ChatInterface({ selectedChatId: initialChatId }: ChatInterfaceProps) {
-  const [selectedChatId, setSelectedChatId] = useState<string | null>(initialChatId || null);
+export default function ChatInterface({
+  selectedChatId: initialChatId,
+}: ChatInterfaceProps) {
+  const [selectedChatId, setSelectedChatId] = useState<string | null>(
+    initialChatId || null
+  );
   const [messageInput, setMessageInput] = useState('');
   const [selectedModelId, setSelectedModelId] = useState<string>('');
 
@@ -26,8 +44,8 @@ export default function ChatInterface({ selectedChatId: initialChatId }: ChatInt
 
   // Set default model from chat's last used model or fallback to first available
   useEffect(() => {
-    if ((selectedChat)?.lastModelId) {
-      setSelectedModelId((selectedChat).lastModelId);
+    if (selectedChat?.lastModelId) {
+      setSelectedModelId(selectedChat.lastModelId);
     } else if (models && models.length > 0 && !selectedModelId) {
       setSelectedModelId(models[0].id);
     }
@@ -75,7 +93,7 @@ export default function ChatInterface({ selectedChatId: initialChatId }: ChatInt
         },
       });
       setMessageInput('');
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error('Failed to send message:', error);
       setError(error.message || 'Failed to send message. Please try again.');
@@ -94,7 +112,7 @@ export default function ChatInterface({ selectedChatId: initialChatId }: ChatInt
   };
 
   const handleStartEditingTitle = () => {
-    setTitleInput((selectedChat)?.title || '');
+    setTitleInput(selectedChat?.title || '');
     setEditingTitle(true);
   };
 
@@ -124,7 +142,8 @@ export default function ChatInterface({ selectedChatId: initialChatId }: ChatInt
   };
 
   const handleSaveMessage = async () => {
-    if (!selectedChatId || !editingMessageId || !messageEditInput.trim()) return;
+    if (!selectedChatId || !editingMessageId || !messageEditInput.trim())
+      return;
 
     try {
       await updateMessage.mutateAsync({
@@ -147,51 +166,59 @@ export default function ChatInterface({ selectedChatId: initialChatId }: ChatInt
   };
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex h-full bg-background">
       {/* Chat Area */}
       <div className="flex-1 flex flex-col">
         {selectedChatId ? (
           <>
             {/* Chat Header */}
-            <div className="p-4 border-b bg-muted/10">
+            <div className="p-2 border-b bg-muted/10">
               <div className="flex items-center gap-2">
                 <SidebarTrigger className="-ml-1" />
                 <div className="flex-1 flex items-center justify-between">
-                {editingTitle ? (
-                  <div className="flex items-center space-x-2 flex-1">
-                    <Input
-                      value={titleInput}
-                      onChange={(e) => setTitleInput(e.target.value)}
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter') handleSaveTitle();
-                        if (e.key === 'Escape') handleCancelTitleEdit();
-                      }}
-                      className="flex-1"
-                      autoFocus
-                    />
-                    <Button size="sm" onClick={handleSaveTitle} disabled={updateChatTitle.isPending}>
-                      <Check size={14} />
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={handleCancelTitleEdit}>
-                      <X size={14} />
-                    </Button>
-                  </div>
-                ) : (
-                  <>
-                    <h2 className="text-lg font-semibold">
-                      {selectedChat?.title || 'Chat'}
-                    </h2>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={handleStartEditingTitle}
-                      className="ml-2"
-                    >
-                      <Edit3 size={14} />
-                    </Button>
-                  </>
-                )}
-              </div>
+                  {editingTitle ? (
+                    <div className="flex items-center space-x-2 flex-1">
+                      <Input
+                        value={titleInput}
+                        onChange={(e) => setTitleInput(e.target.value)}
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter') handleSaveTitle();
+                          if (e.key === 'Escape') handleCancelTitleEdit();
+                        }}
+                        className="flex-1"
+                        autoFocus
+                      />
+                      <Button
+                        size="sm"
+                        onClick={handleSaveTitle}
+                        disabled={updateChatTitle.isPending}
+                      >
+                        <Check size={14} />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleCancelTitleEdit}
+                      >
+                        <X size={14} />
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      <h2 className="text-sm font-semibold">
+                        {selectedChat?.title || 'Chat'}
+                      </h2>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={handleStartEditingTitle}
+                        className="ml-2"
+                      >
+                        <Edit3 size={14} />
+                      </Button>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -207,7 +234,10 @@ export default function ChatInterface({ selectedChatId: initialChatId }: ChatInt
                       {editingMessageId === message.id ? (
                         <div className="p-3 rounded-lg bg-muted">
                           <div className="mb-2">
-                            <Select value={messageEditModelId} onValueChange={setMessageEditModelId}>
+                            <Select
+                              value={messageEditModelId}
+                              onValueChange={setMessageEditModelId}
+                            >
                               <SelectTrigger className="w-full">
                                 <SelectValue placeholder="Select model" />
                               </SelectTrigger>
@@ -222,7 +252,9 @@ export default function ChatInterface({ selectedChatId: initialChatId }: ChatInt
                           </div>
                           <textarea
                             value={messageEditInput}
-                            onChange={(e) => setMessageEditInput(e.target.value)}
+                            onChange={(e) =>
+                              setMessageEditInput(e.target.value)
+                            }
                             className="w-full p-2 border rounded resize-none bg-background"
                             rows={3}
                             autoFocus
@@ -231,7 +263,11 @@ export default function ChatInterface({ selectedChatId: initialChatId }: ChatInt
                             <Button size="sm" onClick={handleSaveMessage}>
                               <Check size={12} />
                             </Button>
-                            <Button size="sm" variant="outline" onClick={handleCancelMessageEdit}>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={handleCancelMessageEdit}
+                            >
                               <X size={12} />
                             </Button>
                           </div>
@@ -243,46 +279,98 @@ export default function ChatInterface({ selectedChatId: initialChatId }: ChatInt
                               ? 'bg-primary text-primary-foreground'
                               : 'bg-muted'
                           }`}
-                          onDoubleClick={() => message.role === 'USER' && handleStartEditingMessage(message)}
+                          onDoubleClick={() =>
+                            message.role === 'USER' &&
+                            handleStartEditingMessage(message)
+                          }
                         >
                           {message.role === 'USER' ? (
                             <div className="text-sm prose prose-sm max-w-none dark:prose-invert">
-                              {message.content.split('\n').map((line, index) => {
-                                // Handle bullet points
-                                if (line.trim().startsWith('*') || line.trim().startsWith('-')) {
-                                  return (
-                                    <div key={index} className="flex items-start space-x-2">
-                                      <span className="text-muted-foreground mt-1">•</span>
-                                      <span>{line.trim().substring(1).trim()}</span>
-                                    </div>
+                              {message.content
+                                .split('\n')
+                                .map((line, index) => {
+                                  // Handle bullet points
+                                  if (
+                                    line.trim().startsWith('*') ||
+                                    line.trim().startsWith('-')
+                                  ) {
+                                    return (
+                                      <div
+                                        key={index}
+                                        className="flex items-start space-x-2"
+                                      >
+                                        <span className="text-muted-foreground mt-1">
+                                          •
+                                        </span>
+                                        <span>
+                                          {line.trim().substring(1).trim()}
+                                        </span>
+                                      </div>
+                                    );
+                                  }
+                                  // Handle numbered lists
+                                  const numberedMatch = line
+                                    .trim()
+                                    .match(/^(\d+)\.\s*(.+)$/);
+                                  if (numberedMatch) {
+                                    return (
+                                      <div
+                                        key={index}
+                                        className="flex items-start space-x-2"
+                                      >
+                                        <span className="text-muted-foreground font-medium">
+                                          {numberedMatch[1]}.
+                                        </span>
+                                        <span>{numberedMatch[2]}</span>
+                                      </div>
+                                    );
+                                  }
+                                  // Regular text
+                                  return line ? (
+                                    <div key={index}>{line}</div>
+                                  ) : (
+                                    <br key={index} />
                                   );
-                                }
-                                // Handle numbered lists
-                                const numberedMatch = line.trim().match(/^(\d+)\.\s*(.+)$/);
-                                if (numberedMatch) {
-                                  return (
-                                    <div key={index} className="flex items-start space-x-2">
-                                      <span className="text-muted-foreground font-medium">{numberedMatch[1]}.</span>
-                                      <span>{numberedMatch[2]}</span>
-                                    </div>
-                                  );
-                                }
-                                // Regular text
-                                return line ? <div key={index}>{line}</div> : <br key={index} />;
-                              })}
+                                })}
                             </div>
                           ) : (
                             <div className="text-sm prose prose-sm max-w-none dark:prose-invert">
                               <ReactMarkdown
                                 components={{
-                                  p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-                                  ul: ({ children }) => <ul className="list-disc list-inside mb-2 space-y-1">{children}</ul>,
-                                  ol: ({ children }) => <ol className="list-decimal list-inside mb-2 space-y-1">{children}</ol>,
-                                  li: ({ children }) => <li className="ml-4">{children}</li>,
-                                  strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
-                                  em: ({ children }) => <em className="italic">{children}</em>,
-                                  code: ({ children }) => <code className="bg-muted px-1 py-0.5 rounded text-xs font-mono">{children}</code>,
-                                  pre: ({ children }) => <pre className="bg-muted p-2 rounded text-xs font-mono overflow-x-auto">{children}</pre>,
+                                  p: ({ children }) => (
+                                    <p className="mb-2 last:mb-0">{children}</p>
+                                  ),
+                                  ul: ({ children }) => (
+                                    <ul className="list-disc list-inside mb-2 space-y-1">
+                                      {children}
+                                    </ul>
+                                  ),
+                                  ol: ({ children }) => (
+                                    <ol className="list-decimal list-inside mb-2 space-y-1">
+                                      {children}
+                                    </ol>
+                                  ),
+                                  li: ({ children }) => (
+                                    <li className="ml-4">{children}</li>
+                                  ),
+                                  strong: ({ children }) => (
+                                    <strong className="font-semibold">
+                                      {children}
+                                    </strong>
+                                  ),
+                                  em: ({ children }) => (
+                                    <em className="italic">{children}</em>
+                                  ),
+                                  code: ({ children }) => (
+                                    <code className="bg-muted px-1 py-0.5 rounded text-xs font-mono">
+                                      {children}
+                                    </code>
+                                  ),
+                                  pre: ({ children }) => (
+                                    <pre className="bg-muted p-2 rounded text-xs font-mono overflow-x-auto">
+                                      {children}
+                                    </pre>
+                                  ),
                                 }}
                               >
                                 {message.content}
@@ -319,7 +407,9 @@ export default function ChatInterface({ selectedChatId: initialChatId }: ChatInt
                     <div className="max-w-[70%] p-3 rounded-lg bg-muted">
                       <div className="flex items-center space-x-2">
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
-                        <p className="text-sm text-muted-foreground">Generating response...</p>
+                        <p className="text-sm text-muted-foreground">
+                          Generating response...
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -337,7 +427,10 @@ export default function ChatInterface({ selectedChatId: initialChatId }: ChatInt
             {/* Message Input */}
             <div className="p-4 border-t bg-muted/10">
               <div className="flex space-x-2">
-                <Select value={selectedModelId} onValueChange={setSelectedModelId}>
+                <Select
+                  value={selectedModelId}
+                  onValueChange={setSelectedModelId}
+                >
                   <SelectTrigger className="w-48">
                     <SelectValue placeholder="Select model" />
                   </SelectTrigger>
@@ -361,7 +454,11 @@ export default function ChatInterface({ selectedChatId: initialChatId }: ChatInt
 
                 <Button
                   onClick={handleSendMessage}
-                  disabled={!messageInput.trim() || sendMessage.isPending || isGenerating}
+                  disabled={
+                    !messageInput.trim() ||
+                    sendMessage.isPending ||
+                    isGenerating
+                  }
                 >
                   {isGenerating ? (
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
@@ -378,9 +475,13 @@ export default function ChatInterface({ selectedChatId: initialChatId }: ChatInt
               <MessageSquare className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
               <h3 className="text-xl font-semibold mb-2">Welcome to Chat</h3>
               <p className="text-muted-foreground mb-4">
-                Select a chat from the sidebar or create a new one to get started.
+                Select a chat from the sidebar or create a new one to get
+                started.
               </p>
-              <Button onClick={handleCreateChat} disabled={createChat.isPending}>
+              <Button
+                onClick={handleCreateChat}
+                disabled={createChat.isPending}
+              >
                 <Plus className="w-4 h-4 mr-2" />
                 Start New Chat
               </Button>
