@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   useChat,
   useCreateChat,
@@ -10,6 +10,7 @@ import {
   useUpdateChatTitle,
   useUpdateMessage,
 } from '@/hooks/useChat';
+import { useStocks } from '@/hooks/useStocks';
 import { ROUTES } from '@/constants/routes';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,12 +22,20 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { SidebarTrigger } from '@/components/ui/sidebar';
-import { MessageSquare, Send, Plus, Edit3, Check, X } from 'lucide-react';
+import { MessageSquare, Send, Plus, Edit3, Check, X, Database } from 'lucide-react';
 import { MessageWithModel } from '@/services/chat.service';
 import ReactMarkdown from 'react-markdown';
+import axiosInstance from '@/services/axiosInstance.service';
 
 interface ChatInterfaceProps {
   selectedChatId?: string;
+}
+
+interface ContextData {
+  type: string;
+  subtype?: string;
+  stock: string;
+  parameters?: Record<string, string | number>;
 }
 
 export default function ChatInterface({
@@ -63,6 +72,21 @@ export default function ChatInterface({
   const [messageEditInput, setMessageEditInput] = useState('');
   const [messageEditModelId, setMessageEditModelId] = useState<string>('');
 
+  // Context selection state
+  const [showContextSelector, setShowContextSelector] = useState(false);
+  const [contextData, setContextData] = useState<ContextData | null>(null);
+  const [contextContent, setContextContent] = useState<string>('');
+  const [contextStep, setContextStep] = useState<'type' | 'subtype' | 'stock' | 'parameters'>('type');
+  const [selectedType, setSelectedType] = useState<string>('');
+  const [selectedSubtype, setSelectedSubtype] = useState<string>('');
+  const [selectedStock, setSelectedStock] = useState<string>('');
+  const [contextParameters, setContextParameters] = useState<Record<string, string>>({});
+  const [stockSearchQuery, setStockSearchQuery] = useState<string>('');
+
+  const { stocks: contextStocks } = useStocks(stockSearchQuery, 1, 5); // Get filtered stocks for context selection
+
+  const inputRef = useRef<HTMLInputElement>(null);
+
   const handleCreateChat = async () => {
     try {
       const newChat = await createChat.mutateAsync({});
@@ -84,16 +108,24 @@ export default function ChatInterface({
     setIsGenerating(true);
 
     try {
+      // If there's context data, include the pre-fetched context content
+      let finalContent = currentMessageInput;
+      if (contextData && contextContent) {
+        finalContent = `${currentMessageInput}\n\nContext:\n${contextContent}`;
+      }
+
       await sendMessage.mutateAsync({
         chatId: selectedChatId,
         data: {
           role: 'USER',
-          content: currentMessageInput,
+          content: finalContent,
           modelId: selectedModelId || undefined,
         },
       });
       setMessageInput('');
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      setContextData(null); // Clear context after sending
+      setContextContent(''); // Clear context content after sending
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error('Failed to send message:', error);
       setError(error.message || 'Failed to send message. Please try again.');
@@ -108,6 +140,14 @@ export default function ChatInterface({
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
+    } else if (e.key === '@' && !showContextSelector) {
+      e.preventDefault();
+      setShowContextSelector(true);
+      setContextStep('type');
+      setSelectedType('');
+      setSelectedSubtype('');
+      setSelectedStock('');
+      setContextParameters({});
     }
   };
 
@@ -163,6 +203,196 @@ export default function ChatInterface({
   const handleCancelMessageEdit = () => {
     setEditingMessageId(null);
     setMessageEditInput('');
+  };
+
+  const handleContextButtonClick = () => {
+    setShowContextSelector(true);
+    setContextStep('type');
+    setSelectedType('');
+    setSelectedSubtype('');
+    setSelectedStock('');
+    setContextParameters({});
+  };
+
+  const handleTypeSelect = (type: string) => {
+    setSelectedType(type);
+    if (type === 'fundamentals') {
+      setContextStep('stock');
+    } else if (type === 'news') {
+      setContextStep('stock');
+    } else if (type === 'quote') {
+      setContextStep('stock');
+    } else if (type === 'yfinance') {
+      setContextStep('subtype');
+    }
+  };
+
+  const handleSubtypeSelect = (subtype: string) => {
+    setSelectedSubtype(subtype);
+    setContextStep('stock');
+  };
+
+  const handleStockSelect = (stock: string) => {
+    setSelectedStock(stock);
+    if (selectedType === 'news') {
+      setContextStep('parameters');
+    } else if (selectedType === 'quote') {
+      setContextStep('parameters');
+    } else if (selectedType === 'yfinance' && selectedSubtype === 'quoteSummary') {
+      setContextStep('parameters');
+    } else if (selectedType === 'yfinance' && selectedSubtype === 'historical') {
+      setContextStep('parameters');
+    } else if (selectedType === 'yfinance' && selectedSubtype === 'search') {
+      setContextStep('parameters');
+    } else {
+      handleContextComplete();
+    }
+  };
+
+  const handleParameterChange = (key: string, value: string) => {
+    setContextParameters(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleContextComplete = async () => {
+    try {
+      const params: Record<string, string | number> = {};
+      if (selectedType === 'news' && contextParameters.count) {
+        params.count = parseInt(contextParameters.count);
+      }
+      if (selectedType === 'quote') {
+        if (contextParameters.interval) params.interval = contextParameters.interval;
+        if (contextParameters.days) params.days = parseInt(contextParameters.days);
+      }
+      if (selectedType === 'yfinance') {
+        if (selectedSubtype === 'quoteSummary' && contextParameters.modules) {
+          params.modules = contextParameters.modules;
+        }
+        if (selectedSubtype === 'historical') {
+          if (contextParameters.interval) params.interval = contextParameters.interval;
+          if (contextParameters.days) params.days = parseInt(contextParameters.days);
+        }
+        if (selectedSubtype === 'search' && contextParameters.q) {
+          params.q = contextParameters.q;
+        }
+      }
+
+      const context: ContextData = {
+        type: selectedType,
+        subtype: selectedSubtype || undefined,
+        stock: selectedStock,
+        parameters: Object.keys(params).length > 0 ? params : undefined,
+      };
+
+      // Fetch context data immediately
+      const response = await axiosInstance.get('/stocks/context', {
+        params: {
+          type: context.type,
+          subtype: context.subtype,
+          stock: context.stock,
+          parameters: context.parameters ? JSON.stringify(context.parameters) : undefined,
+        },
+      });
+
+      const contextText = formatContextData(response.data);
+
+      setContextData(context);
+      setContextContent(contextText);
+      setShowContextSelector(false);
+
+      // Create compact preview for input
+      const previewText = createContextPreview(context);
+      const newMessage = `@${context.stock} ${previewText}`;
+      setMessageInput(prev => prev + newMessage);
+      inputRef.current?.focus();
+    } catch (error) {
+      console.error('Error fetching context:', error);
+      setError('Failed to fetch context data');
+    }
+  };
+
+  const createContextPreview = (context: ContextData): string => {
+    const typeLabel = selectedType === 'fundamentals' ? 'Fundamentals' :
+                     selectedType === 'news' ? 'News' :
+                     selectedType === 'quote' ? 'Quote' :
+                     selectedType === 'yfinance' ? `${selectedSubtype}` : selectedType;
+
+    let params = '';
+    if (context.parameters) {
+      if (context.type === 'news' && context.parameters.count) {
+        params = ` (${context.parameters.count} articles)`;
+      } else if (context.type === 'quote') {
+        params = ` (${context.parameters.days} days, ${context.parameters.interval})`;
+      } else if (context.type === 'yfinance' && context.subtype === 'historical') {
+        params = ` (${context.parameters.days} days, ${context.parameters.interval})`;
+      }
+    }
+
+    return `${typeLabel}${params}`;
+  };
+
+  const formatContextData = (data: Record<string, unknown>): string => {
+    if (data.type === 'fundamentals') {
+      return `Fundamentals: ${JSON.stringify(data.data, null, 2)}`;
+    }
+    if (data.type === 'news') {
+      const newsData = data.data as Array<{ title: string }>;
+      return `News (${data.count} articles): ${newsData.map((item) => `- ${item.title}`).join('\n')}`;
+    }
+    if (data.type === 'quote') {
+      const quoteData = data.data as unknown[];
+      return `Quote data (${data.days} days, ${data.interval}): ${quoteData.length} data points`;
+    }
+    if (data.type === 'yfinance') {
+      return `${data.subtype} data: ${JSON.stringify(data.data, null, 2)}`;
+    }
+    return JSON.stringify(data, null, 2);
+  };
+
+  const getContextTypes = () => [
+    { value: 'fundamentals', label: 'Fundamentals' },
+    { value: 'news', label: 'News' },
+    { value: 'quote', label: 'Quote' },
+    { value: 'yfinance', label: 'Yahoo Finance' },
+  ];
+
+  const getSubtypes = (type: string) => {
+    if (type === 'yfinance') {
+      return [
+        { value: 'historical', label: 'Historical' },
+        { value: 'quote', label: 'Quote' },
+        { value: 'quoteSummary', label: 'Quote Summary' },
+        { value: 'search', label: 'Search' },
+        { value: 'insights', label: 'Insights' },
+        { value: 'options', label: 'Options' },
+        { value: 'recommendationsBySymbol', label: 'Recommendations' },
+      ];
+    }
+    return [];
+  };
+
+  const getParameterFields = (type: string, subtype?: string) => {
+    if (type === 'news') {
+      return [{ key: 'count', label: 'Count', type: 'number', default: '10' }];
+    }
+    if (type === 'quote') {
+      return [
+        { key: 'interval', label: 'Interval', type: 'select', options: ['1d', '1wk', '1mo'], default: '1d' },
+        { key: 'days', label: 'Days', type: 'number', default: '30' },
+      ];
+    }
+    if (type === 'yfinance' && subtype === 'quoteSummary') {
+      return [{ key: 'modules', label: 'Modules', type: 'text', default: 'summaryDetail,price' }];
+    }
+    if (type === 'yfinance' && subtype === 'historical') {
+      return [
+        { key: 'interval', label: 'Interval', type: 'select', options: ['1d', '1wk', '1mo'], default: '1d' },
+        { key: 'days', label: 'Days', type: 'number', default: '30' },
+      ];
+    }
+    if (type === 'yfinance' && subtype === 'search') {
+      return [{ key: 'q', label: 'Query', type: 'text', default: '' }];
+    }
+    return [];
   };
 
   return (
@@ -417,6 +647,131 @@ export default function ChatInterface({
               </div>
             </div>
 
+            {/* Context Selector */}
+            {showContextSelector && (
+              <div className="p-4 border-t bg-muted/10">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-medium">Select Context</h3>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setShowContextSelector(false)}
+                    >
+                      <X size={14} />
+                    </Button>
+                  </div>
+
+                  {contextStep === 'type' && (
+                    <div className="space-y-2">
+                      <p className="text-xs text-muted-foreground">Choose context type:</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {getContextTypes().map((type) => (
+                          <Button
+                            key={type.value}
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleTypeSelect(type.value)}
+                          >
+                            {type.label}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {contextStep === 'subtype' && (
+                    <div className="space-y-2">
+                      <p className="text-xs text-muted-foreground">Choose subtype:</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {getSubtypes(selectedType).map((subtype) => (
+                          <Button
+                            key={subtype.value}
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleSubtypeSelect(subtype.value)}
+                          >
+                            {subtype.label}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {contextStep === 'stock' && (
+                    <div className="space-y-2">
+                      <p className="text-xs text-muted-foreground">Select stock:</p>
+                      <div className="relative">
+                        <Input
+                          placeholder="Search stocks..."
+                          value={stockSearchQuery}
+                          onChange={(e) => setStockSearchQuery(e.target.value)}
+                          className="mb-2"
+                          autoFocus
+                        />
+                        <div className="max-h-48 overflow-y-auto border rounded-md bg-background">
+                          {contextStocks && contextStocks.length > 0 ? (
+                            contextStocks.map((stock) => (
+                              <div
+                                key={stock.symbol}
+                                className="p-2 hover:bg-muted cursor-pointer border-b last:border-b-0"
+                                onClick={() => handleStockSelect(stock.symbol)}
+                              >
+                                <div className="font-medium">{stock.symbol}</div>
+                                <div className="text-sm text-muted-foreground">{stock.name}</div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="p-2 text-sm text-muted-foreground">
+                              {stockSearchQuery ? 'No stocks found' : 'Start typing to search stocks...'}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {contextStep === 'parameters' && (
+                    <div className="space-y-2">
+                      <p className="text-xs text-muted-foreground">Configure parameters:</p>
+                      {getParameterFields(selectedType, selectedSubtype).map((field) => (
+                        <div key={field.key}>
+                          <label className="text-xs font-medium">{field.label}</label>
+                          {field.type === 'select' ? (
+                            <Select
+                              value={contextParameters[field.key] || field.default}
+                              onValueChange={(value) => handleParameterChange(field.key, value)}
+                            >
+                              <SelectTrigger className="mt-1">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {field.options?.map((option) => (
+                                  <SelectItem key={option} value={option}>
+                                    {option}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <Input
+                              type={field.type}
+                              value={contextParameters[field.key] || field.default}
+                              onChange={(e) => handleParameterChange(field.key, e.target.value)}
+                              className="mt-1"
+                            />
+                          )}
+                        </div>
+                      ))}
+                      <Button onClick={handleContextComplete} className="w-full">
+                        Add Context
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Error Display */}
             {error && (
               <div className="p-4 border-t border-red-200 bg-red-50">
@@ -444,6 +799,7 @@ export default function ChatInterface({
                 </Select>
 
                 <Input
+                  ref={inputRef}
                   value={messageInput}
                   onChange={(e) => setMessageInput(e.target.value)}
                   onKeyPress={handleKeyPress}
@@ -451,6 +807,15 @@ export default function ChatInterface({
                   className="flex-1"
                   disabled={sendMessage.isPending || isGenerating}
                 />
+
+                <Button
+                  onClick={handleContextButtonClick}
+                  variant="outline"
+                  size="sm"
+                  disabled={sendMessage.isPending || isGenerating}
+                >
+                  <Database className="w-4 h-4" />
+                </Button>
 
                 <Button
                   onClick={handleSendMessage}
