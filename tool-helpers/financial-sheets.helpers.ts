@@ -1,11 +1,6 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
-import { parseStringPromise } from 'xml2js';
-
-export const HEADERS = {
-  'User-Agent':
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0 Safari/537.36',
-};
+import { HEADERS } from './headers.helpers';
 
 export const parseHtmlTableToRows = (
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -139,60 +134,6 @@ export const findTableByHeadingHtml = (
   return foundTable;
 };
 
-export const scrapeFundamentals = async (
-  companyUrl: string
-): Promise<Record<string, string>> => {
-  try {
-    const response = await axios.get(companyUrl, {
-      headers: HEADERS,
-      timeout: 20000,
-    });
-    const $ = cheerio.load(response.data);
-
-    const keys = [
-      'Market Cap',
-      'Current Price',
-      'Stock P/E',
-      'Book Value',
-      'Dividend Yield',
-      'ROCE',
-      'ROE',
-      'Face Value',
-      'Debt to equity',
-      'Sales growth',
-      'Profit growth',
-      'EPS',
-      'OPM',
-      'NPM',
-    ];
-
-    const metrics: Record<string, string> = {};
-    $('table.data-table').each((_, table) => {
-      $(table)
-        .find('tr')
-        .each((_, tr) => {
-          const th = $(tr).find('th').first();
-          const tds = $(tr).find('td');
-          if (th.length > 0 && tds.length > 0) {
-            const label = th.text().trim();
-            const val = $(tds[0]).text().trim();
-            if (label) metrics[label] = val;
-          }
-        });
-    });
-
-    const filtered: Record<string, string> = {};
-    for (const k of keys) {
-      if (metrics[k]) filtered[k] = metrics[k];
-    }
-
-    return filtered;
-  } catch (error) {
-    console.error('Error scraping fundamentals:', error);
-    return { error: String(error) } as unknown as Record<string, string>;
-  }
-};
-
 export const scrapeFinancialSheets = async (companyUrl: string) => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const result: Record<string, any> = {
@@ -250,30 +191,40 @@ export const scrapeFinancialSheets = async (companyUrl: string) => {
   }
 };
 
-export const getGoogleNews = async (query: string, count = 10) => {
+export const getFinancialSheets = async (stock: string, subtype?: string) => {
   try {
-    const encodedQuery = encodeURIComponent(`${query} stock`);
-    const url = `https://news.google.com/rss/search?q=${encodedQuery}&hl=en-IN&gl=IN&ceid=IN:en`;
-    const response = await axios.get(url, { headers: HEADERS, timeout: 15000 });
+    const companyUrl = `https://www.screener.in/company/${stock}/consolidated/`;
+    const sheets = await scrapeFinancialSheets(companyUrl);
 
-    const result = await parseStringPromise(response.data, {
-      explicitArray: false,
-    });
-    const items = result?.rss?.channel?.item || [];
-    const newsItems = (Array.isArray(items) ? items : [items]) as Array<{
-      title?: string | { _: string };
-      link?: string | { _: string };
-      pubDate?: string;
-    }>;
+    if (!subtype) {
+      return {
+        success: true,
+        stock,
+        type: 'financial_sheets',
+        data: sheets,
+      };
+    }
 
-    return newsItems.slice(0, count).map((item) => ({
-      title:
-        typeof item.title === 'object' ? item.title._ || '' : item.title || '',
-      link: typeof item.link === 'object' ? item.link._ || '' : item.link || '',
-      published_at: item.pubDate ? new Date(item.pubDate).toISOString() : '',
-    }));
+    // Specific sheet
+    const sheetData = sheets[subtype as keyof typeof sheets];
+    if (!sheetData) {
+      throw new Error(
+        `Sheet '${subtype}' not found. Available: ${Object.keys(sheets)
+          .filter((k) => sheets[k])
+          .join(', ')}`
+      );
+    }
+
+    return {
+      success: true,
+      stock,
+      type: 'financial_sheet',
+      subtype,
+      data: JSON.stringify(sheetData),
+    };
   } catch (error) {
-    console.error('Error fetching news:', error);
-    return [] as const;
+    throw new Error(
+      `Error getting financial sheets for ${stock}: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
   }
 };
