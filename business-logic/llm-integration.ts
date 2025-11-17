@@ -92,15 +92,20 @@ export class LangChainLLMService {
         throw new Error(`Unsupported provider: ${provider}`);
       }
 
+      // Add delay before LLM call to respect rate limits
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
       const langChainMessages = this.convertToLangChainMessages(messages);
       const response = await model.invoke(langChainMessages);
+      const content = response.content as string;
 
       // Extract usage information if available
       const responseMetadata = response.response_metadata || {};
-      const usage = responseMetadata.usage || responseMetadata.tokenUsage;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const usage: any = responseMetadata.usage || responseMetadata.tokenUsage;
 
       return {
-        content: response.content as string,
+        content,
         model: modelId,
         usage: usage
           ? {
@@ -149,7 +154,7 @@ export class LangChainLLMService {
 }
 
 // Factory function to create LLM service from environment variables
-export function createLLMService(): LangChainLLMService {
+export const createLLMService = (): LangChainLLMService => {
   return new LangChainLLMService({
     openaiApiKey: process.env.OPENAI_API_KEY,
     claudeApiKey: process.env.ANTHROPIC_API_KEY,

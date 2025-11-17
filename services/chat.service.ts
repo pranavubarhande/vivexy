@@ -17,6 +17,8 @@ export interface ChatWithMessages extends Chat {
 
 export interface MessageWithModel extends Message {
   model?: LLMModel | null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  reasoning: any;
 }
 
 export class ChatService {

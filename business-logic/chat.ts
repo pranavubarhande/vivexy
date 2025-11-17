@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { MessageRole } from '@prisma/client';
-import { createLLMService } from './llm-integration';
+import { createLLMService } from '@/business-logic/llm-integration';
+import { createStockAnalysisAgent, AgentResponse } from '@/agents/stock-agent';
 
 export interface CreateChatData {
   title?: string;
@@ -10,6 +11,10 @@ export interface CreateMessageData {
   role: MessageRole;
   content: string;
   modelId?: string;
+}
+
+export interface AgentMessageData extends CreateMessageData {
+  reasoning?: AgentResponse['reasoning'];
 }
 
 export const getUserChats = async (userId: string) => {
@@ -158,7 +163,20 @@ export const createMessage = async (
     },
   });
 
-  // If this is a user message and we have a model, generate AI response first
+  // Create the user message first
+  const userMessage = await prisma.message.create({
+    data: {
+      chatId,
+      role: data.role,
+      content: data.content,
+      modelId: data.modelId,
+    },
+    include: {
+      model: true,
+    },
+  });
+
+  // If this is a user message and we have a model, generate AI response
   if (data.role === 'USER' && data.modelId) {
     const model = await prisma.lLMModel.findUnique({
       where: { id: data.modelId },
@@ -169,53 +187,31 @@ export const createMessage = async (
     }
 
     try {
-      // Get conversation history for context (excluding the new message)
+      // Get the full conversation history including the new user message
       const conversationMessages = await prisma.message.findMany({
         where: { chatId },
         orderBy: { createdAt: 'asc' },
         include: { model: true },
       });
 
-      // Convert to LLM format and add the new user message
-      const llmMessages = [
-        ...conversationMessages.map((msg) => ({
-          role: msg.role.toLowerCase() as 'user' | 'assistant' | 'system',
-          content: msg.content,
-        })),
-        {
-          role: 'user' as const,
-          content: data.content,
-        },
-      ];
+      // Convert to LLM format
+      const llmMessages = conversationMessages.map((msg) => ({
+        role: msg.role.toLowerCase() as 'user' | 'assistant' | 'system',
+        content: msg.content,
+      }));
 
-      // Generate AI response
-      const llmService = createLLMService();
-      const aiResponse = await llmService.generateResponse(
-        llmMessages,
-        model.provider,
-        model.modelId
-      );
+      // Generate AI response using agent with full conversation context
+      const agent = createStockAnalysisAgent(model.provider, model.modelId);
+      const agentResponse = await agent.analyzeWithHistory(llmMessages);
 
-      // Create user message
-      const userMessage = await prisma.message.create({
-        data: {
-          chatId,
-          role: data.role,
-          content: data.content,
-          modelId: data.modelId,
-        },
-        include: {
-          model: true,
-        },
-      });
-
-      // Create AI response message
-      const aiMessage = await prisma.message.create({
+      // Create AI response message with reasoning
+      await prisma.message.create({
         data: {
           chatId,
           role: 'ASSISTANT',
-          content: aiResponse.content,
+          content: agentResponse.content,
           modelId: data.modelId,
+          reasoning: JSON.parse(JSON.stringify(agentResponse.reasoning)), // Ensure proper JSON serialization
         },
         include: {
           model: true,
@@ -238,53 +234,28 @@ export const createMessage = async (
 
       if (messageCount === 2) {
         // User message + AI response just created
-        try {
-          // Use Gemini for title generation
-          const geminiModel = await prisma.lLMModel.findFirst({
+        const generatedTitle = await generateChatTitle(
+          data.content,
+          agentResponse.content
+        );
+
+        if (generatedTitle) {
+          await prisma.chat.update({
             where: {
-              provider: 'google',
-              modelId: 'gemini-2.0-flash-exp',
-              isActive: true,
+              id: chatId,
+              userId,
             },
+            data: { title: generatedTitle },
           });
-
-          if (geminiModel) {
-            const titlePrompt = `Based on this conversation, generate a very short, concise title (max 6 words) that summarizes what this chat is about. Just return the title, nothing else.\n\nUser: ${data.content}\n\nAssistant: ${aiResponse.content}`;
-
-            const titleResponse = await llmService.generateResponse(
-              [{ role: 'user', content: titlePrompt }],
-              geminiModel.provider,
-              geminiModel.modelId
-            );
-
-            const generatedTitle = titleResponse.content
-              .trim()
-              .replace(/^["']|["']$/g, '')
-              .substring(0, 50);
-
-            if (generatedTitle && generatedTitle !== 'New Chat') {
-              await prisma.chat.update({
-                where: {
-                  id: chatId,
-                  userId,
-                },
-                data: { title: generatedTitle },
-              });
-            }
-          }
-        } catch (error) {
-          console.error('Error generating chat title:', error);
-          // Don't throw - title generation is optional
         }
       }
-
-      return aiMessage;
     } catch (error) {
       console.error('Error generating AI response:', error);
-      // Throw error without creating any messages
-      throw error;
+      // Don't throw error - user message was created successfully, AI generation failed silently
     }
   }
+
+  return userMessage;
 
   // For non-user messages or when no model is specified, just create the message
   return await prisma.message.create({
@@ -368,25 +339,23 @@ export const updateMessage = async (
 
     try {
       // Generate AI response
-      const llmService = createLLMService();
       const model = await prisma.lLMModel.findUnique({
         where: { id: message.modelId },
       });
 
       if (model) {
-        const aiResponse = await llmService.generateResponse(
-          llmMessages,
-          model.provider,
-          model.modelId
-        );
+        // Use agent for consistent behavior with conversation context
+        const agent = createStockAnalysisAgent(model.provider, model.modelId);
+        const agentResponse = await agent.analyzeWithHistory(llmMessages);
 
         // Create AI response message
         await prisma.message.create({
           data: {
             chatId: message.chatId,
             role: 'ASSISTANT',
-            content: aiResponse.content,
+            content: agentResponse.content,
             modelId: message.modelId,
+            reasoning: JSON.parse(JSON.stringify(agentResponse.reasoning)), // Ensure proper JSON serialization
           },
         });
 
@@ -406,43 +375,19 @@ export const updateMessage = async (
 
         if (messageCount === 2) {
           // User message + AI response just created
-          try {
-            // Use Gemini for title generation
-            const geminiModel = await prisma.lLMModel.findFirst({
+          const generatedTitle = await generateChatTitle(
+            updatedMessage.content,
+            agentResponse.content
+          );
+
+          if (generatedTitle) {
+            await prisma.chat.update({
               where: {
-                provider: 'google',
-                modelId: 'gemini-2.0-flash-exp',
-                isActive: true,
+                id: message.chatId,
+                userId,
               },
+              data: { title: generatedTitle },
             });
-
-            if (geminiModel) {
-              const titlePrompt = `Based on this conversation, generate a very short, concise title (max 6 words) that summarizes what this chat is about. Just return the title, nothing else.\n\nUser: ${updatedMessage.content}\n\nAssistant: ${aiResponse.content}`;
-
-              const titleResponse = await llmService.generateResponse(
-                [{ role: 'user', content: titlePrompt }],
-                geminiModel.provider,
-                geminiModel.modelId
-              );
-
-              const generatedTitle = titleResponse.content
-                .trim()
-                .replace(/^["']|["']$/g, '')
-                .substring(0, 50);
-
-              if (generatedTitle && generatedTitle !== 'New Chat') {
-                await prisma.chat.update({
-                  where: {
-                    id: message.chatId,
-                    userId,
-                  },
-                  data: { title: generatedTitle },
-                });
-              }
-            }
-          } catch (error) {
-            console.error('Error generating chat title:', error);
-            // Don't throw - title generation is optional
           }
         }
       }
@@ -464,4 +409,48 @@ export const getLLMModels = async () => {
       name: 'asc',
     },
   });
+};
+
+const generateChatTitle = async (
+  userContent: string,
+  assistantContent: string
+): Promise<string | null> => {
+  try {
+    const geminiModel = await prisma.lLMModel.findFirst({
+      where: {
+        provider: 'google',
+        modelId: 'gemini-2.0-flash',
+        isActive: true,
+      },
+    });
+
+    if (!geminiModel) {
+      return null;
+    }
+
+    const titlePrompt = `Based on this conversation, generate a very short, concise title (max 6 words) that summarizes what this chat is about. Just return the title, nothing else.\n\nUser: ${userContent}\n\nAssistant: ${assistantContent}`;
+
+    // Add delay before title generation to respect rate limits
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+
+    console.log(`[Chat] Generating title for conversation`);
+    const llmService = createLLMService();
+    const titleResponse = await llmService.generateResponse(
+      [{ role: 'user', content: titlePrompt }],
+      geminiModel.provider,
+      geminiModel.modelId
+    );
+
+    const generatedTitle = titleResponse.content
+      .trim()
+      .replace(/^["']|["']$/g, '')
+      .substring(0, 50);
+
+    return generatedTitle && generatedTitle !== 'New Chat'
+      ? generatedTitle
+      : null;
+  } catch (error) {
+    console.error('Error generating chat title:', error);
+    return null;
+  }
 };
