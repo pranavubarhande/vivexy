@@ -47,7 +47,7 @@ const llmModels = [
   {
     name: 'Gemini 2.0 Flash',
     provider: 'google',
-    modelId: 'gemini-2.0-flash-exp',
+    modelId: 'gemini-2.0-flash',
     isActive: true,
   },
   {
