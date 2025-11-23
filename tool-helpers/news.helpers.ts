@@ -1,33 +1,41 @@
 import axios from 'axios';
 import { parseStringPromise } from 'xml2js';
 import { HEADERS } from '@/tool-helpers/headers.helpers';
+import { cacheWrapper } from './cache.helpers';
 
 export const getGoogleNews = async (query: string, count = 10) => {
-  try {
-    const encodedQuery = encodeURIComponent(`${query} stock`);
-    const url = `https://news.google.com/rss/search?q=${encodedQuery}&hl=en-IN&gl=IN&ceid=IN:en`;
-    const response = await axios.get(url, { headers: HEADERS, timeout: 15000 });
+  const cacheKey = `google_news:${query}:${count}`;
+  return cacheWrapper(
+    cacheKey,
+    async () => {
+      try {
+        const encodedQuery = encodeURIComponent(`${query} stock`);
+        const url = `https://news.google.com/rss/search?q=${encodedQuery}&hl=en-IN&gl=IN&ceid=IN:en`;
+        const response = await axios.get(url, { headers: HEADERS, timeout: 15000 });
 
-    const result = await parseStringPromise(response.data, {
-      explicitArray: false,
-    });
-    const items = result?.rss?.channel?.item || [];
-    const newsItems = (Array.isArray(items) ? items : [items]) as Array<{
-      title?: string | { _: string };
-      link?: string | { _: string };
-      pubDate?: string;
-    }>;
+        const result = await parseStringPromise(response.data, {
+          explicitArray: false,
+        });
+        const items = result?.rss?.channel?.item || [];
+        const newsItems = (Array.isArray(items) ? items : [items]) as Array<{
+          title?: string | { _: string };
+          link?: string | { _: string };
+          pubDate?: string;
+        }>;
 
-    return newsItems.slice(0, count).map((item) => ({
-      title:
-        typeof item.title === 'object' ? item.title._ || '' : item.title || '',
-      link: typeof item.link === 'object' ? item.link._ || '' : item.link || '',
-      published_at: item.pubDate ? new Date(item.pubDate).toISOString() : '',
-    }));
-  } catch (error) {
-    console.error('Error fetching news:', error);
-    return [] as const;
-  }
+        return newsItems.slice(0, count).map((item) => ({
+          title:
+            typeof item.title === 'object' ? item.title._ || '' : item.title || '',
+          link: typeof item.link === 'object' ? item.link._ || '' : item.link || '',
+          published_at: item.pubDate ? new Date(item.pubDate).toISOString() : '',
+        }));
+      } catch (error) {
+        console.error('Error fetching news:', error);
+        return [] as const;
+      }
+    },
+    3600 // 1 hour TTL
+  );
 };
 
 export const getStockNews = async (stock: string, count = 10) => {

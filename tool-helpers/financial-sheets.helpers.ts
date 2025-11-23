@@ -1,6 +1,7 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { HEADERS } from './headers.helpers';
+import { cacheWrapper } from './cache.helpers';
 
 export const parseHtmlTableToRows = (
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -135,60 +136,67 @@ export const findTableByHeadingHtml = (
 };
 
 export const scrapeFinancialSheets = async (companyUrl: string) => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const result: Record<string, any> = {
-    balance_sheet: null,
-    profit_loss: null,
-    cash_flow: null,
-    quarterly_results: null,
-    ratios: null,
-    shareholding_pattern: null,
-  };
+  const cacheKey = `financial_sheets:${companyUrl}`;
+  return cacheWrapper(
+    cacheKey,
+    async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result: Record<string, any> = {
+        balance_sheet: null,
+        profit_loss: null,
+        cash_flow: null,
+        quarterly_results: null,
+        ratios: null,
+        shareholding_pattern: null,
+      };
 
-  try {
-    const response = await axios.get(companyUrl, {
-      headers: HEADERS,
-      timeout: 20000,
-    });
-    const $ = cheerio.load(response.data);
+      try {
+        const response = await axios.get(companyUrl, {
+          headers: HEADERS,
+          timeout: 20000,
+        });
+        const $ = cheerio.load(response.data);
 
-    const targets: Array<[string[], keyof typeof result]> = [
-      [['balance-sheet', 'Balance Sheet', 'balance sheet'], 'balance_sheet'],
-      [['profit-loss', 'Profit & Loss', 'Profit and Loss'], 'profit_loss'],
-      [['cash-flow', 'Cash Flow', 'cash flow'], 'cash_flow'],
-      [['quarters', 'Quarterly Results', 'quarterly'], 'quarterly_results'],
-      [['ratios', 'Ratios'], 'ratios'],
-      [['shareholding', 'Shareholding Pattern'], 'shareholding_pattern'],
-    ];
+        const targets: Array<[string[], keyof typeof result]> = [
+          [['balance-sheet', 'Balance Sheet', 'balance sheet'], 'balance_sheet'],
+          [['profit-loss', 'Profit & Loss', 'Profit and Loss'], 'profit_loss'],
+          [['cash-flow', 'Cash Flow', 'cash flow'], 'cash_flow'],
+          [['quarters', 'Quarterly Results', 'quarterly'], 'quarterly_results'],
+          [['ratios', 'Ratios'], 'ratios'],
+          [['shareholding', 'Shareholding Pattern'], 'shareholding_pattern'],
+        ];
 
-    for (const [headings, key] of targets) {
-      const table = findTableByHeadingHtml($, headings);
-      if (!table) {
-        console.log(`Table not found for: ${headings.join(', ')}`);
-        continue;
+        for (const [headings, key] of targets) {
+          const table = findTableByHeadingHtml($, headings);
+          if (!table) {
+            console.log(`Table not found for: ${headings.join(', ')}`);
+            continue;
+          }
+
+          const parsed = parseHtmlTableToRows(table, $);
+          const headers =
+            parsed.headers.length > 0
+              ? parsed.headers
+              : parsed.rows.length > 0
+                ? Object.keys(parsed.rows[0])
+                : [];
+
+          if (headers.length > 0 && parsed.rows.length > 0) {
+            result[key] = {
+              headers,
+              rows: parsed.rows,
+            };
+          }
+        }
+
+        return result;
+      } catch (error) {
+        console.error('Error scraping financial sheets:', error);
+        return result;
       }
-
-      const parsed = parseHtmlTableToRows(table, $);
-      const headers =
-        parsed.headers.length > 0
-          ? parsed.headers
-          : parsed.rows.length > 0
-            ? Object.keys(parsed.rows[0])
-            : [];
-
-      if (headers.length > 0 && parsed.rows.length > 0) {
-        result[key] = {
-          headers,
-          rows: parsed.rows,
-        };
-      }
-    }
-
-    return result;
-  } catch (error) {
-    console.error('Error scraping financial sheets:', error);
-    return result;
-  }
+    },
+    86400 // 24 hours TTL
+  );
 };
 
 export const getFinancialSheets = async (stock: string, subtype?: string) => {
