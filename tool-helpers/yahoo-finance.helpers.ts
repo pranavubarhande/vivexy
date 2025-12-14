@@ -31,7 +31,9 @@ export const getStockQuote = async (
 
         // Default to '1d' if an invalid interval is provided
         const validInterval =
-          interval in intervalMap ? (interval as keyof typeof intervalMap) : '1d';
+          interval in intervalMap
+            ? (interval as keyof typeof intervalMap)
+            : '1d';
 
         if (!(interval in intervalMap)) {
           console.warn(

@@ -158,7 +158,10 @@ export const scrapeFinancialSheets = async (companyUrl: string) => {
         const $ = cheerio.load(response.data);
 
         const targets: Array<[string[], keyof typeof result]> = [
-          [['balance-sheet', 'Balance Sheet', 'balance sheet'], 'balance_sheet'],
+          [
+            ['balance-sheet', 'Balance Sheet', 'balance sheet'],
+            'balance_sheet',
+          ],
           [['profit-loss', 'Profit & Loss', 'Profit and Loss'], 'profit_loss'],
           [['cash-flow', 'Cash Flow', 'cash flow'], 'cash_flow'],
           [['quarters', 'Quarterly Results', 'quarterly'], 'quarterly_results'],

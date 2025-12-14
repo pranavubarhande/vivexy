@@ -160,7 +160,7 @@ export const createLLMService = (): LangChainLLMService => {
     claudeApiKey: process.env.ANTHROPIC_API_KEY,
     geminiApiKey: process.env.GOOGLE_AI_API_KEY,
   });
-}
+};
 
 // Backward compatibility alias
 export const LLMService = LangChainLLMService;

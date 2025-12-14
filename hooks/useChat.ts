@@ -3,7 +3,9 @@ import {
   ChatService,
   CreateChatData,
   CreateMessageData,
+  StreamEvent,
 } from '@/services/chat.service';
+import { Artifact } from '@prisma/client';
 
 export const useChats = () => {
   const { data, isLoading, error, refetch } = useQuery({
@@ -75,25 +77,6 @@ export const useMessages = (chatId: string) => {
   });
 };
 
-export const useSendMessage = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      chatId,
-      data,
-    }: {
-      chatId: string;
-      data: CreateMessageData;
-    }) => ChatService.sendMessage(chatId, data),
-    onSuccess: (_, { chatId }) => {
-      queryClient.invalidateQueries({ queryKey: ['messages', chatId] });
-      queryClient.invalidateQueries({ queryKey: ['chat', chatId] });
-      queryClient.invalidateQueries({ queryKey: ['chats'] });
-    },
-  });
-};
-
 export const useUpdateMessage = () => {
   const queryClient = useQueryClient();
 
@@ -122,5 +105,61 @@ export const useLLMModels = () => {
     queryKey: ['llm-models'],
     queryFn: () => ChatService.getLLMModels(),
     staleTime: 10 * 60 * 1000, // 10 minutes
+  });
+};
+
+export const useSendMessageStreaming = () => {
+  const queryClient = useQueryClient();
+
+  return {
+    sendMessageStreaming: async function* (
+      chatId: string,
+      data: CreateMessageData
+    ): AsyncIterable<StreamEvent> {
+      for await (const event of ChatService.sendMessageStreaming(chatId, {
+        ...data,
+        stream: true,
+      })) {
+        if (event.type === 'assistant_message') {
+          // Invalidate queries when done
+          queryClient.invalidateQueries({ queryKey: ['messages', chatId] });
+          queryClient.invalidateQueries({ queryKey: ['chat', chatId] });
+          queryClient.invalidateQueries({ queryKey: ['chats'] });
+          queryClient.invalidateQueries({ queryKey: ['artifacts', chatId] });
+        }
+        yield event;
+      }
+    },
+  };
+};
+
+export const useArtifacts = (chatId: string) => {
+  return useQuery({
+    queryKey: ['artifacts', chatId],
+    queryFn: () => ChatService.getArtifacts(chatId),
+    enabled: !!chatId,
+    staleTime: 1 * 60 * 1000, // 1 minute
+  });
+};
+
+export const useDownloadArtifact = () => {
+  return useMutation({
+    mutationFn: ({
+      artifact,
+      format,
+    }: {
+      artifact: Artifact;
+      format: 'pdf' | 'docx';
+    }) => ChatService.downloadArtifact(artifact, format),
+    onSuccess: ({ blob, filename }) => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    },
   });
 };

@@ -18,9 +18,20 @@ export const getFinancialSheetsTool = tool(
     description:
       'Get specific financial statements (balance sheet, income statement, cash flow) for a stock.',
     schema: z.object({
-      stock: z.string().describe('Stock symbol (e.g., RELIANCE, TCS)'),
+      stock: z
+        .string()
+        .describe(
+          'Stock symbol (e.g., RELIANCE, TCS, TMCV). Use get_yahoo_finance_search for finding stock symbol. Dont include "BO" or "NS" at the end of the stock symbol here.'
+        ),
       subtype: z
-        .enum(['balancesheet', 'incomestatement', 'cashflow'])
+        .enum([
+          'balance_sheet',
+          'profit_loss',
+          'cash_flow',
+          'quarterly_results',
+          'ratios',
+          'shareholding_pattern',
+        ])
         .describe('Type of financial sheet to retrieve'),
     }),
   }

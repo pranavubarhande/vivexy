@@ -16,5 +16,11 @@
             "request": "launch",
             "command": "npx tsx tool-helpers/test-all-helpers.ts"
         },
+        {
+            "name": "Test agent",
+            "type": "node-terminal",
+            "request": "launch",
+            "command": "npx tsx agents/stock-agent.test.ts"
+        },
     ]
 }

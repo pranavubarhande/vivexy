@@ -272,9 +272,10 @@ model Chat {
   updatedAt    DateTime @updatedAt
 
   // Relations
-  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  messages Message[]
-  lastModel LLMModel? @relation(fields: [lastModelId], references: [id])
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages  Message[]
+  artifacts Artifact[]
+  lastModel LLMModel?  @relation(fields: [lastModelId], references: [id])
 
   @@map("chats")
 }
@@ -289,8 +290,9 @@ model Message {
   createdAt DateTime @default(now())
 
   // Relations
-  chat     Chat      @relation(fields: [chatId], references: [id], onDelete: Cascade)
-  model    LLMModel? @relation(fields: [modelId], references: [id])
+  chat      Chat       @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  model     LLMModel?  @relation(fields: [modelId], references: [id])
+  artifacts Artifact[]
 
   @@map("messages")
 }
@@ -299,4 +301,34 @@ enum MessageRole {
   USER
   ASSISTANT
   SYSTEM
+}
+
+enum ArtifactType {
+  MD
+  HTML
+  JS
+  TXT
+  JSON
+  CSV
+}
+
+model Artifact {
+  id        String      @id @default(cuid())
+  chatId    String
+  messageId String?
+  title     String?
+  type      ArtifactType
+  filename  String?
+  language  String?
+  version   Int         @default(1)
+  seq       Int
+  content   String
+  metadata  Json?
+  createdAt DateTime    @default(now())
+
+  // Relations
+  chat    Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  message Message? @relation(fields: [messageId], references: [id], onDelete: SetNull)
+
+  @@map("artifacts")
 }

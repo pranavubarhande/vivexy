@@ -201,8 +201,20 @@ export const createMessage = async (
       }));
 
       // Generate AI response using agent with full conversation context
-      const agent = createStockAnalysisAgent(model.provider, model.modelId);
-      const agentResponse = await agent.analyzeWithHistory(llmMessages);
+      const agent = createStockAnalysisAgent(
+        model.provider,
+        model.modelId,
+        chatId
+      );
+      const stream = agent.analyzeWithHistory(llmMessages);
+
+      let agentResponse: AgentResponse | null = null;
+      for await (const event of stream) {
+        if (event.type === 'done') {
+          agentResponse = event.data;
+        }
+      }
+      if (!agentResponse) throw new Error('No response from agent');
 
       // Create AI response message with reasoning
       await prisma.message.create({
@@ -345,8 +357,20 @@ export const updateMessage = async (
 
       if (model) {
         // Use agent for consistent behavior with conversation context
-        const agent = createStockAnalysisAgent(model.provider, model.modelId);
-        const agentResponse = await agent.analyzeWithHistory(llmMessages);
+        const agent = createStockAnalysisAgent(
+          model.provider,
+          model.modelId,
+          message.chatId
+        );
+        const stream = agent.analyzeWithHistory(llmMessages);
+
+        let agentResponse: AgentResponse | null = null;
+        for await (const event of stream) {
+          if (event.type === 'done') {
+            agentResponse = event.data;
+          }
+        }
+        if (!agentResponse) throw new Error('No response from agent');
 
         // Create AI response message
         await prisma.message.create({
@@ -419,7 +443,7 @@ const generateChatTitle = async (
     const geminiModel = await prisma.lLMModel.findFirst({
       where: {
         provider: 'google',
-        modelId: 'gemini-2.0-flash',
+        modelId: 'gemini-2.5-flash',
         isActive: true,
       },
     });

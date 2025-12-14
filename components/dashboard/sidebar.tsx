@@ -119,7 +119,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               </Button>
             </div>
             <SidebarGroupContent>
-              <div className="max-h-60 overflow-y-auto">
+              <div className="max-h-[calc(100vh-300px)] overflow-y-auto no-scrollbar">
                 {chatsLoading ? (
                   <div className="px-2 py-1 text-xs text-muted-foreground">
                     Loading chats...
