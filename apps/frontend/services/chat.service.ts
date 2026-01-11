@@ -1,6 +1,6 @@
 import { Chat, Message, LLMModel, Artifact } from '@prisma/client';
 import axiosInstance from '@/services/axiosInstance.service';
-import { AgentResponse } from '@/agents/stock-agent';
+import { AgentResponse } from '@/agents-examples/stock-agent';
 
 export interface CreateChatData {
   title?: string;

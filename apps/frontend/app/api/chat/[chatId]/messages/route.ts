@@ -6,7 +6,7 @@ import {
   updateMessage,
 } from '@/business-logic/chat';
 import { prisma } from '@/lib/prisma';
-import { createStockAnalysisAgent } from '@/agents/stock-agent';
+import { createStockAnalysisAgent } from '@/agents-examples/stock-agent';
 import { createLLMService } from '@/business-logic/llm-integration';
 
 export const dynamic = 'force-dynamic';

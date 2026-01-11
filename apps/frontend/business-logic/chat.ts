@@ -1,7 +1,10 @@
 import { prisma } from '@/lib/prisma';
 import { MessageRole } from '@prisma/client';
 import { createLLMService } from '@/business-logic/llm-integration';
-import { createStockAnalysisAgent, AgentResponse } from '@/agents/stock-agent';
+import {
+  createStockAnalysisAgent,
+  AgentResponse,
+} from '@/agents-examples/stock-agent';
 
 export interface CreateChatData {
   title?: string;
