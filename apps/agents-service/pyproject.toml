@@ -25,6 +25,8 @@ pypdf = "6.5.0"
 openpyxl = "3.1.5"
 python-docx = "1.2.0"
 langgraph = "1.0.5"
+pinecone-client = "^5.0.0"
+pandas = "^2.0.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"
