@@ -1,170 +1,152 @@
-import { Chat, Message, LLMModel, Artifact } from '@prisma/client';
-import axiosInstance from '@/services/axiosInstance.service';
-import { AgentResponse } from '@/agents-examples/stock-agent';
+import axiosInstance from './axiosInstance.service';
+import { UploadedFile } from '@/components/chat/file-upload';
 
-export interface CreateChatData {
-  title?: string;
+export interface Chat {
+  id: string;
+  title: string | null;
+  createdAt: string;
+  updatedAt: string;
+  agentId: string | null;
+  lastModelId: string | null;
+  _count?: {
+    messages: number;
+    artifacts: number;
+    todos: number;
+  };
 }
 
-export interface CreateMessageData {
-  role: 'USER' | 'ASSISTANT' | 'SYSTEM';
+export interface Message {
+  id: string;
+  role: 'user' | 'assistant';
   content: string;
-  modelId?: string;
-}
-
-export interface ChatWithMessages extends Chat {
-  messages: Message[];
-}
-
-export interface MessageWithModel extends Message {
-  model?: LLMModel | null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  reasoning: any;
+  reasoning?: any[];
+  artifacts?: Artifact[];
+  createdAt: string;
+  isStreaming?: boolean;
 }
 
-export type StreamEvent =
-  | { type: 'start' }
-  | { type: 'reasoning'; data: AgentResponse['reasoning'][0] }
-  | { type: 'content'; data: string }
-  | { type: 'done'; data: AgentResponse }
-  | { type: 'user_message'; data: MessageWithModel }
-  | { type: 'assistant_message'; data: MessageWithModel }
-  | { type: 'error'; message: string };
+export interface Artifact {
+  id: string;
+  title: string | null;
+  type: string;
+  seq: number;
+  content: string;
+  filename: string | null;
+  createdAt: string;
+  messageId?: string | null;
+}
 
-export class ChatService {
-  static async getChats(): Promise<ChatWithMessages[]> {
-    const response = await axiosInstance.get('/chat', {
-      params: {
-        include: 'messages',
-      },
+export interface Todo {
+  id: string;
+  title: string;
+  description: string | null;
+  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+  dueDate: string | null;
+}
+
+export interface LLMModel {
+  id: string;
+  name: string;
+  provider: string;
+  modelId: string;
+  contextWindow: number;
+}
+
+export const chatService = {
+  // Chat Management
+  getChats: async () => {
+    const response = await axiosInstance.get<Chat[]>('/chat');
+    return response.data;
+  },
+
+  getChat: async (chatId: string) => {
+    const response = await axiosInstance.get<Chat>(`/chat/${chatId}`);
+    return response.data;
+  },
+
+  deleteChat: async (chatId: string) => {
+    const response = await axiosInstance.delete<{ success: boolean }>(
+      `/chat/${chatId}`
+    );
+    return response.data;
+  },
+
+  createChat: async (agentId: string, title?: string) => {
+    const response = await axiosInstance.post<Chat>('/chat', {
+      agentId,
+      title,
     });
     return response.data;
-  }
+  },
 
-  static async getChat(chatId: string): Promise<ChatWithMessages> {
-    const response = await axiosInstance.get(`/chat/${chatId}`);
+  getChatMessages: async (chatId: string) => {
+    const response = await axiosInstance.get<Message[]>(
+      `/chat/${chatId}/messages`
+    );
     return response.data;
-  }
+  },
 
-  static async createChat(data: CreateChatData): Promise<Chat> {
-    const response = await axiosInstance.post('/chat', data);
+  // Artifacts
+  getChatArtifacts: async (chatId: string) => {
+    const response = await axiosInstance.get<Artifact[]>(
+      `/chat/${chatId}/artifacts`
+    );
     return response.data;
-  }
+  },
 
-  static async updateChatTitle(chatId: string, title: string): Promise<Chat> {
-    const response = await axiosInstance.patch(`/chat/${chatId}`, { title });
+  // Todos
+  getChatTodos: async (chatId: string) => {
+    const response = await axiosInstance.get<Todo[]>(`/chat/${chatId}/todos`);
     return response.data;
-  }
+  },
 
-  static async deleteChat(chatId: string): Promise<void> {
-    await axiosInstance.delete(`/chat/${chatId}`);
-  }
-
-  static async getMessages(chatId: string): Promise<MessageWithModel[]> {
-    const response = await axiosInstance.get(`/chat/${chatId}/messages`);
-    return response.data;
-  }
-
-  static async updateMessage(
+  updateTodoStatus: async (
     chatId: string,
-    messageId: string,
-    content: string,
-    modelId?: string
-  ): Promise<MessageWithModel> {
-    const response = await axiosInstance.put(`/chat/${chatId}/messages`, {
-      messageId,
-      content,
-      modelId,
-    });
+    todoId: string,
+    status: Todo['status']
+  ) => {
+    const response = await axiosInstance.patch<Todo>(
+      `/chat/${chatId}/todos/${todoId}`,
+      { status }
+    );
     return response.data;
-  }
+  },
 
-  static async getLLMModels(): Promise<LLMModel[]> {
-    const response = await axiosInstance.get('/chat/models');
+  // Models
+  getModels: async () => {
+    const response = await axiosInstance.get<LLMModel[]>('/chat/models');
     return response.data;
-  }
+  },
 
-  static async *sendMessageStreaming(
-    chatId: string,
-    data: CreateMessageData & { stream?: boolean }
-  ): AsyncIterable<StreamEvent> {
-    const baseURL = axiosInstance.defaults.baseURL || '/api';
-    const token =
-      typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+  // Attachments
+  uploadAttachment: async (chatId: string, file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
 
-    const response = await fetch(`${baseURL}/chat/${chatId}/messages`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token && { Authorization: `Bearer ${token}` }),
-      },
-      body: JSON.stringify({ ...data, stream: true }),
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to send message');
-    }
-
-    const reader = response.body?.getReader();
-    if (!reader) throw new Error('No reader');
-
-    const decoder = new TextDecoder();
-    let buffer = '';
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          try {
-            const event = JSON.parse(line.slice(6));
-            yield event;
-          } catch (e) {
-            console.error('Error parsing stream data:', e);
-          }
-        }
-      }
-    }
-  }
-
-  static async getArtifacts(chatId: string): Promise<Artifact[]> {
-    const response = await axiosInstance.get(`/chat/${chatId}/artifacts`);
-    return response.data;
-  }
-
-  static async downloadArtifact(
-    artifact: Artifact,
-    format: 'pdf' | 'docx' = 'pdf'
-  ): Promise<{ blob: Blob; filename: string }> {
-    const baseURL = axiosInstance.defaults.baseURL || '/api';
-    const token =
-      typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-
-    const response = await fetch(
-      `${baseURL}/chat/${artifact.chatId}/artifacts/${artifact.id}/download?format=${format}`,
+    const response = await axiosInstance.post<UploadedFile>(
+      `/chat/${chatId}/attachments`,
+      formData,
       {
         headers: {
-          ...(token && { Authorization: `Bearer ${token}` }),
+          'Content-Type': 'multipart/form-data',
         },
       }
     );
+    return response.data;
+  },
 
-    if (!response.ok) {
-      throw new Error('Failed to download file');
+  // Streaming helper (returns the fetch response for consumption)
+  getStreamUrl: () => {
+    return `${process.env.NEXT_PUBLIC_API_URL || '/api'}/chat/stream`;
+  },
+
+  getAuthHeader: () => {
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('token');
+      return token ? { Authorization: `Bearer ${token}` } : {};
     }
-
-    const blob = await response.blob();
-
-    // Generate filename with correct extension, removing any existing extension from artifact.filename
-    const baseName = artifact.filename
-      ? artifact.filename.replace(/\.[^/.]+$/, '') // Remove existing extension
-      : artifact.title || 'artifact';
-
-    const filename = `${baseName}.${format}`;
-
-    return { blob, filename };
-  }
-}
+    return {};
+  },
+};

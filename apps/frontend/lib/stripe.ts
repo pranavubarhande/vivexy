@@ -11,7 +11,7 @@ if (!stripeSecret) {
 
 export const stripe = stripeSecret
   ? new Stripe(stripeSecret, {
-      apiVersion: '2025-09-30.clover',
+      apiVersion: '2025-10-29.clover',
       typescript: true,
     })
   : (null as unknown as Stripe);

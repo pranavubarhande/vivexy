@@ -1,5 +1,5 @@
-import { Artifact } from '@prisma/client';
 import ReactMarkdown from 'react-markdown';
+import type { Artifact } from '@/services/chat.service';
 
 export const ArtifactContent = ({ artifact }: { artifact: Artifact }) => {
   switch (artifact.type) {

@@ -1,165 +1,215 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState, useCallback, useEffect } from 'react';
 import {
-  ChatService,
-  CreateChatData,
-  CreateMessageData,
-  StreamEvent,
+  chatService,
+  Chat,
+  Message,
+  Artifact,
+  Todo,
+  LLMModel,
 } from '@/services/chat.service';
-import { Artifact } from '@prisma/client';
 
-export const useChats = () => {
-  const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['chats'],
-    queryFn: () => ChatService.getChats(),
-    staleTime: 2 * 60 * 1000, // 2 minutes
-  });
+export function useChat(chatId?: string) {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [artifacts, setArtifacts] = useState<Artifact[]>([]);
+  const [todos, setTodos] = useState<Todo[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  return {
-    chats: data || [],
-    isLoading,
-    error,
-    refetch,
-  };
-};
+  // Reset state when chatId becomes falsy (New Chat)
+  useEffect(() => {
+    if (!chatId) {
+      setMessages([]);
+      setArtifacts([]);
+      setTodos([]);
+    }
+  }, [chatId]);
 
-export const useChat = (chatId: string) => {
-  return useQuery({
-    queryKey: ['chat', chatId],
-    queryFn: () => ChatService.getChat(chatId),
-    enabled: !!chatId,
-    staleTime: 2 * 60 * 1000, // 2 minutes
-  });
-};
+  const loadChatData = useCallback(async (id: string) => {
+    setIsLoading(true);
+    setError(null);
 
-export const useCreateChat = () => {
-  const queryClient = useQueryClient();
+    try {
+      // Load chat details
+      let chatDetails: Chat | null = null;
+      try {
+        chatDetails = await chatService.getChat(id);
+      } catch (err) {
+        console.error('Failed to load chat details:', err);
+      }
 
-  return useMutation({
-    mutationFn: (data: CreateChatData) => ChatService.createChat(data),
-    onSuccess: (newChat) => {
-      queryClient.invalidateQueries({ queryKey: ['chats'] });
-      // Navigate to the new chat
-      window.location.href = `/chat/${newChat.id}`;
-    },
-  });
-};
+      // Load messages and artifacts so we can attach artifacts to messages for inline display
+      let loadedArtifacts: Artifact[] = [];
+      try {
+        loadedArtifacts = await chatService.getChatArtifacts(id);
+        setArtifacts(loadedArtifacts);
+      } catch (err) {
+        console.error('Failed to load artifacts:', err);
+      }
 
-export const useUpdateChatTitle = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ chatId, title }: { chatId: string; title: string }) =>
-      ChatService.updateChatTitle(chatId, title),
-    onSuccess: (updatedChat) => {
-      queryClient.invalidateQueries({ queryKey: ['chats'] });
-      queryClient.invalidateQueries({ queryKey: ['chat', updatedChat.id] });
-    },
-  });
-};
-
-export const useDeleteChat = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (chatId: string) => ChatService.deleteChat(chatId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['chats'] });
-    },
-  });
-};
-
-export const useMessages = (chatId: string) => {
-  return useQuery({
-    queryKey: ['messages', chatId],
-    queryFn: () => ChatService.getMessages(chatId),
-    enabled: !!chatId,
-    staleTime: 1 * 60 * 1000, // 1 minute
-  });
-};
-
-export const useUpdateMessage = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      chatId,
-      messageId,
-      content,
-      modelId,
-    }: {
-      chatId: string;
-      messageId: string;
-      content: string;
-      modelId?: string;
-    }) => ChatService.updateMessage(chatId, messageId, content, modelId),
-    onSuccess: (_, { chatId }) => {
-      queryClient.invalidateQueries({ queryKey: ['messages', chatId] });
-      queryClient.invalidateQueries({ queryKey: ['chat', chatId] });
-      queryClient.invalidateQueries({ queryKey: ['chats'] });
-    },
-  });
-};
-
-export const useLLMModels = () => {
-  return useQuery({
-    queryKey: ['llm-models'],
-    queryFn: () => ChatService.getLLMModels(),
-    staleTime: 10 * 60 * 1000, // 10 minutes
-  });
-};
-
-export const useSendMessageStreaming = () => {
-  const queryClient = useQueryClient();
-
-  return {
-    sendMessageStreaming: async function* (
-      chatId: string,
-      data: CreateMessageData
-    ): AsyncIterable<StreamEvent> {
-      for await (const event of ChatService.sendMessageStreaming(chatId, {
-        ...data,
-        stream: true,
-      })) {
-        if (event.type === 'assistant_message') {
-          // Invalidate queries when done
-          queryClient.invalidateQueries({ queryKey: ['messages', chatId] });
-          queryClient.invalidateQueries({ queryKey: ['chat', chatId] });
-          queryClient.invalidateQueries({ queryKey: ['chats'] });
-          queryClient.invalidateQueries({ queryKey: ['artifacts', chatId] });
+      try {
+        const msgs = await chatService.getChatMessages(id);
+        let lastAssistantIndex = -1;
+        for (let i = msgs.length - 1; i >= 0; i--) {
+          if (msgs[i].role?.toLowerCase() === 'assistant') {
+            lastAssistantIndex = i;
+            break;
+          }
         }
-        yield event;
+        setMessages(
+          msgs.map((m, i) => {
+            const role = m.role.toLowerCase() as 'user' | 'assistant';
+            const reasoning = (m.reasoning || []).map((step) => ({
+              ...step,
+              toolCalls: step.tool_calls || step.toolCalls,
+            }));
+            const messageArtifacts = loadedArtifacts.filter(
+              (a) => (a as Artifact & { messageId?: string }).messageId === m.id
+            );
+            const hasAnyByMessage = loadedArtifacts.some(
+              (a) => (a as Artifact & { messageId?: string }).messageId
+            );
+            const fallbackToLast =
+              !hasAnyByMessage &&
+              loadedArtifacts.length > 0 &&
+              i === lastAssistantIndex;
+            return {
+              ...m,
+              role,
+              reasoning,
+              artifacts:
+                messageArtifacts.length > 0
+                  ? messageArtifacts
+                  : fallbackToLast
+                    ? loadedArtifacts
+                    : undefined,
+            };
+          })
+        );
+      } catch (err) {
+        console.error('Failed to load messages:', err);
+      }
+
+      // Load todos
+      try {
+        const tds = await chatService.getChatTodos(id);
+        setTodos(tds);
+      } catch (err) {
+        console.error('Failed to load todos:', err);
+        // Don't set global error if only todos fail, but maybe we should if it's critical
+      }
+
+      return chatDetails;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const createChat = useCallback(async (agentId: string, title?: string) => {
+    try {
+      return await chatService.createChat(agentId, title);
+    } catch (err) {
+      console.error('Failed to create chat:', err);
+      throw err;
+    }
+  }, []);
+
+  const deleteChat = useCallback(async (id: string) => {
+    try {
+      await chatService.deleteChat(id);
+    } catch (err) {
+      console.error('Failed to delete chat:', err);
+      throw err;
+    }
+  }, []);
+
+  const updateTodoStatus = useCallback(
+    async (todoId: string, status: Todo['status']) => {
+      if (!chatId) return;
+      try {
+        await chatService.updateTodoStatus(chatId, todoId, status);
+        setTodos((prev) =>
+          prev.map((t) => (t.id === todoId ? { ...t, status } : t))
+        );
+      } catch (err) {
+        console.error('Failed to update todo:', err);
       }
     },
+    [chatId]
+  );
+
+  return {
+    messages,
+    setMessages,
+    artifacts,
+    setArtifacts,
+    todos,
+    setTodos,
+    isLoading,
+    error,
+    loadChatData,
+    createChat,
+    deleteChat,
+    updateTodoStatus,
   };
-};
+}
 
-export const useArtifacts = (chatId: string) => {
-  return useQuery({
-    queryKey: ['artifacts', chatId],
-    queryFn: () => ChatService.getArtifacts(chatId),
-    enabled: !!chatId,
-    staleTime: 1 * 60 * 1000, // 1 minute
-  });
-};
+export function useChatHistory() {
+  const [chats, setChats] = useState<Chat[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-export const useDownloadArtifact = () => {
-  return useMutation({
-    mutationFn: ({
-      artifact,
-      format,
-    }: {
-      artifact: Artifact;
-      format: 'pdf' | 'docx';
-    }) => ChatService.downloadArtifact(artifact, format),
-    onSuccess: ({ blob, filename }) => {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+  const loadHistory = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const data = await chatService.getChats();
+      setChats(data);
+    } catch (err) {
+      console.error('Failed to load chat history:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  return { chats, isLoading, loadHistory, setChats };
+}
+
+export function useModels() {
+  const [models, setModels] = useState<LLMModel[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const loadModels = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const data = await chatService.getModels();
+      setModels(data);
+    } catch (err) {
+      console.error('Failed to load models:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  return { models, isLoading, loadModels };
+}
+
+export function useFileUpload(chatId?: string) {
+  const [isUploading, setIsUploading] = useState(false);
+
+  const uploadFile = useCallback(
+    async (file: File) => {
+      if (!chatId) throw new Error('No chat ID provided');
+
+      setIsUploading(true);
+      try {
+        return await chatService.uploadAttachment(chatId, file);
+      } catch (err) {
+        console.error('Failed to upload file:', err);
+        throw err;
+      } finally {
+        setIsUploading(false);
+      }
     },
-  });
-};
+    [chatId]
+  );
+
+  return { uploadFile, isUploading };
+}
