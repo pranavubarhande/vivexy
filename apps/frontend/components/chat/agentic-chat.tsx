@@ -1,67 +1,44 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { flushSync } from 'react-dom';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { cn } from '@/utils/common';
 import { Button } from '@/components/ui/button';
-import { chatService } from '@/services/chat.service';
-import { AgentSelector } from './agent-selector';
-import { ModelSelector } from './model-selector';
-import { ChatInput } from './chat-input';
-import { MessageStream } from './message-stream';
-import { ReasoningDisplay } from './reasoning-display';
-import { ArtifactsPanel } from './artifacts-panel';
-import { InlineArtifactCard } from './inline-artifact-card';
-import { TodosPanel } from './todos-panel';
-import { ChatHistoryDropdown } from './chat-history-dropdown';
-import { UploadedFile } from './file-upload';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
+
+import { AgentSelector } from '@/components/chat/agent-selector';
+import { ModelSelector } from '@/components/chat/model-selector';
+import { ChatInput } from '@/components/chat/chat-input';
+import { ArtifactsPanel } from '@/components/chat/artifacts-panel';
+import { TodosPanel } from '@/components/chat/todos-panel';
+import { ChatHistoryDropdown } from '@/components/chat/chat-history-dropdown';
+import { ApprovalDialog } from '@/components/chat/approval-dialog';
+import { ChatMessage } from '@/components/chat/chat-message';
+import { UploadedFile } from '@/components/chat/file-upload';
+
 import { useChat, useChatHistory, useModels } from '@/hooks/useChat';
-import { Plus, Share2, RotateCcw } from 'lucide-react';
+import { useChatStream } from '@/hooks/use-chat-stream';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { LLMModel } from '@/services/chat.service';
 
-import { Message, Artifact, Todo, LLMModel } from '@/services/chat.service';
+import {
+  Plus,
+  Share2,
+  Maximize2,
+  PanelRight,
+  CheckSquare,
+  PanelRightClose,
+  File,
+} from 'lucide-react';
 
-function normalizeArtifact(data: unknown): Artifact {
-  const raw =
-    data && typeof data === 'object' && 'artifact' in data
-      ? (data as { artifact: Record<string, unknown> }).artifact
-      : (data as Record<string, unknown>);
-  if (!raw || typeof raw !== 'object') {
-    return {
-      id: '',
-      title: null,
-      type: 'TXT',
-      seq: 0,
-      content: '',
-      filename: null,
-      createdAt: new Date().toISOString(),
-    };
-  }
-  const r = raw as Record<string, unknown>;
-  return {
-    id: String(r.id ?? ''),
-    title: r.title != null ? String(r.title) : null,
-    type: String(r.type ?? 'TXT'),
-    seq: Number(r.seq ?? 0),
-    content: String(r.content ?? ''),
-    filename: r.filename != null ? String(r.filename) : null,
-    createdAt:
-      r.createdAt != null && typeof r.createdAt === 'string'
-        ? r.createdAt
-        : new Date().toISOString(),
-    messageId: r.messageId != null ? String(r.messageId) : null,
-  };
-}
-import { ApprovalDialog, ApprovalRequest } from './approval-dialog';
-import axiosInstance from '@/services/axiosInstance.service';
-interface ReasoningStep {
-  thought: string;
-  toolCalls?: Array<{
-    tool: string;
-    input: Record<string, unknown>;
-    output: string;
-  }>;
-}
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
 
 interface AgentSummary {
   id: string;
@@ -71,7 +48,6 @@ interface AgentSummary {
   color: string;
 }
 
-// Config interface
 export interface AgenticChatConfig {
   availableAgents: AgentSummary[];
   defaultAgentId?: string;
@@ -80,7 +56,7 @@ export interface AgenticChatConfig {
   showTodos?: boolean;
   showReasoning?: boolean;
   className?: string;
-  basePath?: string; // For URL updates, e.g., '/chat'
+  basePath?: string;
 }
 
 interface AgenticChatProps {
@@ -88,23 +64,95 @@ interface AgenticChatProps {
   initialChatId?: string;
 }
 
+// ---------------------------------------------------------------------------
+// Preference helpers
+// ---------------------------------------------------------------------------
+
+const getPref = (key: string) =>
+  typeof window !== 'undefined' ? localStorage.getItem(key) : null;
+
+const savePref = (key: string, value: string) => {
+  if (value) localStorage.setItem(key, value);
+};
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
+
 export function AgenticChat({ config, initialChatId }: AgenticChatProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const isMobile = useIsMobile();
 
-  // State
+  // ---- Chat ID ----
   const [chatId, setChatId] = useState<string | null>(
     initialChatId || searchParams.get('id')
   );
 
-  // Approval state
-  const [approvalRequest, setApprovalRequest] =
-    useState<ApprovalRequest | null>(null);
+  // ---- Preferences ----
+  const [selectedAgentId, setSelectedAgentId] = useState(
+    getPref('preferredAgentId') ||
+      config.defaultAgentId ||
+      config.availableAgents[0]?.id ||
+      'general'
+  );
+  const [selectedModelDbId, setSelectedModelDbId] = useState<string | null>(
+    getPref('preferredModelDbId')
+  );
+  const [selectedModelId, setSelectedModelId] = useState<string | null>(
+    getPref('preferredModelId')
+  );
+  const [selectedProvider, setSelectedProvider] = useState(
+    getPref('preferredProvider') ?? ''
+  );
+  const [selectedModelName, setSelectedModelName] = useState(
+    getPref('preferredModelName') ?? ''
+  );
 
-  // Sync chatId with URL - but not during chat creation or streaming,
-  // because router.push is async and the URL may not have updated yet,
-  // which would incorrectly reset chatId to null and clear all messages.
-  // Use refs (not state) for guards to avoid adding dependencies that re-fire the effect.
+  // ---- Panel state ----
+  const [showSidePanel, setShowSidePanel] = useState<
+    'artifacts' | 'todos' | null
+  >(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // ---- Data (TanStack Query backed) ----
+  const { models, isLoading: isLoadingModels } = useModels();
+
+  const {
+    chats,
+    refetchHistory,
+    deleteChat: apiDeleteChat,
+    createChat: apiCreateChat,
+    removeChatFromCache,
+  } = useChatHistory();
+
+  const {
+    messages,
+    artifacts,
+    todos,
+    chatDetail,
+    updateTodo,
+    revertToMessage,
+    invalidateChatData,
+  } = useChat(chatId || undefined);
+
+  // ---- Stream ----
+  const {
+    isStreaming,
+    isWaitingApproval,
+    approvalRequest,
+    isCreatingChatRef,
+    isStreamingRef,
+    sendMessage,
+    stopStreaming,
+    handleApprove,
+    handleReject,
+  } = useChatStream({
+    messages,
+    refetchHistory,
+  });
+
+  // ---- URL sync ----
   useEffect(() => {
     const urlId = searchParams.get('id');
     if (
@@ -114,128 +162,32 @@ export function AgenticChat({ config, initialChatId }: AgenticChatProps) {
     ) {
       setChatId(urlId || null);
     }
-  }, [searchParams, chatId]);
-  const {
-    messages,
-    setMessages,
-    artifacts,
-    setArtifacts,
-    todos,
-    setTodos,
-    loadChatData,
-    createChat: apiCreateChat,
-    deleteChat: apiDeleteChat,
-    updateTodoStatus,
-  } = useChat(chatId || undefined);
+  }, [searchParams, chatId, isCreatingChatRef, isStreamingRef]);
 
-  const { chats, loadHistory, setChats } = useChatHistory();
-
-  const [isStreaming, setIsStreaming] = useState(false);
-  // True while the agent is paused waiting for human approval
-  const [isWaitingApproval, setIsWaitingApproval] = useState(false);
-  const [, setCurrentReasoning] = useState<ReasoningStep[]>([]);
-
-  // Preferences from localStorage
-  const getStoredPref = (key: string) => {
-    if (typeof window === 'undefined') return null;
-    return localStorage.getItem(key);
-  };
-
-  const [selectedAgentId, setSelectedAgentId] = useState(
-    getStoredPref('preferredAgentId') ||
-      config.defaultAgentId ||
-      config.availableAgents[0]?.id ||
-      'general'
-  );
-  const [selectedModelDbId, setSelectedModelDbId] = useState<string | null>(
-    getStoredPref('preferredModelDbId')
-  );
-  const [selectedModelId, setSelectedModelId] = useState<string | null>(
-    getStoredPref('preferredModelId')
-  );
-  const [selectedProvider, setSelectedProvider] = useState<string>(
-    getStoredPref('preferredProvider') || ''
-  );
-  const [selectedModelName, setSelectedModelName] = useState<string>(
-    getStoredPref('preferredModelName') || ''
-  );
-
-  const [showSidePanel, setShowSidePanel] = useState<
-    'artifacts' | 'todos' | null
-  >(null);
-
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
-  const isCreatingChatRef = useRef(false);
-  const isStreamingRef = useRef(false);
-
-  // Auto-scroll to bottom
-  const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, []);
-
+  // ---- Sync preferences from loaded chat ----
   useEffect(() => {
-    scrollToBottom();
-  }, [messages, scrollToBottom]);
-
-  const { models, isLoading: isLoadingModels, loadModels } = useModels();
-
-  // Load chat history and models on mount
-  useEffect(() => {
-    loadHistory();
-    loadModels();
-  }, [loadHistory, loadModels]);
-
-  // Load chat data when chatId changes
-  useEffect(() => {
-    let isCancelled = false;
-
-    if (
-      chatId &&
-      !isCreatingChatRef.current &&
-      !isStreamingRef.current &&
-      models.length > 0
-    ) {
-      // Clear current chat state before loading new one
-      setMessages([]);
-      setArtifacts([]);
-      setTodos([]);
-
-      loadChatData(chatId).then((chat) => {
-        if (isCancelled) return;
-
-        if (chat && chat.lastModelId) {
-          const model = models.find((m: LLMModel) => m.id === chat.lastModelId);
-          if (model) {
-            setSelectedModelDbId(model.id);
-            setSelectedModelId(model.modelId);
-            setSelectedProvider(model.provider);
-            setSelectedModelName(model.name);
-          }
-        }
-        if (chat && chat.agentId) {
-          setSelectedAgentId(chat.agentId);
-        }
-      });
+    if (!chatDetail) return;
+    if (chatDetail.lastModelId) {
+      const model = models.find(
+        (m: LLMModel) => m.id === chatDetail.lastModelId
+      );
+      if (model) {
+        setSelectedModelDbId(model.id);
+        setSelectedModelId(model.modelId);
+        setSelectedProvider(model.provider);
+        setSelectedModelName(model.name);
+      }
     }
+    if (chatDetail.agentId) setSelectedAgentId(chatDetail.agentId);
+  }, [chatDetail, models]);
 
-    return () => {
-      isCancelled = true;
-    };
-  }, [chatId, loadChatData, models, setMessages, setArtifacts, setTodos]);
-
-  // Save preferences to localStorage
+  // ---- Save preferences ----
   useEffect(() => {
-    if (selectedAgentId)
-      localStorage.setItem('preferredAgentId', selectedAgentId);
-    if (selectedModelDbId)
-      localStorage.setItem('preferredModelDbId', selectedModelDbId);
-    if (selectedModelId)
-      localStorage.setItem('preferredModelId', selectedModelId);
-    if (selectedProvider)
-      localStorage.setItem('preferredProvider', selectedProvider);
-    if (selectedModelName)
-      localStorage.setItem('preferredModelName', selectedModelName);
+    savePref('preferredAgentId', selectedAgentId);
+    savePref('preferredModelDbId', selectedModelDbId ?? '');
+    savePref('preferredModelId', selectedModelId ?? '');
+    savePref('preferredProvider', selectedProvider);
+    savePref('preferredModelName', selectedModelName);
   }, [
     selectedAgentId,
     selectedModelDbId,
@@ -244,358 +196,39 @@ export function AgenticChat({ config, initialChatId }: AgenticChatProps) {
     selectedModelName,
   ]);
 
-  const updateUrl = (newChatId: string) => {
-    const url = new URL(window.location.href);
-    if (newChatId) {
-      url.searchParams.set('id', newChatId);
-    } else {
-      url.searchParams.delete('id');
-    }
-    router.push(url.pathname + url.search, { scroll: false });
-  };
+  // ---- URL helper ----
+  const updateUrl = useCallback(
+    (newChatId: string) => {
+      const url = new URL(window.location.href);
+      if (newChatId) url.searchParams.set('id', newChatId);
+      else url.searchParams.delete('id');
+      router.push(url.pathname + url.search, { scroll: false });
+    },
+    [router]
+  );
 
+  // ---- Handlers ----
   const handleSend = async (
     content: string,
     files?: UploadedFile[],
     rawFiles?: File[]
   ) => {
-    if (
-      !content.trim() &&
-      (!files || files.length === 0) &&
-      (!rawFiles || rawFiles.length === 0)
-    )
-      return;
-    if (!selectedModelDbId) {
-      alert('Please select a model first');
-      return;
-    }
-
-    let currentChatId = chatId;
-
-    // Create chat if needed
-    if (!currentChatId) {
-      try {
-        isCreatingChatRef.current = true;
-        const newChat = await apiCreateChat(selectedAgentId);
-        currentChatId = newChat.id;
-        setChatId(currentChatId);
-        updateUrl(currentChatId);
-        loadHistory(); // Refresh history to show new chat
-      } catch (error) {
-        console.error('Failed to create chat:', error);
-        isCreatingChatRef.current = false; // Reset on error
-        return;
-      }
-    }
-
-    // Auto-upload any raw files that haven't been uploaded yet
-    const allFileIds: string[] = files?.map((f) => f.id) || [];
-    if (rawFiles && rawFiles.length > 0 && currentChatId) {
-      for (const rawFile of rawFiles) {
-        try {
-          const uploaded = await chatService.uploadAttachment(
-            currentChatId,
-            rawFile
-          );
-          allFileIds.push(uploaded.id);
-        } catch (err) {
-          console.error('Failed to auto-upload file:', rawFile.name, err);
-        }
-      }
-    }
-
-    // Add user message and placeholder assistant message
-    // Use flushSync to guarantee immediate DOM painting
-    const userMessage: Message = {
-      id: `temp-${Date.now()}`,
-      role: 'user',
+    await sendMessage({
       content,
-      createdAt: new Date().toISOString(),
-    };
-    const assistantMessage: Message = {
-      id: `temp-assistant-${Date.now()}`,
-      role: 'assistant',
-      content: '',
-      isStreaming: true,
-      reasoning: [],
-      createdAt: new Date().toISOString(),
-    };
-    isStreamingRef.current = true;
-    flushSync(() => {
-      setMessages((prev) => [...prev, userMessage, assistantMessage]);
-      setIsStreaming(true);
-      setCurrentReasoning([]);
+      files,
+      rawFiles,
+      chatId,
+      selectedAgentId,
+      selectedModelId,
+      selectedModelDbId,
+      selectedProvider,
+      selectedModelName,
+      createChat: apiCreateChat,
+      onChatCreated: (id) => {
+        setChatId(id);
+        updateUrl(id);
+      },
     });
-
-    // Stream response
-    try {
-      abortControllerRef.current = new AbortController();
-
-      const response = await fetch(chatService.getStreamUrl(), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...chatService.getAuthHeader(),
-        } as HeadersInit,
-        body: JSON.stringify({
-          chatId: currentChatId,
-          messages: [
-            ...messages.map((m) => ({ role: m.role, content: m.content })),
-            { role: 'user', content },
-          ],
-          agentId: selectedAgentId,
-          modelId: selectedModelId,
-          modelDbId: selectedModelDbId,
-          modelProvider: selectedProvider,
-          modelName: selectedModelName,
-          fileIds: allFileIds.length > 0 ? allFileIds : undefined,
-        }),
-        signal: abortControllerRef.current.signal,
-      });
-
-      if (!response.ok) {
-        throw new Error('Stream request failed');
-      }
-
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error('No reader available');
-
-      const decoder = new TextDecoder();
-      let accumulatedContent = '';
-      const accumulatedReasoning: ReasoningStep[] = [];
-      let buffer = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-          const trimmedLine = line.trim();
-          if (!trimmedLine || !trimmedLine.startsWith('data: ')) continue;
-
-          const data = trimmedLine.slice(6);
-          if (data === '[DONE]') continue;
-
-          try {
-            const event = JSON.parse(data);
-
-            switch (event.type) {
-              case 'content':
-                accumulatedContent += event.data;
-                flushSync(() => {
-                  setMessages((prev) =>
-                    prev.map((m) =>
-                      m.id === assistantMessage.id
-                        ? { ...m, content: accumulatedContent }
-                        : m
-                    )
-                  );
-                });
-                break;
-
-              case 'approval_request':
-                setApprovalRequest({
-                  request_id: event.data.request_id,
-                  tool_name: event.data.tool_name,
-                  tool_input: event.data.tool_input,
-                  description: event.data.description,
-                });
-                // Block input while agent waits for decision
-                setIsWaitingApproval(true);
-                break;
-
-              case 'reasoning': {
-                // Convert snake_case tool_calls to camelCase toolCalls
-                // for compatibility with ReasoningDisplay component
-                const reasoningStep = {
-                  ...event.data,
-                  toolCalls: event.data.tool_calls || event.data.toolCalls,
-                };
-                if (event.isUpdate && accumulatedReasoning.length > 0) {
-                  accumulatedReasoning[accumulatedReasoning.length - 1] =
-                    reasoningStep;
-                } else {
-                  accumulatedReasoning.push(reasoningStep);
-                }
-                flushSync(() => {
-                  setCurrentReasoning([...accumulatedReasoning]);
-                  setMessages((prev) =>
-                    prev.map((m) =>
-                      m.id === assistantMessage.id
-                        ? { ...m, reasoning: [...accumulatedReasoning] }
-                        : m
-                    )
-                  );
-                });
-                break;
-              }
-
-              case 'tool_call': {
-                // Update the matching reasoning step with tool output
-                const toolData = event.data;
-                for (let i = accumulatedReasoning.length - 1; i >= 0; i--) {
-                  const step = accumulatedReasoning[i];
-                  if (
-                    step.toolCalls &&
-                    step.toolCalls?.[0]?.tool === toolData.tool
-                  ) {
-                    step.toolCalls[0].output = toolData.output;
-                    break;
-                  }
-                }
-                setCurrentReasoning([...accumulatedReasoning]);
-                setMessages((prev) =>
-                  prev.map((m) =>
-                    m.id === assistantMessage.id
-                      ? { ...m, reasoning: [...accumulatedReasoning] }
-                      : m
-                  )
-                );
-                break;
-              }
-
-              case 'artifact': {
-                const artifact = normalizeArtifact(event.data);
-                if (!artifact.id) break;
-                flushSync(() => {
-                  setArtifacts((prev) => [...prev, artifact]);
-                  setMessages((prev) =>
-                    prev.map((m) =>
-                      m.id === assistantMessage.id
-                        ? {
-                            ...m,
-                            artifacts: [...(m.artifacts ?? []), artifact],
-                          }
-                        : m
-                    )
-                  );
-                });
-                break;
-              }
-
-              case 'file_version': {
-                // A versioned file was generated — update or append in artifacts
-                const fv = event.data as {
-                  filename?: string;
-                  version?: number;
-                  url?: string;
-                  s3_key?: string;
-                };
-                if (!fv.filename) break;
-                setArtifacts((prev) => {
-                  // If there's already an artifact with this filename, bump its version
-                  const idx = prev.findLastIndex(
-                    (a) => a.filename === fv.filename
-                  );
-                  if (idx >= 0) {
-                    const updated = [...prev];
-                    updated[idx] = {
-                      ...updated[idx],
-                      version: fv.version ?? updated[idx].version ?? 1,
-                      url: fv.url ?? updated[idx].url,
-                    };
-                    return updated;
-                  }
-                  return prev;
-                });
-                break;
-              }
-
-              case 'todo':
-                setTodos((prev) => {
-                  const exists = prev.find((t) => t.id === event.data.id);
-                  if (exists) {
-                    return prev.map((t) =>
-                      t.id === event.data.id ? { ...t, ...event.data } : t
-                    );
-                  }
-                  return [...prev, event.data];
-                });
-                break;
-
-              case 'done':
-                // Use done event content as fallback if streaming content was missed
-                if (event.data?.content && !accumulatedContent) {
-                  accumulatedContent = event.data.content;
-                }
-                flushSync(() => {
-                  setMessages((prev) =>
-                    prev.map((m) => {
-                      if (m.id === assistantMessage.id) {
-                        return {
-                          ...m,
-                          content:
-                            accumulatedContent ||
-                            event.data?.content ||
-                            m.content,
-                          isStreaming: false,
-                          id: event.messageId || m.id,
-                        };
-                      }
-                      // Also update the temp user message id with the real one
-                      if (event.userMessageId && m.id === userMessage.id) {
-                        return { ...m, id: event.userMessageId };
-                      }
-                      return m;
-                    })
-                  );
-                });
-                // Clear approval state on done
-                setIsWaitingApproval(false);
-                setApprovalRequest(null);
-                // Refresh history to pick up any title the agent set
-                loadHistory();
-                break;
-
-              case 'error':
-                console.error('Stream error:', event.data);
-                break;
-            }
-          } catch (e) {
-            console.error('Failed to parse SSE event:', e, data);
-          }
-        }
-      }
-    } catch (error) {
-      if ((error as Error).name === 'AbortError') {
-        console.log('Stream aborted');
-      } else {
-        console.error('Streaming failed:', error);
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === assistantMessage.id
-              ? {
-                  ...m,
-                  content: 'Error: Failed to get response',
-                  isStreaming: false,
-                }
-              : m
-          )
-        );
-      }
-    } finally {
-      flushSync(() => {
-        setIsStreaming(false);
-      });
-      abortControllerRef.current = null;
-
-      // Safety net: ensure URL is synced before releasing control refs
-      if (currentChatId) {
-        const url = new URL(window.location.href);
-        if (url.searchParams.get('id') !== currentChatId) {
-          url.searchParams.set('id', currentChatId);
-          window.history.replaceState({}, '', url.pathname + url.search);
-        }
-      }
-
-      // Release control refs AFTER URL is synced
-      isStreamingRef.current = false;
-      isCreatingChatRef.current = false;
-    }
   };
 
   const handleModelSelect = (
@@ -610,51 +243,8 @@ export function AgenticChat({ config, initialChatId }: AgenticChatProps) {
     setSelectedModelName(modelName);
   };
 
-  const handleApprove = async (requestId: string) => {
-    try {
-      await axiosInstance.post(`/chat/${chatId}/approve`, { requestId });
-      setApprovalRequest(null);
-      setIsWaitingApproval(false);
-    } catch (error) {
-      console.error('Failed to approve:', error);
-      alert('Failed to approve action');
-    }
-  };
-
-  const handleReject = async (requestId: string) => {
-    try {
-      await axiosInstance.post(`/chat/${chatId}/reject`, { requestId });
-      setApprovalRequest(null);
-      setIsWaitingApproval(false);
-    } catch (error) {
-      console.error('Failed to reject:', error);
-      alert('Failed to reject action');
-    }
-  };
-
-  const handleRevertToMessage = async (messageId: string) => {
-    if (!chatId) return;
-    try {
-      await chatService.revertToMessage(chatId, messageId);
-      // Trim local state: keep only messages up to and including this one
-      setMessages((prev) => {
-        const idx = prev.findIndex((m) => m.id === messageId);
-        return idx >= 0 ? prev.slice(0, idx + 1) : prev;
-      });
-    } catch (err) {
-      console.error('Failed to revert:', err);
-    }
-  };
-
-  const handleTodoStatusChange = (todoId: string, status: Todo['status']) => {
-    updateTodoStatus(todoId, status);
-  };
-
   const handleNewChat = () => {
     setChatId(null);
-    setMessages([]);
-    setArtifacts([]);
-    setTodos([]);
     updateUrl('');
   };
 
@@ -665,26 +255,19 @@ export function AgenticChat({ config, initialChatId }: AgenticChatProps) {
   };
 
   const handleChatDelete = async (id: string) => {
-    if (confirm('Are you sure you want to delete this chat?')) {
-      try {
-        await apiDeleteChat(id);
-        setChats((prev) => prev.filter((c) => c.id !== id));
-        if (chatId === id) {
-          handleNewChat();
-        }
-      } catch {
-        alert('Failed to delete chat');
-      }
+    if (!confirm('Are you sure you want to delete this chat?')) return;
+    try {
+      await apiDeleteChat(id);
+      removeChatFromCache(id);
+      if (chatId === id) handleNewChat();
+    } catch {
+      alert('Failed to delete chat');
     }
-  };
-
-  const stopStreaming = () => {
-    abortControllerRef.current?.abort();
   };
 
   const handleShare = async () => {
     if (!chatId) return;
-    const url = `${typeof window !== 'undefined' ? window.location.origin : ''}${config.basePath || '/chat'}?id=${chatId}`;
+    const url = `${window.location.origin}${config.basePath || '/chat'}?id=${chatId}`;
     try {
       await navigator.clipboard.writeText(url);
       alert('Chat link copied to clipboard');
@@ -693,24 +276,106 @@ export function AgenticChat({ config, initialChatId }: AgenticChatProps) {
     }
   };
 
+  const handleRevert = async (messageId: string) => {
+    if (!chatId) return;
+    try {
+      await revertToMessage(messageId);
+    } catch (err) {
+      console.error('Failed to revert:', err);
+    }
+  };
+
+  const handleTodoStatus = (
+    todoId: string,
+    status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
+  ) => {
+    updateTodo({ todoId, status });
+  };
+
+  const togglePanel = (panel: 'artifacts' | 'todos') => {
+    setShowSidePanel((p) => (p === panel ? null : panel));
+    setIsFullscreen(false);
+  };
+
+  // ---- Derived ----
   const selectedAgent = config.availableAgents.find(
     (a) => a.id === selectedAgentId
   );
 
+  // ---- Panel JSX ----
+  const panelContent = showSidePanel && (
+    <>
+      {showSidePanel === 'artifacts' ? (
+        <ArtifactsPanel artifacts={artifacts} />
+      ) : (
+        <TodosPanel todos={todos} onStatusChange={handleTodoStatus} />
+      )}
+    </>
+  );
+
+  const panelHeader = showSidePanel && (
+    <div className="flex items-center justify-between px-4 py-3 border-b bg-background/95 backdrop-blur-sm shrink-0">
+      <div className="flex items-center gap-2">
+        {showSidePanel === 'artifacts' ? (
+          <PanelRight size={15} className="text-primary" />
+        ) : (
+          <CheckSquare size={15} className="text-primary" />
+        )}
+        <h3 className="font-semibold text-sm">
+          {showSidePanel === 'artifacts' ? 'Artifacts' : 'Tasks'}
+        </h3>
+        <span className="text-xs px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+          {showSidePanel === 'artifacts' ? artifacts.length : todos.length}
+        </span>
+      </div>
+      <div className="flex items-center gap-1">
+        {showSidePanel === 'artifacts' && !isMobile && (
+          <button
+            onClick={() => setIsFullscreen((f) => !f)}
+            className="p-1.5 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+            title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+          >
+            <Maximize2 size={14} />
+          </button>
+        )}
+        <button
+          onClick={() => {
+            setShowSidePanel(null);
+            setIsFullscreen(false);
+          }}
+          className="p-1.5 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+          title="Close panel"
+        >
+          <PanelRightClose size={14} />
+        </button>
+      </div>
+    </div>
+  );
+
+  const hasPanelButtons = config.showTodos || config.showArtifacts;
+
   return (
     <div className={cn('flex h-full overflow-hidden', config.className)}>
-      {/* Approval Dialog */}
+      {/* Approval dialog */}
       <ApprovalDialog
         open={!!approvalRequest}
         request={approvalRequest}
-        onApprove={handleApprove}
-        onReject={handleReject}
+        onApprove={(reqId) => handleApprove(chatId, reqId)}
+        onReject={(reqId) => handleReject(chatId, reqId)}
       />
 
-      {/* Main chat area – reference: clean, light, minimal */}
-      <div className="flex-1 flex flex-col min-w-0 dark:bg-background">
-        {/* Header: title + dropdown, Share on right */}
-        <header className="h-14 border-b border-border/50 bg-background/95 backdrop-blur-sm flex items-center justify-between px-4 sticky top-0 z-10">
+      {/* Fullscreen overlay */}
+      {isFullscreen && showSidePanel && !isMobile && (
+        <div className="fixed inset-0 z-50 bg-background flex flex-col">
+          {panelHeader}
+          <div className="flex-1 min-h-0 overflow-hidden">{panelContent}</div>
+        </div>
+      )}
+
+      {/* Main chat */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Header — left-padded on mobile to avoid menu-icon overlap */}
+        <header className="h-14 border-b border-border/50 bg-background/95 backdrop-blur-sm flex items-center justify-between px-4 pl-14 md:pl-4 sticky top-0 z-10 shrink-0">
           <div className="flex items-center gap-2 min-w-0">
             <ChatHistoryDropdown
               chats={chats}
@@ -723,19 +388,19 @@ export function AgenticChat({ config, initialChatId }: AgenticChatProps) {
               className="p-2 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground shrink-0"
               title="New chat"
             >
-              <Plus size={20} />
+              <Plus size={18} />
             </button>
           </div>
           <div className="flex items-center gap-2">
             <div
               className={cn(
-                'flex items-center gap-2 text-xs font-medium text-muted-foreground',
+                'flex items-center gap-1.5 text-xs font-medium text-muted-foreground',
                 isStreaming && 'text-primary'
               )}
             >
               <div
                 className={cn(
-                  'w-2 h-2 rounded-full shrink-0',
+                  'w-1.5 h-1.5 rounded-full shrink-0',
                   isStreaming
                     ? 'bg-primary animate-pulse'
                     : 'bg-muted-foreground/30'
@@ -750,30 +415,30 @@ export function AgenticChat({ config, initialChatId }: AgenticChatProps) {
               size="sm"
               onClick={handleShare}
               disabled={!chatId}
-              className="gap-2"
+              className="gap-1.5 h-8 text-xs"
             >
-              <Share2 size={16} />
-              Share
+              <Share2 size={14} />
+              <span className="hidden sm:inline">Share</span>
             </Button>
           </div>
         </header>
 
-        {/* Messages – same width as input (max-w-5xl), centered; agent no background */}
-        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 custom-scrollbar">
-          <div className="max-w-5xl mx-auto space-y-6">
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 custom-scrollbar chat-bg-pattern">
+          <div className="max-w-3xl mx-auto space-y-6">
             {messages.length === 0 && (
               <div className="h-full min-h-[40vh] flex flex-col items-center justify-center text-center space-y-4 animate-in fade-in zoom-in-95 duration-500">
-                <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
+                <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-2 shadow-sm">
                   <span className="text-3xl">
                     {selectedAgent?.icon || '🤖'}
                   </span>
                 </div>
-                <h1 className="text-2xl font-bold tracking-tight">
+                <h1 className="text-2xl font-semibold tracking-tight">
                   {selectedAgent?.name
                     ? `How can ${selectedAgent.name} help?`
                     : 'How can I help today?'}
                 </h1>
-                <p className="text-muted-foreground max-w-sm text-sm">
+                <p className="text-muted-foreground max-w-sm text-sm leading-relaxed">
                   {selectedAgent?.description ||
                     "I'm your agentic portfolio assistant. I can analyze stocks, manage documents, and help with your financial goals."}
                 </p>
@@ -781,109 +446,33 @@ export function AgenticChat({ config, initialChatId }: AgenticChatProps) {
             )}
 
             {messages.map((message) => (
-              <div
+              <ChatMessage
                 key={message.id}
-                className={cn(
-                  'group animate-in fade-in slide-in-from-bottom-2 duration-300',
-                  message.role === 'user'
-                    ? 'flex justify-end pl-4'
-                    : 'flex flex-col w-full'
-                )}
-              >
-                {message.role === 'user' ? (
-                  /* User: background bubble + Revert button on hover */
-                  <div className="space-y-2 items-end flex flex-col max-w-[85%]">
-                    <div className="rounded-2xl px-4 py-3 shadow-sm bg-[#e8e6e3] dark:bg-muted text-foreground border border-border/50">
-                      <MessageStream
-                        content={message.content}
-                        role={message.role}
-                        isStreaming={message.isStreaming}
-                      />
-                    </div>
-                    <div className="flex items-center gap-2 px-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <span className="text-[10px] text-muted-foreground">
-                        {new Date(message.createdAt).toLocaleTimeString([], {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </span>
-                      {/* Revert to this message */}
-                      {!message.id.startsWith('temp-') && (
-                        <button
-                          onClick={() => handleRevertToMessage(message.id)}
-                          title="Revert to this message"
-                          className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
-                        >
-                          <RotateCcw size={11} />
-                          Revert
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  /* Assistant: centered, no background, same width as input */
-                  <div className="w-full space-y-2">
-                    <div className="flex items-center gap-2 mb-1">
-                      <div
-                        className="w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-bold"
-                        style={{
-                          backgroundColor: `${selectedAgent?.color}20`,
-                          color: selectedAgent?.color,
-                        }}
-                      >
-                        {selectedAgent?.icon || '🤖'}
-                      </div>
-                      <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-                        {selectedAgent?.name || 'Assistant'}
-                      </span>
-                    </div>
-                    <div className="w-full">
-                      {config.showReasoning !== false &&
-                        message.reasoning &&
-                        message.reasoning.length > 0 && (
-                          <ReasoningDisplay steps={message.reasoning} />
-                        )}
-                      <MessageStream
-                        content={message.content}
-                        role={message.role}
-                        isStreaming={message.isStreaming}
-                      />
-                      {message.artifacts && message.artifacts.length > 0 && (
-                        <div className="mt-3 space-y-3">
-                          {message.artifacts.map((art) => (
-                            <InlineArtifactCard key={art.id} artifact={art} />
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 px-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <span className="text-[10px] text-muted-foreground">
-                        {new Date(message.createdAt).toLocaleTimeString([], {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </span>
-                    </div>
-                  </div>
-                )}
-              </div>
+                message={message}
+                agentName={selectedAgent?.name}
+                agentIcon={selectedAgent?.icon}
+                agentColor={selectedAgent?.color}
+                showReasoning={config.showReasoning !== false}
+                onRevert={handleRevert}
+              />
             ))}
-            <div ref={messagesEndRef} className="h-4" />
+            <div className="h-4" />
           </div>
         </div>
 
-        {/* Input area – reference: Reply…, + left, model right, disclaimer below */}
-        <div className="border-t border-border/50 bg-background/95 backdrop-blur-sm p-4">
-          <div className="max-w-5xl mx-auto space-y-3">
+        {/* Input area */}
+        <div className="border-t border-border/50 bg-background/98 p-3 sm:p-4 shrink-0">
+          <div className="max-w-3xl mx-auto space-y-2">
+            {/* Stop button */}
             {isStreaming && (
-              <div className="flex justify-center -mt-10 mb-2">
+              <div className="flex justify-center -mt-8 mb-1">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={stopStreaming}
-                  className="gap-2 bg-background shadow-md border-primary/20 hover:border-primary/40 rounded-full px-4"
+                  className="gap-2 bg-background shadow-md border-border/60 hover:border-primary/40 rounded-full px-4 h-8 text-xs"
                 >
-                  <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                  <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
                   Stop generating
                 </Button>
               </div>
@@ -900,15 +489,17 @@ export function AgenticChat({ config, initialChatId }: AgenticChatProps) {
               className="rounded-2xl border border-border bg-background shadow-sm overflow-hidden focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary/30 transition-all"
             />
 
-            <div className="flex flex-wrap items-center justify-between gap-2 px-1">
-              <div className="flex items-center gap-2 flex-wrap">
+            {/* Toolbar: selectors on left, panel toggles on right */}
+            <div className="flex items-center justify-between gap-2">
+              {/* Selectors */}
+              <div className="flex items-center gap-1 min-w-0 overflow-x-auto no-scrollbar">
                 <AgentSelector
                   agents={config.availableAgents}
                   selectedAgentId={selectedAgentId}
                   onSelect={setSelectedAgentId}
                   disabled={isStreaming}
                 />
-                <div className="w-px h-4 bg-muted-foreground/20 hidden sm:block" />
+                <div className="w-px h-3.5 bg-border/60 shrink-0" />
                 <ModelSelector
                   models={models}
                   isLoading={isLoadingModels}
@@ -918,93 +509,85 @@ export function AgenticChat({ config, initialChatId }: AgenticChatProps) {
                 />
               </div>
 
-              <div className="flex items-center gap-1.5">
-                {config.showTodos && (
-                  <Button
-                    variant={showSidePanel === 'todos' ? 'secondary' : 'ghost'}
-                    size="sm"
-                    onClick={() =>
-                      setShowSidePanel((p) => (p === 'todos' ? null : 'todos'))
-                    }
-                    className={cn(
-                      'h-8 text-[11px] font-medium transition-all duration-200',
-                      showSidePanel === 'todos'
-                        ? 'bg-primary/10 text-primary hover:bg-primary/20'
-                        : 'text-muted-foreground hover:text-foreground'
-                    )}
-                  >
-                    TASKS
-                    {todos.length > 0 && (
-                      <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-primary/20 text-primary text-[9px] font-bold">
-                        {todos.length}
-                      </span>
-                    )}
-                  </Button>
-                )}
-                {config.showArtifacts && (
-                  <Button
-                    variant={
-                      showSidePanel === 'artifacts' ? 'secondary' : 'ghost'
-                    }
-                    size="sm"
-                    onClick={() =>
-                      setShowSidePanel((p) =>
-                        p === 'artifacts' ? null : 'artifacts'
-                      )
-                    }
-                    className={cn(
-                      'h-8 text-[11px] font-medium transition-all duration-200',
-                      showSidePanel === 'artifacts'
-                        ? 'bg-primary/10 text-primary hover:bg-primary/20'
-                        : 'text-muted-foreground hover:text-foreground'
-                    )}
-                  >
-                    ARTIFACTS
-                    {artifacts.length > 0 && (
-                      <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-primary/20 text-primary text-[9px] font-bold">
-                        {artifacts.length}
-                      </span>
-                    )}
-                  </Button>
-                )}
-              </div>
+              {/* Panel toggles */}
+              {hasPanelButtons && (
+                <div className="flex items-center gap-1 shrink-0">
+                  {config.showTodos && (
+                    <button
+                      onClick={() => togglePanel('todos')}
+                      className={cn(
+                        'flex items-center gap-1 h-7 px-2 rounded-lg text-xs font-medium transition-all shrink-0',
+                        showSidePanel === 'todos'
+                          ? 'bg-primary/10 text-primary'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                      )}
+                    >
+                      <CheckSquare size={12} />
+                      <span className="hidden xs:inline sm:inline">Tasks</span>
+                      {todos.length > 0 && (
+                        <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-primary/20 text-primary text-[9px] font-bold">
+                          {todos.length}
+                        </span>
+                      )}
+                    </button>
+                  )}
+                  {config.showArtifacts && (
+                    <button
+                      onClick={() => togglePanel('artifacts')}
+                      className={cn(
+                        'flex items-center gap-1 h-7 px-2 rounded-lg text-xs font-medium transition-all shrink-0',
+                        showSidePanel === 'artifacts'
+                          ? 'bg-primary/10 text-primary'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                      )}
+                    >
+                      <File size={12} />
+                      <span className="hidden xs:inline sm:inline">Files</span>
+                      {artifacts.length > 0 && (
+                        <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-primary/20 text-primary text-[9px] font-bold">
+                          {artifacts.length}
+                        </span>
+                      )}
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
 
-            <p className="text-[11px] text-muted-foreground px-1">
-              AI can make mistakes. Please double-check important information.
+            <p className="text-[10px] text-muted-foreground/50 px-0.5">
+              AI can make mistakes. Double-check important information.
             </p>
           </div>
         </div>
       </div>
 
-      {/* Side panel */}
-      {showSidePanel && (
-        <div className="w-80 border-l flex flex-col bg-background">
-          <div className="flex items-center justify-between p-3 border-b">
-            <h3 className="font-semibold">
-              {showSidePanel === 'artifacts' ? '📂 Artifacts' : '✅ Tasks'}
-            </h3>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowSidePanel(null)}
-              className="h-6 w-6 p-0"
-            >
-              ✕
-            </Button>
-          </div>
-
-          <div className="flex-1 min-h-0">
-            {showSidePanel === 'artifacts' ? (
-              <ArtifactsPanel artifacts={artifacts} />
-            ) : (
-              <TodosPanel
-                todos={todos}
-                onStatusChange={handleTodoStatusChange}
-              />
-            )}
-          </div>
+      {/* Desktop side panel */}
+      {showSidePanel && !isMobile && !isFullscreen && (
+        <div className="w-[400px] xl:w-[440px] border-l flex flex-col bg-background shrink-0">
+          {panelHeader}
+          <div className="flex-1 min-h-0 overflow-hidden">{panelContent}</div>
         </div>
+      )}
+
+      {/* Mobile bottom sheet */}
+      {isMobile && (
+        <Sheet
+          open={!!showSidePanel}
+          onOpenChange={(open) => !open && setShowSidePanel(null)}
+        >
+          <SheetContent
+            side="bottom"
+            className="h-[80vh] flex flex-col p-0 rounded-t-2xl"
+          >
+            <SheetHeader className="sr-only">
+              <SheetTitle>
+                {showSidePanel === 'artifacts' ? 'Artifacts' : 'Tasks'}
+              </SheetTitle>
+            </SheetHeader>
+            {panelHeader}
+            <div className="flex-1 min-h-0 overflow-hidden">{panelContent}</div>
+          </SheetContent>
+        </Sheet>
       )}
     </div>
   );

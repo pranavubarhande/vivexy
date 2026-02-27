@@ -322,7 +322,15 @@ def stream_chat():
 
         user = request.user
         user_id = user.id
-        data = request.get_json() or {}
+
+        is_multipart = request.content_type and request.content_type.startswith(
+            "multipart/form-data"
+        )
+        if is_multipart:
+            data = json.loads(request.form.get("data", "{}"))
+        else:
+            data = request.get_json() or {}
+
         chat_id = data.get("chat_id")
         messages_data = data.get("messages", [])
         model_id = data.get("model_id")
@@ -336,6 +344,33 @@ def stream_chat():
         chat = get_user_chat(chat_id, user_id)
         if not chat:
             return jsonify({"error": "Chat not found"}), 404
+
+        # Process new inline file uploads
+        if is_multipart:
+            files_to_upload = request.files.getlist("files")
+            if files_to_upload:
+                from app.business_logic.attachments import create_attachment
+                from app.services.s3_service import S3Service
+
+                s3 = S3Service()
+                for file in files_to_upload:
+                    if file.filename == "":
+                        continue
+                    filename = secure_filename(file.filename)
+                    mime_type = file.mimetype or "application/octet-stream"
+                    file.seek(0, 2)
+                    size = file.tell()
+                    file.seek(0)
+                    s3_result = s3.upload_file(file, chat_id, filename, mime_type)
+                    s3_key = (
+                        s3_result.get("s3_key") if s3_result.get("success") else None
+                    )
+                    if not s3_key:
+                        s3_key = f"chats/{chat_id}/files/{filename}"
+                    attachment = create_attachment(
+                        chat_id, filename, mime_type, size, user_id, s3_key=s3_key
+                    )
+                    file_ids.append(str(attachment["id"]))
 
         file_contexts = []
         try:

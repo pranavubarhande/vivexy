@@ -2,6 +2,14 @@
 
 import { useState } from 'react';
 import { cn } from '@/utils/common';
+import {
+  Circle,
+  Loader2,
+  CheckCircle2,
+  XCircle,
+  Calendar,
+  ListTodo,
+} from 'lucide-react';
 
 interface Todo {
   id: string;
@@ -18,19 +26,35 @@ interface TodosPanelProps {
   onStatusChange?: (todoId: string, status: Todo['status']) => void;
 }
 
-const PRIORITY_COLORS: Record<Todo['priority'], string> = {
-  LOW: 'bg-slate-500/10 text-slate-600 dark:text-slate-400',
-  MEDIUM: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
-  HIGH: 'bg-orange-500/10 text-orange-600 dark:text-orange-400',
-  URGENT: 'bg-red-500/10 text-red-600 dark:text-red-400',
+const PRIORITY_STYLES: Record<Todo['priority'], string> = {
+  LOW: 'bg-slate-100 text-slate-600 dark:bg-slate-800/60 dark:text-slate-400',
+  MEDIUM: 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
+  HIGH: 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+  URGENT: 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400',
 };
 
-const STATUS_ICONS: Record<Todo['status'], string> = {
-  PENDING: '○',
-  IN_PROGRESS: '◐',
-  COMPLETED: '✓',
-  CANCELLED: '✗',
-};
+function StatusIcon({ status }: { status: Todo['status'] }) {
+  if (status === 'COMPLETED')
+    return <CheckCircle2 size={16} className="text-emerald-500" />;
+  if (status === 'IN_PROGRESS')
+    return <Loader2 size={16} className="text-primary animate-spin" />;
+  if (status === 'CANCELLED')
+    return <XCircle size={16} className="text-muted-foreground/50" />;
+  return <Circle size={16} className="text-muted-foreground/40" />;
+}
+
+function formatDate(dateStr: string) {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffDays = Math.ceil(
+    (date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+  );
+  if (diffDays < 0) return { label: 'Overdue', overdue: true };
+  if (diffDays === 0) return { label: 'Today', overdue: false };
+  if (diffDays === 1) return { label: 'Tomorrow', overdue: false };
+  if (diffDays < 7) return { label: `In ${diffDays} days`, overdue: false };
+  return { label: date.toLocaleDateString(), overdue: false };
+}
 
 export function TodosPanel({
   todos,
@@ -40,67 +64,54 @@ export function TodosPanel({
   const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all');
 
   const filteredTodos = todos.filter((todo) => {
-    if (filter === 'active') {
+    if (filter === 'active')
       return todo.status === 'PENDING' || todo.status === 'IN_PROGRESS';
-    }
-    if (filter === 'completed') {
+    if (filter === 'completed')
       return todo.status === 'COMPLETED' || todo.status === 'CANCELLED';
-    }
     return true;
   });
 
   const handleToggle = (todo: Todo) => {
     if (!onStatusChange) return;
-
-    const nextStatus: Todo['status'] =
+    const next: Todo['status'] =
       todo.status === 'COMPLETED' ? 'PENDING' : 'COMPLETED';
-    onStatusChange(todo.id, nextStatus);
+    onStatusChange(todo.id, next);
   };
 
   if (todos.length === 0) {
     return (
       <div
         className={cn(
-          'flex flex-col items-center justify-center p-6 text-center text-muted-foreground',
+          'flex flex-col items-center justify-center p-8 text-center text-muted-foreground h-full',
           className
         )}
       >
-        <span className="text-4xl mb-2">✅</span>
-        <p className="text-sm">No tasks yet</p>
-        <p className="text-xs mt-1">
+        <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center mb-3">
+          <ListTodo size={22} className="text-muted-foreground/60" />
+        </div>
+        <p className="text-sm font-medium">No tasks yet</p>
+        <p className="text-xs mt-1 text-muted-foreground/70">
           Ask the agent to create tasks for tracking
         </p>
       </div>
     );
   }
 
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diffDays = Math.ceil(
-      (date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
-    );
-
-    if (diffDays < 0) return 'Overdue';
-    if (diffDays === 0) return 'Today';
-    if (diffDays === 1) return 'Tomorrow';
-    if (diffDays < 7) return `In ${diffDays} days`;
-    return date.toLocaleDateString();
-  };
+  const completedCount = todos.filter((t) => t.status === 'COMPLETED').length;
 
   return (
     <div className={cn('flex flex-col h-full', className)}>
       {/* Filter tabs */}
-      <div className="flex gap-1 p-2 border-b">
+      <div className="flex gap-1 p-2 border-b shrink-0">
         {(['all', 'active', 'completed'] as const).map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
             className={cn(
-              'px-3 py-1.5 rounded-lg text-sm capitalize transition-colors',
+              'px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition-all',
               filter === f
-                ? 'bg-primary text-primary-foreground'
-                : 'hover:bg-muted'
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted'
             )}
           >
             {f}
@@ -109,9 +120,9 @@ export function TodosPanel({
       </div>
 
       {/* Todo list */}
-      <div className="flex-1 overflow-auto p-2 space-y-2">
+      <div className="flex-1 overflow-auto p-2 space-y-1.5 custom-scrollbar">
         {filteredTodos.length === 0 ? (
-          <p className="text-center text-sm text-muted-foreground py-4">
+          <p className="text-center text-xs text-muted-foreground py-6">
             No {filter} tasks
           </p>
         ) : (
@@ -119,31 +130,29 @@ export function TodosPanel({
             <div
               key={todo.id}
               className={cn(
-                'p-3 rounded-lg border transition-all',
-                todo.status === 'COMPLETED' && 'opacity-60',
-                todo.status === 'CANCELLED' && 'opacity-40'
+                'p-3 rounded-xl border transition-all bg-background',
+                todo.status === 'COMPLETED' && 'opacity-55',
+                todo.status === 'CANCELLED' && 'opacity-35'
               )}
             >
-              <div className="flex items-start gap-3">
-                {/* Status toggle */}
+              <div className="flex items-start gap-2.5">
                 <button
                   onClick={() => handleToggle(todo)}
-                  className={cn(
-                    'mt-0.5 w-5 h-5 rounded border flex items-center justify-center text-xs transition-colors',
+                  className="mt-0.5 shrink-0 hover:scale-110 transition-transform"
+                  title={
                     todo.status === 'COMPLETED'
-                      ? 'bg-green-500 border-green-500 text-white'
-                      : 'border-muted-foreground/30 hover:border-primary'
-                  )}
+                      ? 'Mark pending'
+                      : 'Mark complete'
+                  }
                 >
-                  {STATUS_ICONS[todo.status]}
+                  <StatusIcon status={todo.status} />
                 </button>
 
-                {/* Content */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span
                       className={cn(
-                        'font-medium',
+                        'text-sm font-medium leading-tight',
                         todo.status === 'COMPLETED' && 'line-through'
                       )}
                     >
@@ -151,8 +160,8 @@ export function TodosPanel({
                     </span>
                     <span
                       className={cn(
-                        'text-xs px-1.5 py-0.5 rounded',
-                        PRIORITY_COLORS[todo.priority]
+                        'text-[10px] px-1.5 py-0.5 rounded-full font-medium shrink-0',
+                        PRIORITY_STYLES[todo.priority]
                       )}
                     >
                       {todo.priority}
@@ -160,23 +169,26 @@ export function TodosPanel({
                   </div>
 
                   {todo.description && (
-                    <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
                       {todo.description}
                     </p>
                   )}
 
-                  {todo.dueDate && (
-                    <p
-                      className={cn(
-                        'text-xs mt-1',
-                        new Date(todo.dueDate) < new Date()
-                          ? 'text-red-500'
-                          : 'text-muted-foreground'
-                      )}
-                    >
-                      📅 {formatDate(todo.dueDate)}
-                    </p>
-                  )}
+                  {todo.dueDate &&
+                    (() => {
+                      const { label, overdue } = formatDate(todo.dueDate);
+                      return (
+                        <p
+                          className={cn(
+                            'flex items-center gap-1 text-[11px] mt-1.5',
+                            overdue ? 'text-red-500' : 'text-muted-foreground'
+                          )}
+                        >
+                          <Calendar size={10} />
+                          {label}
+                        </p>
+                      );
+                    })()}
                 </div>
               </div>
             </div>
@@ -184,16 +196,25 @@ export function TodosPanel({
         )}
       </div>
 
-      {/* Stats footer */}
-      <div className="p-2 border-t text-xs text-muted-foreground text-center">
-        {todos.filter((t) => t.status === 'COMPLETED').length} of {todos.length}{' '}
-        completed
+      {/* Footer */}
+      <div className="px-3 py-2 border-t flex items-center justify-between text-xs text-muted-foreground shrink-0">
+        <span>
+          {completedCount} of {todos.length} completed
+        </span>
+        {completedCount > 0 && (
+          <div className="h-1.5 w-24 bg-muted rounded-full overflow-hidden">
+            <div
+              className="h-full bg-emerald-500 rounded-full transition-all"
+              style={{ width: `${(completedCount / todos.length) * 100}%` }}
+            />
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-// Compact todo notification for inline display
+// Compact notification
 export function TodoNotification({
   title,
   priority,
@@ -208,10 +229,10 @@ export function TodoNotification({
       onClick={onClick}
       className={cn(
         'inline-flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm',
-        PRIORITY_COLORS[priority]
+        PRIORITY_STYLES[priority]
       )}
     >
-      <span>☑️</span>
+      <ListTodo size={13} />
       <span className="font-medium">{title}</span>
       <span className="text-xs opacity-70">Created →</span>
     </button>

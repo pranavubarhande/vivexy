@@ -1,11 +1,16 @@
 import type { Metadata } from 'next';
-import { Geist, Geist_Mono } from 'next/font/google';
+import { Geist, Geist_Mono, Inter } from 'next/font/google';
 import './globals.css';
 import { ThemeProvider } from '@/components/shared/theme-provider';
 import { AuthProvider } from '@/components/shared/auth-provider';
 import { Providers } from '@/components/shared/providers';
 import { Toaster } from 'sonner';
 import { AppShell } from '@/components/shared/app-shell';
+
+const inter = Inter({
+  variable: '--font-inter',
+  subsets: ['latin'],
+});
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -31,7 +36,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning className="overflow-hidden">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${inter.variable} ${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <ThemeProvider
           attribute="class"

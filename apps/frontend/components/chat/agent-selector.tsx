@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/utils/common';
+import { Bot, ChevronDown, Check } from 'lucide-react';
 
 interface AgentSummary {
   id: string;
@@ -48,47 +49,60 @@ export function AgentSelector({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button
-          variant="outline"
+          variant="ghost"
           size="sm"
           disabled={disabled}
-          className="gap-2"
+          className="h-7 gap-1.5 px-2.5 text-[12px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted"
         >
-          <span>{selectedAgent?.icon || '🤖'}</span>
-          <span className="hidden sm:inline">
-            {selectedAgent?.name || 'Select Agent'}
+          <span className="text-base leading-none">
+            {selectedAgent?.icon || <Bot size={14} />}
           </span>
+          <span className="hidden sm:inline truncate max-w-[100px]">
+            {selectedAgent?.name || 'Agent'}
+          </span>
+          <ChevronDown size={12} className="opacity-50 shrink-0" />
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Select Agent</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <Bot size={16} className="text-primary" />
+            Select Agent
+          </DialogTitle>
         </DialogHeader>
-        <div className="grid gap-3 py-4">
-          {agents.map((agent) => (
-            <button
-              key={agent.id}
-              onClick={() => handleSelect(agent.id)}
-              className={cn(
-                'flex items-start gap-3 p-3 rounded-lg border text-left transition-all',
-                'hover:bg-accent hover:border-accent-foreground/20',
-                selectedAgentId === agent.id &&
-                  'bg-accent border-primary ring-1 ring-primary'
-              )}
-            >
-              <span
-                className="text-2xl shrink-0 w-10 h-10 flex items-center justify-center rounded-lg"
-                style={{ backgroundColor: `${agent.color}20` }}
+        <div className="grid gap-2 py-2">
+          {agents.map((agent) => {
+            const isSelected = selectedAgentId === agent.id;
+            return (
+              <button
+                key={agent.id}
+                onClick={() => handleSelect(agent.id)}
+                className={cn(
+                  'flex items-center gap-3 p-3 rounded-xl border text-left transition-all',
+                  'hover:border-primary/30 hover:bg-primary/5',
+                  isSelected
+                    ? 'border-primary/40 bg-primary/8 ring-1 ring-primary/20'
+                    : 'border-border/60 bg-background'
+                )}
               >
-                {agent.icon}
-              </span>
-              <div className="flex-1 min-w-0">
-                <div className="font-medium">{agent.name}</div>
-                <div className="text-sm text-muted-foreground line-clamp-2">
-                  {agent.description}
+                <span
+                  className="text-xl shrink-0 w-9 h-9 flex items-center justify-center rounded-lg"
+                  style={{ backgroundColor: `${agent.color}18` }}
+                >
+                  {agent.icon}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-sm">{agent.name}</div>
+                  <div className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
+                    {agent.description}
+                  </div>
                 </div>
-              </div>
-            </button>
-          ))}
+                {isSelected && (
+                  <Check size={15} className="text-primary shrink-0" />
+                )}
+              </button>
+            );
+          })}
         </div>
       </DialogContent>
     </Dialog>
