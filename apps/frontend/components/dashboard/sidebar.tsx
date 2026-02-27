@@ -94,7 +94,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="absolute bottom-0">
+      <SidebarFooter className="absolute bottom-0 w-full">
         <SidebarMenu>
           <SidebarMenuItem>
             <NavUser />
