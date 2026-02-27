@@ -1,6 +1,14 @@
-from app import create_app
+"""
+Agents Service - Entry point.
+Run with: poetry run python app.py
+"""
 
-app = create_app()
+import os
+from app import create_app
+from config import Config
+
+app = create_app(Config)
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=app.config["PORT"], debug=app.config["FLASK_ENV"] == "development")
+    port = int(os.environ.get("PORT", app.config.get("PORT", 5000)))
+    app.run(host="0.0.0.0", port=port, debug=app.config.get("FLASK_ENV") == "development")
