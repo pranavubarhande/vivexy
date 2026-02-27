@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { camelToSnake, snakeToCamel } from '@/lib/caseConverters';
 
 // Create axios instance with base configuration
 const axiosInstance = axios.create({
@@ -8,7 +9,7 @@ const axiosInstance = axios.create({
   },
 });
 
-// Request interceptor to add auth token
+// Request interceptor — auth token + camelCase→snake_case body conversion
 axiosInstance.interceptors.request.use(
   (config) => {
     if (typeof window !== 'undefined') {
@@ -17,6 +18,13 @@ axiosInstance.interceptors.request.use(
         config.headers.Authorization = `Bearer ${token}`;
       }
     }
+
+    // Convert outgoing JSON body from camelCase → snake_case.
+    // Skip FormData (file uploads) — those should not be transformed.
+    if (config.data && !(config.data instanceof FormData)) {
+      config.data = camelToSnake(config.data);
+    }
+
     return config;
   },
   (error) => {
@@ -24,9 +32,15 @@ axiosInstance.interceptors.request.use(
   }
 );
 
-// Response interceptor to handle common errors
+// Response interceptor — snake_case→camelCase conversion + common error handling
 axiosInstance.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Convert incoming response data from snake_case → camelCase.
+    if (response.data) {
+      response.data = snakeToCamel(response.data);
+    }
+    return response;
+  },
   (error) => {
     if (error.response?.status === 401) {
       // Token expired or invalid, redirect to login

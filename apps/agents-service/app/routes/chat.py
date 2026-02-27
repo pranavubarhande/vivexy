@@ -323,16 +323,16 @@ def stream_chat():
         user = request.user
         user_id = user.id
         data = request.get_json() or {}
-        chat_id = data.get("chatId")
+        chat_id = data.get("chat_id")
         messages_data = data.get("messages", [])
-        model_id = data.get("modelId")
-        model_db_id = data.get("modelDbId")
-        model_provider = data.get("modelProvider", "google")
-        model_name = data.get("modelName")
-        file_ids = data.get("fileIds", [])
+        model_id = data.get("model_id")
+        model_db_id = data.get("model_db_id")
+        model_provider = data.get("model_provider", "google")
+        model_name = data.get("model_name")
+        file_ids = data.get("file_ids", [])
 
         if not chat_id:
-            return jsonify({"error": "chatId is required"}), 400
+            return jsonify({"error": "chat_id is required"}), 400
         chat = get_user_chat(chat_id, user_id)
         if not chat:
             return jsonify({"error": "Chat not found"}), 404

@@ -50,8 +50,8 @@ def update_password():
         user_id = request.user.id
         data = request.get_json()
 
-        current_password = data.get("currentPassword")
-        new_password = data.get("newPassword")
+        current_password = data.get("current_password")
+        new_password = data.get("new_password")
 
         if not current_password or not new_password:
             return (

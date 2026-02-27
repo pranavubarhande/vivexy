@@ -13,10 +13,10 @@ def approve_tool(chat_id):
     try:
         user = request.user
         data = request.get_json() or {}
-        request_id = data.get("requestId")
+        request_id = data.get("request_id")
 
         if not request_id:
-            return jsonify({"error": "requestId is required"}), 400
+            return jsonify({"error": "request_id is required"}), 400
 
         # Verify chat belongs to user
         chat = get_user_chat(chat_id, user.id)
@@ -48,10 +48,10 @@ def reject_tool(chat_id):
     try:
         user = request.user
         data = request.get_json() or {}
-        request_id = data.get("requestId")
+        request_id = data.get("request_id")
 
         if not request_id:
-            return jsonify({"error": "requestId is required"}), 400
+            return jsonify({"error": "request_id is required"}), 400
 
         # Verify chat belongs to user
         chat = get_user_chat(chat_id, user.id)
