@@ -4,7 +4,8 @@ import { cn } from '@/utils/common';
 import { MessageStream } from './message-stream';
 import { ReasoningDisplay } from './reasoning-display';
 import { InlineArtifactCard } from './inline-artifact-card';
-import { RotateCcw } from 'lucide-react';
+import React from 'react';
+import { RotateCcw, Copy, Check } from 'lucide-react';
 import { Message, Artifact } from '@/services/chat.service';
 
 // ---------------------------------------------------------------------------
@@ -76,8 +77,16 @@ export function AssistantMessage({
   agentColor,
   showReasoning = true,
 }: AssistantMessageProps) {
+  const [copied, setCopied] = React.useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(message.content);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
-    <div className="w-full space-y-2">
+    <div className="w-full space-y-2 group">
       <div className="flex items-center gap-2 mb-1">
         <div
           className="w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-bold"
@@ -113,6 +122,14 @@ export function AssistantMessage({
         <span className="text-[10px] text-muted-foreground">
           {formatTime(message.createdAt)}
         </span>
+        <button
+          onClick={handleCopy}
+          title="Copy message"
+          className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+        >
+          {copied ? <Check size={11} /> : <Copy size={11} />}
+          {copied ? 'Copied' : 'Copy'}
+        </button>
       </div>
     </div>
   );
