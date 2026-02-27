@@ -318,7 +318,7 @@ export function AgenticChat({ config, initialChatId }: AgenticChatProps) {
     <div className="flex items-center justify-between px-4 py-3 border-b bg-background/95 backdrop-blur-sm shrink-0">
       <div className="flex items-center gap-2">
         {showSidePanel === 'artifacts' ? (
-          <PanelRight size={15} className="text-primary" />
+          <File size={15} className="text-primary" />
         ) : (
           <CheckSquare size={15} className="text-primary" />
         )}
@@ -430,9 +430,7 @@ export function AgenticChat({ config, initialChatId }: AgenticChatProps) {
             {messages.length === 0 && (
               <div className="h-full min-h-[40vh] flex flex-col items-center justify-center text-center space-y-4 animate-in fade-in zoom-in-95 duration-500">
                 <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-2 shadow-sm">
-                  <span className="text-3xl">
-                    {selectedAgent?.icon || '🤖'}
-                  </span>
+                  <span className="text-3xl">{selectedAgent?.icon}</span>
                 </div>
                 <h1 className="text-2xl font-semibold tracking-tight">
                   {selectedAgent?.name
