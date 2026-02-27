@@ -63,7 +63,7 @@ export function AgentSelector({
           <ChevronDown size={12} className="opacity-50 shrink-0" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-w-[90vw] sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Bot size={16} className="text-primary" />

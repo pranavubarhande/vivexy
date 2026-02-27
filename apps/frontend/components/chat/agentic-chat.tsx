@@ -35,6 +35,7 @@ import {
   PanelRightClose,
   File,
 } from 'lucide-react';
+import { MobileSidebarTrigger } from '../shared/app-shell';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -374,9 +375,9 @@ export function AgenticChat({ config, initialChatId }: AgenticChatProps) {
 
       {/* Main chat */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Header — left-padded on mobile to avoid menu-icon overlap */}
-        <header className="h-14 border-b border-border/50 bg-background/95 backdrop-blur-sm flex items-center justify-between px-4 pl-14 md:pl-4 sticky top-0 z-10 shrink-0">
+        <header className="h-14 border-b border-border/50 bg-background/95 backdrop-blur-sm flex items-center justify-between px-4 pl-4 sticky top-0 z-10 shrink-0">
           <div className="flex items-center gap-2 min-w-0">
+            <MobileSidebarTrigger />
             <ChatHistoryDropdown
               chats={chats}
               onSelect={handleChatSelect}
@@ -554,9 +555,11 @@ export function AgenticChat({ config, initialChatId }: AgenticChatProps) {
               )}
             </div>
 
-            <p className="text-[10px] text-muted-foreground/50 px-0.5">
-              AI can make mistakes. Double-check important information.
-            </p>
+            <div className="flex justify-center py-1">
+              <p className="text-[10px] text-muted-foreground/50 px-0.5 text-center">
+                AI can make mistakes. Double-check important information.
+              </p>
+            </div>
           </div>
         </div>
       </div>

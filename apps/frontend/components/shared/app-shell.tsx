@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/sidebar';
 import { DashboardHeader } from '@/components/dashboard/header';
 import { cn } from '@/utils/common';
-import { Menu } from 'lucide-react';
+import { PanelLeft } from 'lucide-react';
 
 function titleFromPath(pathname: string) {
   const parts = pathname.split('/').filter(Boolean);
@@ -21,17 +21,17 @@ function titleFromPath(pathname: string) {
 }
 
 /** Floating sidebar trigger shown only on mobile when sidebar is closed */
-function MobileSidebarTrigger() {
+export function MobileSidebarTrigger() {
   const { isMobile, openMobile, toggleSidebar } = useSidebar();
   if (!isMobile || openMobile) return null;
 
   return (
     <button
       onClick={toggleSidebar}
-      className="fixed top-3 left-3 z-50 p-2 rounded-xl bg-background/90 backdrop-blur-sm border border-border/60 shadow-md text-foreground hover:bg-muted transition-all active:scale-95 md:hidden"
+      className="p-2 rounded-xl bg-background/90 backdrop-blur-sm text-foreground hover:bg-muted transition-all active:scale-95 md:hidden"
       aria-label="Open sidebar"
     >
-      <Menu size={18} />
+      <PanelLeft size={18} />
     </button>
   );
 }
@@ -51,11 +51,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>
       <AppSidebar className="relative" />
-      <MobileSidebarTrigger />
       <div className="flex flex-1 flex-col min-w-0">
         {!isChatPage && (
           <DashboardHeader heading={titleFromPath(pathname)}>
-            <SidebarTrigger className="hidden md:flex" />
+            <MobileSidebarTrigger />
           </DashboardHeader>
         )}
         <div

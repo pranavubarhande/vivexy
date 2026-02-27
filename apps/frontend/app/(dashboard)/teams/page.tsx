@@ -81,12 +81,9 @@ export default function TeamsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mt-2">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Teams</h1>
-          <p className="text-muted-foreground">
-            Manage your teams and collaborate with others.
-          </p>
         </div>
         <CreateTeamDialog />
       </div>

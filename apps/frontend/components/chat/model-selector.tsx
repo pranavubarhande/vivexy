@@ -98,14 +98,14 @@ export function ModelSelector({
           <ChevronDown size={12} className="opacity-50 shrink-0" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[440px]">
+      <DialogContent className="max-w-[90vw] sm:max-w-[440px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Zap size={16} className="text-primary" />
             Select Model
           </DialogTitle>
         </DialogHeader>
-        <div className="space-y-4 py-2 max-h-[60vh] overflow-y-auto custom-scrollbar">
+        <div className="space-y-4 py-2 max-h-[60vh] overflow-y-auto no-scrollbar">
           {isLoading ? (
             <div className="flex justify-center py-8">
               <div className="animate-spin rounded-full h-7 w-7 border-b-2 border-primary" />
@@ -154,7 +154,7 @@ export function ModelSelector({
                           </span>
                         </div>
                         <span className="text-[11px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-                          {formatContext(model.contextWindow)} ctx
+                          {formatContext(model.contextWindow)} context
                         </span>
                       </button>
                     );
