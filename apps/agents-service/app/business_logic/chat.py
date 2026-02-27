@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Optional
 
 from app.models import Chat, LLMModel, Message, db
 from app.schemas import ChatCreate, ChatResponse, LLMModelResponse, MessageRole
-
+from sqlalchemy.orm import joinedload
 
 def get_user_chats(user_id: str) -> List[Dict[str, Any]]:
     """Get all chats for a user."""
@@ -41,6 +41,7 @@ def get_user_chat(chat_id: str, user_id: str) -> Dict[str, Any]:
 
     messages = (
         Message.query.filter_by(chat_id=chat_id)
+        .options(joinedload(Message.artifacts))
         .order_by(Message.created_at.asc())
         .all()
     )
@@ -150,6 +151,7 @@ def get_chat_messages(chat_id: str, user_id: str) -> List[Dict[str, Any]]:
 
     messages = (
         Message.query.filter_by(chat_id=chat_id)
+        .options(joinedload(Message.artifacts))
         .order_by(Message.created_at.asc())
         .all()
     )

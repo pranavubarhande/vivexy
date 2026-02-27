@@ -50,6 +50,23 @@ class Message(db.Model):
             "modelId": self.model_id,
             "reasoning": self.reasoning,
             "createdAt": self.created_at.isoformat(),
+            "artifacts": [
+                {
+                    "id": a.id,
+                    "chatId": a.chat_id,
+                    "messageId": a.message_id,
+                    "title": a.title,
+                    "type": a.type.value if hasattr(a.type, "value") else str(a.type),
+                    "filename": a.filename,
+                    "language": a.language,
+                    "version": a.version,
+                    "seq": a.seq,
+                    "content": a.content,
+                    "metadata": a.artifact_metadata,
+                    "createdAt": a.created_at.isoformat(),
+                }
+                for a in self.artifacts
+            ],
         }
 
 
