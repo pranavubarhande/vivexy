@@ -112,7 +112,7 @@ export function ModelSelector({
                     >
                       <span className="font-medium">{model.name}</span>
                       <span className="text-xs text-muted-foreground">
-                        {Math.round(model.contextWindow / 1000)}k ctx
+                        {Math.round(model.contextWindow / 1000)}k context
                       </span>
                     </button>
                   ))}

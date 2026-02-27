@@ -115,9 +115,13 @@ export default function TeamsPage() {
                     {new Date(team.createdAt).toLocaleDateString()}
                   </div>
                 </div>
-                <div className="mt-4 flex gap-2">
-                  <TeamMembersDialog team={team} />
-                  <InviteMemberDialog team={team} />
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <div className="flex-1 min-w-[120px]">
+                    <TeamMembersDialog team={team} />
+                  </div>
+                  <div className="flex-1 min-w-[120px]">
+                    <InviteMemberDialog team={team} />
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -317,8 +321,8 @@ const InviteMemberDialog = ({ team }: { team: Team }) => {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
-          <UserPlus className="mr-2 h-4 w-4" />
+        <Button variant="outline" size="sm" className="w-full">
+          <UserPlus className="h-4 w-4" />
           Invite Member
         </Button>
       </DialogTrigger>
@@ -442,8 +446,8 @@ const TeamMembersDialog = ({ team }: { team: Team }) => {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
-          <Users className="mr-2 h-4 w-4" />
+        <Button variant="outline" size="sm" className="w-full">
+          <Users className="h-4 w-4" />
           Members ({team._count?.members || 0})
         </Button>
       </DialogTrigger>

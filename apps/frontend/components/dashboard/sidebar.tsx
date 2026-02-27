@@ -3,8 +3,10 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ROUTES } from '@/constants/routes';
+import { APP_NAME } from '@/constants/project';
 import {
   Sidebar,
+  SidebarHeader,
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
@@ -13,12 +15,12 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  SidebarTrigger,
 } from '@/components/ui/sidebar';
 import {
   LayoutDashboard,
   Users,
   CreditCard,
-  Settings as SettingsIcon,
   MessageSquare,
 } from 'lucide-react';
 import { NavUser } from './nav-user';
@@ -56,6 +58,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   return (
     <Sidebar collapsible="icon" {...props}>
+      <SidebarHeader>
+        <div className="flex items-center justify-between group-data-[collapsible=icon]:justify-center p-1">
+          <span className="px-2 font-semibold text-lg truncate group-data-[collapsible=icon]:hidden">
+            {APP_NAME}
+          </span>
+          <SidebarTrigger />
+        </div>
+      </SidebarHeader>
       <SidebarContent>
         {/* Main Navigation */}
         <SidebarGroup>
@@ -88,14 +98,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <SidebarMenu>
           <SidebarMenuItem>
             <NavUser />
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={pathname === ROUTES.settings}>
-              <Link href={ROUTES.settings} className="flex items-center gap-2">
-                <SettingsIcon size={16} />
-                <span>Settings</span>
-              </Link>
-            </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
