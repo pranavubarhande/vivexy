@@ -9,6 +9,7 @@ class LLMModelBase(BaseModel):
     provider: str
     model_id: str
     is_active: bool = True
+    context_window: Optional[int] = None
 
 
 class LLMModelResponse(LLMModelBase):
@@ -27,6 +28,7 @@ class LLMModelResponse(LLMModelBase):
             "provider": data["provider"],
             "modelId": data["model_id"],
             "isActive": data["is_active"],
+            "contextWindow": data.get("context_window"),
             "createdAt": (
                 data["created_at"].isoformat() if data.get("created_at") else None
             ),

@@ -12,6 +12,7 @@ class LLMModel(db.Model):
     provider = db.Column(db.String, nullable=False)  # e.g., "openai", "anthropic"
     model_id = db.Column(db.String, nullable=False)  # e.g., "gpt-4", "claude-3-sonnet"
     is_active = db.Column(db.Boolean, default=True)
+    context_window = db.Column(db.Integer, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
