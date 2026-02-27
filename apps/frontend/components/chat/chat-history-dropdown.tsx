@@ -74,9 +74,16 @@ export function ChatHistoryDropdown({
                     {chat.title || 'Untitled Chat'}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {formatDistanceToNow(new Date(chat.createdAt), {
-                      addSuffix: true,
-                    })}
+                    {formatDistanceToNow(
+                      new Date(
+                        chat.createdAt.endsWith('Z')
+                          ? chat.createdAt
+                          : `${chat.createdAt}Z`
+                      ),
+                      {
+                        addSuffix: true,
+                      }
+                    )}
                   </p>
                 </div>
                 <Button

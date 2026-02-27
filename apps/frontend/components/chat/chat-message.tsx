@@ -12,7 +12,8 @@ import { Message, Artifact } from '@/services/chat.service';
 // ---------------------------------------------------------------------------
 
 function formatTime(iso: string) {
-  return new Date(iso).toLocaleTimeString([], {
+  const dateString = iso.endsWith('Z') ? iso : `${iso}Z`;
+  return new Date(dateString).toLocaleTimeString([], {
     hour: '2-digit',
     minute: '2-digit',
   });
