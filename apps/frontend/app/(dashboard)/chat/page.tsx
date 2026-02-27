@@ -6,7 +6,7 @@ import { AGENT_SUMMARIES } from '@/agents/client-config';
 
 const chatConfig: AgenticChatConfig = {
   availableAgents: AGENT_SUMMARIES,
-  defaultAgentId: 'general',
+  defaultAgentId: 'assistant',
   allowFileUpload: true,
   showArtifacts: true,
   showTodos: true,

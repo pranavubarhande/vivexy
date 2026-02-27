@@ -8,11 +8,15 @@ import { ChevronDown, ChevronUp, Download, Sparkles } from 'lucide-react';
 
 const TYPE_ICONS: Record<string, string> = {
   MD: '📝',
+  MARKDOWN: '📝',
   HTML: '🌐',
   JS: '📜',
   JSON: '📋',
   CSV: '📊',
   TXT: '📄',
+  PDF: '📕',
+  DOCX: '📘',
+  XLSX: '📗',
 };
 
 interface InlineArtifactCardProps {
@@ -92,9 +96,9 @@ export function InlineArtifactCard({
         </div>
       </div>
 
-      {/* Content – collapsible */}
+      {/* Content – collapsible, scrollable */}
       {expanded && (
-        <div className="px-4 pb-4 pt-3 max-h-[360px] overflow-auto border-t border-border/50 mt-2">
+        <div className="px-4 pb-4 pt-3 max-h-[360px] overflow-auto border-t border-border/50 mt-2 custom-scrollbar">
           <ArtifactContent artifact={artifact} />
         </div>
       )}
@@ -102,7 +106,8 @@ export function InlineArtifactCard({
       {!expanded && (
         <div className="px-4 pb-3 flex items-center gap-2">
           <span className="text-xs text-muted-foreground">
-            {TYPE_ICONS[artifact.type] || '📄'} {artifact.type}
+            {TYPE_ICONS[artifact.type?.toUpperCase() ?? ''] || '📄'}{' '}
+            {artifact.type || 'File'}
             {artifact.filename && ` · ${artifact.filename}`}
           </span>
         </div>

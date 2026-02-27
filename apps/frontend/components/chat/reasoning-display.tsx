@@ -17,9 +17,15 @@ interface ReasoningStep {
 interface ReasoningDisplayProps {
   steps: ReasoningStep[];
   className?: string;
+  /** Section title (default "Thinking") */
+  title?: string;
 }
 
-export function ReasoningDisplay({ steps, className }: ReasoningDisplayProps) {
+export function ReasoningDisplay({
+  steps,
+  className,
+  title = 'Thinking',
+}: ReasoningDisplayProps) {
   const [expandedSteps, setExpandedSteps] = useState<Set<number>>(new Set());
 
   if (steps.length === 0) return null;
@@ -37,10 +43,10 @@ export function ReasoningDisplay({ steps, className }: ReasoningDisplayProps) {
   };
 
   return (
-    <div className={cn('space-y-3 my-4', className)}>
-      <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground/60 uppercase tracking-wider mb-2">
-        <div className="w-1 h-1 rounded-full bg-primary animate-pulse" />
-        Thinking Process
+    <div className={cn('space-y-3 my-3', className)}>
+      <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground/60 uppercase tracking-wider mb-1.5">
+        <div className="w-1.5 h-1.5 rounded-full bg-primary/80" />
+        {title}
       </div>
       <div className="space-y-2 border-l-2 border-muted pl-4 ml-0.5">
         {steps.map((step, index) => {

@@ -7,8 +7,9 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ShieldAlert, FileText, Code2 } from 'lucide-react';
 
 export interface ApprovalRequest {
   request_id: string;
@@ -24,80 +25,124 @@ interface ApprovalDialogProps {
   onReject: (requestId: string) => Promise<void>;
 }
 
+/** Maps tool names to human-readable labels and icons */
+const TOOL_LABELS: Record<string, string> = {
+  write_csv: 'Create CSV File',
+  write_xlsx: 'Create Excel File',
+  write_pdf: 'Create PDF Document',
+  write_docx: 'Create Word Document',
+  write_md: 'Create Markdown File',
+  delete_file: 'Delete File',
+};
+
 export function ApprovalDialog({
   open,
   request,
   onApprove,
   onReject,
 }: ApprovalDialogProps) {
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [isApproving, setIsApproving] = useState(false);
+  const [isRejecting, setIsRejecting] = useState(false);
 
   if (!request) return null;
 
+  const isProcessing = isApproving || isRejecting;
+  const toolLabel = TOOL_LABELS[request.tool_name] ?? request.tool_name;
+
   const handleApprove = async () => {
-    setIsProcessing(true);
+    setIsApproving(true);
     try {
       await onApprove(request.request_id);
     } finally {
-      setIsProcessing(false);
+      setIsApproving(false);
     }
   };
 
   const handleReject = async () => {
-    setIsProcessing(true);
+    setIsRejecting(true);
     try {
       await onReject(request.request_id);
     } finally {
-      setIsProcessing(false);
+      setIsRejecting(false);
     }
   };
 
   return (
+    /* No onOpenChange — dialog is non-dismissable while pending */
     <AlertDialog open={open}>
-      <AlertDialogContent className="sm:max-w-md">
+      <AlertDialogContent className="sm:max-w-lg">
         <AlertDialogHeader>
-          <AlertDialogTitle>Approval Required</AlertDialogTitle>
+          <div className="flex items-center gap-2 mb-1">
+            <ShieldAlert className="h-5 w-5 text-amber-500" />
+            <AlertDialogTitle>Approval Required</AlertDialogTitle>
+          </div>
           <AlertDialogDescription>
-            The agent wants to execute an action that requires your approval.
+            The agent wants to perform an action that requires your explicit
+            approval before proceeding.
           </AlertDialogDescription>
         </AlertDialogHeader>
 
-        <div className="bg-muted/50 p-4 rounded-md space-y-3 my-2">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-sm">Action:</span>
-            <code className="text-xs bg-muted px-1.5 py-0.5 rounded border">
-              {request.tool_name}
-            </code>
+        <div className="rounded-lg border bg-muted/30 p-4 space-y-3 my-1">
+          {/* Action */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm font-semibold text-foreground">
+              Action:
+            </span>
+            <Badge variant="secondary" className="font-mono text-xs gap-1">
+              <FileText className="h-3 w-3" />
+              {toolLabel}
+            </Badge>
           </div>
 
+          {/* Description */}
           <div>
-            <span className="font-semibold text-sm">Description:</span>
-            <p className="text-sm mt-1 text-muted-foreground">
+            <span className="text-sm font-semibold text-foreground">
+              What will happen:
+            </span>
+            <p className="text-sm mt-1 text-muted-foreground leading-relaxed">
               {request.description}
             </p>
           </div>
 
+          {/* Parameters */}
           {request.tool_input && Object.keys(request.tool_input).length > 0 && (
             <div>
-              <span className="font-semibold text-sm">Parameters:</span>
-              <pre className="text-xs mt-1 bg-muted p-2 rounded overflow-auto max-h-32">
+              <div className="flex items-center gap-1 text-sm font-semibold text-foreground mb-1">
+                <Code2 className="h-3.5 w-3.5" />
+                Parameters:
+              </div>
+              <pre className="text-xs bg-background border rounded-md p-2.5 overflow-auto max-h-40 leading-relaxed">
                 {JSON.stringify(request.tool_input, null, 2)}
               </pre>
             </div>
           )}
         </div>
 
+        {/* Waiting indicator */}
+        {isProcessing && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground justify-center py-1">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            Processing your decision…
+          </div>
+        )}
+
         <AlertDialogFooter className="sm:justify-between gap-2">
           <Button
-            variant="destructive"
+            variant="outline"
             onClick={handleReject}
             disabled={isProcessing}
+            className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
           >
+            {isRejecting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Reject
           </Button>
-          <Button onClick={handleApprove} disabled={isProcessing}>
-            {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Approve
+          <Button
+            onClick={handleApprove}
+            disabled={isProcessing}
+            className="gap-2"
+          >
+            {isApproving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Approve & Continue
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>

@@ -33,8 +33,10 @@ export interface Artifact {
   seq: number;
   content: string;
   filename: string | null;
+  version?: number;
   createdAt: string;
   messageId?: string | null;
+  url?: string | null;
 }
 
 export interface Todo {
@@ -134,6 +136,15 @@ export const chatService = {
         },
       }
     );
+    return response.data;
+  },
+
+  // Revert to message: delete all messages after messageId
+  revertToMessage: async (chatId: string, messageId: string) => {
+    const response = await axiosInstance.post<{
+      success: boolean;
+      deletedCount: number;
+    }>(`/chat/${chatId}/messages/${messageId}/revert`);
     return response.data;
   },
 

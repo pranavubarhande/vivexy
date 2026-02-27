@@ -6,29 +6,14 @@ export interface AgentSummary {
   color: string;
 }
 
+/** Single unified agent used by chat (no agent selection UI). */
 export const AGENT_SUMMARIES: AgentSummary[] = [
   {
-    id: 'general',
-    name: 'General Assistant',
+    id: 'assistant',
+    name: 'Portfolio Assistant',
     description:
-      'A helpful AI assistant for general tasks, document analysis, and conversation.',
+      'Your AI assistant for portfolio tasks: stocks, documents, tasks, and files.',
     icon: '🤖',
-    color: '#6366f1', // Indigo
-  },
-  {
-    id: 'finance',
-    name: 'Finance Agent',
-    description:
-      'Specialized agent for stock analysis, financial data, and market insights.',
-    icon: '📊',
-    color: '#10b981', // Emerald
-  },
-  {
-    id: 'document',
-    name: 'Document Agent',
-    description:
-      'Expert at analyzing documents, generating reports, and managing files.',
-    icon: '📄',
-    color: '#f59e0b', // Amber
+    color: '#6366f1',
   },
 ];

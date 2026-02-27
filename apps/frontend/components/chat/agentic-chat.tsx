@@ -17,7 +17,7 @@ import { TodosPanel } from './todos-panel';
 import { ChatHistoryDropdown } from './chat-history-dropdown';
 import { UploadedFile } from './file-upload';
 import { useChat, useChatHistory, useModels } from '@/hooks/useChat';
-import { Plus, Share2 } from 'lucide-react';
+import { Plus, Share2, RotateCcw } from 'lucide-react';
 
 import { Message, Artifact, Todo, LLMModel } from '@/services/chat.service';
 
@@ -131,6 +131,8 @@ export function AgenticChat({ config, initialChatId }: AgenticChatProps) {
   const { chats, loadHistory, setChats } = useChatHistory();
 
   const [isStreaming, setIsStreaming] = useState(false);
+  // True while the agent is paused waiting for human approval
+  const [isWaitingApproval, setIsWaitingApproval] = useState(false);
   const [, setCurrentReasoning] = useState<ReasoningStep[]>([]);
 
   // Preferences from localStorage
@@ -402,6 +404,8 @@ export function AgenticChat({ config, initialChatId }: AgenticChatProps) {
                   tool_input: event.data.tool_input,
                   description: event.data.description,
                 });
+                // Block input while agent waits for decision
+                setIsWaitingApproval(true);
                 break;
 
               case 'reasoning': {
@@ -473,6 +477,34 @@ export function AgenticChat({ config, initialChatId }: AgenticChatProps) {
                 break;
               }
 
+              case 'file_version': {
+                // A versioned file was generated — update or append in artifacts
+                const fv = event.data as {
+                  filename?: string;
+                  version?: number;
+                  url?: string;
+                  s3_key?: string;
+                };
+                if (!fv.filename) break;
+                setArtifacts((prev) => {
+                  // If there's already an artifact with this filename, bump its version
+                  const idx = prev.findLastIndex(
+                    (a) => a.filename === fv.filename
+                  );
+                  if (idx >= 0) {
+                    const updated = [...prev];
+                    updated[idx] = {
+                      ...updated[idx],
+                      version: fv.version ?? updated[idx].version ?? 1,
+                      url: fv.url ?? updated[idx].url,
+                    };
+                    return updated;
+                  }
+                  return prev;
+                });
+                break;
+              }
+
               case 'todo':
                 setTodos((prev) => {
                   const exists = prev.find((t) => t.id === event.data.id);
@@ -512,10 +544,11 @@ export function AgenticChat({ config, initialChatId }: AgenticChatProps) {
                     })
                   );
                 });
-                // If it was the first message, refresh history to show generated title
-                if (messages.length === 0) {
-                  loadHistory();
-                }
+                // Clear approval state on done
+                setIsWaitingApproval(false);
+                setApprovalRequest(null);
+                // Refresh history to pick up any title the agent set
+                loadHistory();
                 break;
 
               case 'error':
@@ -581,6 +614,7 @@ export function AgenticChat({ config, initialChatId }: AgenticChatProps) {
     try {
       await axiosInstance.post(`/chat/${chatId}/approve`, { requestId });
       setApprovalRequest(null);
+      setIsWaitingApproval(false);
     } catch (error) {
       console.error('Failed to approve:', error);
       alert('Failed to approve action');
@@ -591,9 +625,24 @@ export function AgenticChat({ config, initialChatId }: AgenticChatProps) {
     try {
       await axiosInstance.post(`/chat/${chatId}/reject`, { requestId });
       setApprovalRequest(null);
+      setIsWaitingApproval(false);
     } catch (error) {
       console.error('Failed to reject:', error);
       alert('Failed to reject action');
+    }
+  };
+
+  const handleRevertToMessage = async (messageId: string) => {
+    if (!chatId) return;
+    try {
+      await chatService.revertToMessage(chatId, messageId);
+      // Trim local state: keep only messages up to and including this one
+      setMessages((prev) => {
+        const idx = prev.findIndex((m) => m.id === messageId);
+        return idx >= 0 ? prev.slice(0, idx + 1) : prev;
+      });
+    } catch (err) {
+      console.error('Failed to revert:', err);
     }
   };
 
@@ -742,7 +791,7 @@ export function AgenticChat({ config, initialChatId }: AgenticChatProps) {
                 )}
               >
                 {message.role === 'user' ? (
-                  /* User: background bubble, middle with slight space on left */
+                  /* User: background bubble + Revert button on hover */
                   <div className="space-y-2 items-end flex flex-col max-w-[85%]">
                     <div className="rounded-2xl px-4 py-3 shadow-sm bg-[#e8e6e3] dark:bg-muted text-foreground border border-border/50">
                       <MessageStream
@@ -758,6 +807,17 @@ export function AgenticChat({ config, initialChatId }: AgenticChatProps) {
                           minute: '2-digit',
                         })}
                       </span>
+                      {/* Revert to this message */}
+                      {!message.id.startsWith('temp-') && (
+                        <button
+                          onClick={() => handleRevertToMessage(message.id)}
+                          title="Revert to this message"
+                          className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          <RotateCcw size={11} />
+                          Revert
+                        </button>
+                      )}
                     </div>
                   </div>
                 ) : (
@@ -832,9 +892,11 @@ export function AgenticChat({ config, initialChatId }: AgenticChatProps) {
             <ChatInput
               onSend={handleSend}
               chatId={chatId || undefined}
-              disabled={isStreaming}
+              disabled={isStreaming || isWaitingApproval}
               showFileUpload={config.allowFileUpload !== false}
-              placeholder="Reply…"
+              placeholder={
+                isWaitingApproval ? 'Waiting for your approval…' : 'Reply…'
+              }
               className="rounded-2xl border border-border bg-background shadow-sm overflow-hidden focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary/30 transition-all"
             />
 

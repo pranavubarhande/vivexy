@@ -3,7 +3,14 @@
 import { useState, useRef, useCallback, KeyboardEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/utils/common';
-import { FileUpload, FileAttachButton, UploadedFile } from './file-upload';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Plus, Paperclip } from 'lucide-react';
+import { FileUpload, UploadedFile } from './file-upload';
 
 interface ChatInputProps {
   onSend: (message: string, files?: UploadedFile[], rawFiles?: File[]) => void;
@@ -110,20 +117,43 @@ export function ChatInput({
         </div>
       )}
 
-      {/* Input area – no inner border when parent passes className (single bar look) */}
+      {/* Input area – centered row: + menu, textarea, Send */}
       <div
         className={cn(
-          'flex items-end gap-2 p-2 bg-background',
+          'flex items-center gap-2 p-2 bg-background',
           className ? 'rounded-2xl' : 'border rounded-lg shadow-sm'
         )}
       >
-        {/* File attach button */}
+        {/* Plus menu: Add files option */}
         {showFileUpload && (
-          <FileAttachButton
-            onClick={() => setShowUploader(!showUploader)}
-            fileCount={files.length}
-            disabled={disabled}
-          />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={disabled}
+                className="relative h-9 w-9 p-0 shrink-0 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted"
+                aria-label="Add attachment or file"
+              >
+                <Plus className="h-5 w-5" />
+                {files.length + uploadedFiles.length > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 bg-primary text-primary-foreground text-[10px] font-medium rounded-full h-4 min-w-4 flex items-center justify-center">
+                    {files.length + uploadedFiles.length}
+                  </span>
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" side="top">
+              <DropdownMenuItem
+                onSelect={() => setShowUploader(true)}
+                className="gap-2"
+              >
+                <Paperclip className="h-4 w-4" />
+                Add files
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
 
         {/* Text input */}
@@ -136,8 +166,8 @@ export function ChatInput({
           disabled={disabled}
           rows={1}
           className={cn(
-            'flex-1 resize-none border-0 bg-transparent focus:outline-none focus:ring-0',
-            'text-sm min-h-[40px] max-h-[200px] py-2',
+            'flex-1 min-w-0 resize-none border-0 bg-transparent focus:outline-none focus:ring-0',
+            'text-sm min-h-[40px] max-h-[200px] py-2 px-1',
             'placeholder:text-muted-foreground'
           )}
         />
@@ -152,7 +182,7 @@ export function ChatInput({
               files.length === 0)
           }
           size="sm"
-          className="h-8 px-3"
+          className="h-9 px-4 shrink-0"
         >
           Send
         </Button>
