@@ -20,10 +20,6 @@
     "lint": "turbo lint",
     "format": "turbo format",
     "format:check": "turbo format:check",
-    "pg-generate": "turbo pg-generate",
-    "pg-migrate": "turbo pg-migrate",
-    "seed-stocks": "turbo seed-stocks",
-    "test-stock-agent": "turbo test-stock-agent",
     "clean": "turbo clean",
     "prepare": "husky"
   },
