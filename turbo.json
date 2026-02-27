@@ -23,13 +23,8 @@
     "lint": {},
     "format": {},
     "format:check": {},
-    "pg-generate": {},
-    "pg-migrate": {},
     "seed-stocks": {},
     "test-stock-agent": {},
-    "format": {},
-    "format:check": {},
-    "lint": {},
     "clean": {
       "cache": false
     }

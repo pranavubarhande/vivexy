@@ -13,10 +13,10 @@ This monorepo contains:
 
 ## Tech Stack
 
-- **Frontend**: Next.js 16, TypeScript, Tailwind CSS, Prisma
+- **Frontend**: Next.js 16, TypeScript, Tailwind CSS
 - **Backend**: Flask (Python), LangChain, PostgreSQL
-- **Database**: PostgreSQL with Prisma ORM
-- **AI**: OpenAI, Anthropic, Google AI via LangChain
+- **Database**: PostgreSQL with SQLAlchemy + Alembic migrations
+- **AI**: OpenAI, Anthropic, Google AI, Groq via LangChain
 - **Deployment**: Docker, Kubernetes
 - **Monorepo**: Turborepo (Node.js), Poetry (Python)
 
@@ -33,17 +33,19 @@ This monorepo contains:
 
 **macOS (Recommended):**
 
-````bash
+```bash
 # Using Homebrew
 brew install poetry
+```
 
 ### Local Development
 
 1. **Clone and setup**:
+
    ```bash
    git clone https://github.com/pranavubarhande/portfolio-helper-fe.git
    cd portfolio-helper-fe
-````
+   ```
 
 2. **Install dependencies**:
 
@@ -69,13 +71,15 @@ brew install poetry
 4. **Database setup**:
 
    ```bash
-   # Generate Prisma client
-   npm run pg-generate
+   # Run Alembic migrations
+   cd apps/agents-service
+   poetry run alembic upgrade head
 
-   # Run migrations
-   npm run pg-migrate
+   # Seed LLM models
+   poetry run python scripts/seed_llm_models.py
+   cd ../..
 
-   # Seed data
+   # Seed stock data
    npm run seed-stocks
    ```
 
@@ -114,10 +118,6 @@ npm run build
 npm run lint
 npm run format
 
-# Database operations
-npm run pg-generate
-npm run pg-migrate
-
 # Code Quality
 npm run format        # Format code across all apps
 npm run format:check  # Check formatting
@@ -139,21 +139,55 @@ python app.py
 poetry run pytest
 ```
 
+### Alembic Migrations
+
+The database schema is managed entirely via Alembic in `apps/agents-service`.
+
+```bash
+cd apps/agents-service
+
+# Apply all pending migrations
+poetry run alembic upgrade head
+
+# Auto-generate a new migration after changing models
+poetry run alembic revision --autogenerate -m "description_of_change"
+
+# Check current migration version
+poetry run alembic current
+
+# View migration history
+poetry run alembic history
+```
+
 ## Project Structure
 
 ```
-portfolio-helper/
-├── apps/                    # Applications
-│   ├── frontend/           # Next.js UI
-│   └── agents-service/     # Flask AI service
-├── packages/               # Shared packages
-│   └── shared-types/       # TypeScript types
-├── infra/                  # Infrastructure
+portfolio-helper-fe/
+├── apps/                         # Applications
+│   ├── frontend/                 # Next.js UI
+│   │   ├── components/           # React components
+│   │   ├── services/             # API service clients
+│   │   └── scripts/              # Utility scripts
+│   └── agents-service/           # Flask AI service
+│       ├── app/                  # Flask application
+│       │   ├── agents/           # AI agent implementations
+│       │   ├── business_logic/   # Business logic layer
+│       │   ├── models/           # SQLAlchemy models
+│       │   ├── routes/           # API routes
+│       │   ├── schemas/          # Pydantic schemas
+│       │   ├── services/         # External services
+│       │   ├── tools/            # LangChain tools
+│       │   └── utils/            # Utilities
+│       ├── alembic/              # Database migrations
+│       │   └── versions/         # Migration scripts
+│       └── scripts/              # Seed scripts (seed_llm_models.py)
+├── packages/                     # Shared packages
+│   └── shared-types/             # TypeScript types
+├── infra/                        # Infrastructure
 │   └── docker-compose.yml
-├── prisma/                 # Database schema
 ├── .gitignore
-├── package.json            # Root monorepo config
-├── turbo.json              # Turborepo config
+├── package.json                  # Root monorepo config
+├── turbo.json                    # Turborepo config
 └── README.md
 ```
 
@@ -179,6 +213,7 @@ DATABASE_URL=postgresql://user:password@localhost:5432/portfolio_helper
 OPENAI_API_KEY=your_key
 ANTHROPIC_API_KEY=your_key
 GOOGLE_AI_API_KEY=your_key
+GROQ_API_KEY=your_key
 REDIS_URL=redis://localhost:6379
 ```
 
