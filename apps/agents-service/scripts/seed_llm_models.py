@@ -34,7 +34,6 @@ llm_models = [
         "model_id": "gpt-3.5-turbo",
         "is_active": True,
     },
-
     # Anthropic Claude Models
     {
         "name": "Claude 3 Opus",
@@ -54,7 +53,6 @@ llm_models = [
         "model_id": "claude-3-haiku-20240307",
         "is_active": True,
     },
-
     # Google Gemini Models
     {
         "name": "Gemini 2.5 Flash",
@@ -74,7 +72,6 @@ llm_models = [
         "model_id": "gemini-1.5-flash",
         "is_active": True,
     },
-
     # Groq Models (ultra-fast inference, native tool calling)
     {
         "name": "Llama 3.3 70B (Groq)",
@@ -108,6 +105,7 @@ llm_models = [
     },
 ]
 
+
 def main():
     """Main seeding function."""
     print("Seeding LLM models...")
@@ -118,8 +116,7 @@ def main():
         for model_data in llm_models:
             # Check if model already exists
             existing_model = LLMModel.query.filter_by(
-                provider=model_data["provider"],
-                model_id=model_data["model_id"]
+                provider=model_data["provider"], model_id=model_data["model_id"]
             ).first()
 
             if not existing_model:
@@ -131,6 +128,7 @@ def main():
 
         db.session.commit()
         print("Seeding completed!")
+
 
 if __name__ == "__main__":
     main()

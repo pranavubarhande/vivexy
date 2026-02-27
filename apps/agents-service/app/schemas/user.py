@@ -1,7 +1,10 @@
-from pydantic import BaseModel
-from typing import Optional
 from datetime import datetime
+from typing import Optional
+
+from pydantic import BaseModel
+
 from app.models.enums import Role
+
 
 class UserBase(BaseModel):
     email: str
@@ -9,8 +12,10 @@ class UserBase(BaseModel):
     role: Role = Role.USER
     avatar: Optional[str] = None
 
+
 class UserCreate(UserBase):
     password: str
+
 
 class UserResponse(UserBase):
     id: str
@@ -24,14 +29,21 @@ class UserResponse(UserBase):
     def dict(self, **kwargs):
         data = super().dict(**kwargs)
         return {
-            'id': data['id'],
-            'email': data['email'],
-            'name': data.get('name'),
-            'role': data['role'].value if hasattr(data['role'], 'value') else data['role'],
-            'avatar': data.get('avatar'),
-            'createdAt': data['created_at'].isoformat() if data.get('created_at') else None,
-            'updatedAt': data['updated_at'].isoformat() if data.get('updated_at') else None
+            "id": data["id"],
+            "email": data["email"],
+            "name": data.get("name"),
+            "role": (
+                data["role"].value if hasattr(data["role"], "value") else data["role"]
+            ),
+            "avatar": data.get("avatar"),
+            "createdAt": (
+                data["created_at"].isoformat() if data.get("created_at") else None
+            ),
+            "updatedAt": (
+                data["updated_at"].isoformat() if data.get("updated_at") else None
+            ),
         }
+
 
 class UserLogin(BaseModel):
     email: str

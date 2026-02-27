@@ -1,7 +1,9 @@
-from pydantic import BaseModel
-from typing import Optional, Dict, Any, List
 from datetime import datetime
-from app.models.enums import MessageRole, ArtifactType, TodoPriority, TodoStatus
+from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel
+
+from app.models.enums import ArtifactType, MessageRole, TodoPriority, TodoStatus
 
 
 # Chat schemas
@@ -9,8 +11,10 @@ class ChatBase(BaseModel):
     title: Optional[str] = None
     agent_id: Optional[str] = None
 
+
 class ChatCreate(ChatBase):
     pass
+
 
 class ChatResponse(ChatBase):
     id: str
@@ -22,6 +26,7 @@ class ChatResponse(ChatBase):
     class Config:
         from_attributes = True
 
+
 # Message schemas
 class MessageBase(BaseModel):
     role: MessageRole
@@ -29,8 +34,10 @@ class MessageBase(BaseModel):
     model_id: Optional[str] = None
     reasoning: Optional[Dict[str, Any]] = None
 
+
 class MessageCreate(MessageBase):
     chat_id: str
+
 
 class MessageResponse(MessageBase):
     id: str
@@ -39,6 +46,7 @@ class MessageResponse(MessageBase):
 
     class Config:
         from_attributes = True
+
 
 # Artifact schemas
 class ArtifactBase(BaseModel):
@@ -53,8 +61,10 @@ class ArtifactBase(BaseModel):
     content: str
     metadata: Optional[Dict[str, Any]] = None
 
+
 class ArtifactCreate(ArtifactBase):
     pass
+
 
 class ArtifactResponse(ArtifactBase):
     id: str
@@ -73,8 +83,10 @@ class TodoBase(BaseModel):
     status: TodoStatus = TodoStatus.PENDING
     due_date: Optional[datetime] = None
 
+
 class TodoCreate(TodoBase):
     pass
+
 
 class TodoUpdate(BaseModel):
     title: Optional[str] = None
@@ -82,6 +94,7 @@ class TodoUpdate(BaseModel):
     priority: Optional[TodoPriority] = None
     status: Optional[TodoStatus] = None
     due_date: Optional[datetime] = None
+
 
 class TodoResponse(TodoBase):
     id: str

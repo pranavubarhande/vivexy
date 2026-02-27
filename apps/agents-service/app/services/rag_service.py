@@ -1,21 +1,23 @@
 import os
 import tempfile
-import pandas as pd
-from typing import TypedDict, List
+from typing import List, TypedDict
 
-from langchain_core.documents import Document
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_huggingface.embeddings import HuggingFaceEmbeddings
+import pandas as pd
 from langchain_community.document_loaders import (
-    PyPDFLoader, UnstructuredExcelLoader,
-    UnstructuredWordDocumentLoader
+    PyPDFLoader,
+    UnstructuredExcelLoader,
+    UnstructuredWordDocumentLoader,
 )
+from langchain_core.documents import Document
 from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_huggingface.embeddings import HuggingFaceEmbeddings
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langgraph.graph import StateGraph
-from rank_bm25 import BM25Okapi
 from pinecone import Pinecone, ServerlessSpec
+from rank_bm25 import BM25Okapi
 
 from config import Config
+
 
 # ==========================================================
 # LOAD & PROCESS DOCUMENTS
@@ -29,10 +31,12 @@ def load_docs(file_path, csv_dataframes):
             csv_dataframes[file_path] = df
             docs = []
             for i, row in df.iterrows():
-                docs.append(Document(
-                    page_content=" | ".join([f"{k}: {v}" for k, v in row.items()]),
-                    metadata={"source": file_path, "row": i, "type": "csv"}
-                ))
+                docs.append(
+                    Document(
+                        page_content=" | ".join([f"{k}: {v}" for k, v in row.items()]),
+                        metadata={"source": file_path, "row": i, "type": "csv"},
+                    )
+                )
             return docs
         elif file_path.endswith(".xlsx"):
             return UnstructuredExcelLoader(file_path).load()
@@ -41,6 +45,7 @@ def load_docs(file_path, csv_dataframes):
     except Exception as e:
         print(f"Error loading {file_path}: {e}")
     return []
+
 
 # ==========================================================
 # AGENT STATE
@@ -52,25 +57,32 @@ class AgentState(TypedDict):
     analysis: str
     answer: str
 
+
 # ==========================================================
 # HYBRID SEARCH (Vector + BM25)
 # ==========================================================
-def hybrid_search(query: str, index, bm25, chunks, embeddings_model, k: int = Config.TOP_K_RETRIEVAL) -> List[Document]:
+def hybrid_search(
+    query: str, index, bm25, chunks, embeddings_model, k: int = Config.TOP_K_RETRIEVAL
+) -> List[Document]:
     """Combine semantic (vector) and lexical (BM25) search"""
 
     # Vector search
     query_vector = embeddings_model.embed_query(query)
     vector_results = index.query(vector=query_vector, top_k=k, include_metadata=True)
-    vector_docs = [Document(page_content=match['metadata']['text'], metadata={k: v for k, v in match['metadata'].items() if k != 'text'}) for match in vector_results['matches']]
+    vector_docs = [
+        Document(
+            page_content=match["metadata"]["text"],
+            metadata={k: v for k, v in match["metadata"].items() if k != "text"},
+        )
+        for match in vector_results["matches"]
+    ]
 
     # BM25 search
     tokenized_query = query.split()
     bm25_scores = bm25.get_scores(tokenized_query)
     top_bm25_indices = sorted(
-        range(len(bm25_scores)),
-        key=lambda i: bm25_scores[i],
-        reverse=True
-    )[:Config.BM25_K]
+        range(len(bm25_scores)), key=lambda i: bm25_scores[i], reverse=True
+    )[: Config.BM25_K]
 
     # Combine results
     result_docs = vector_docs.copy()
@@ -85,6 +97,7 @@ def hybrid_search(query: str, index, bm25, chunks, embeddings_model, k: int = Co
 
     return result_docs[:k]
 
+
 # ==========================================================
 # LLM SETUP
 # ==========================================================
@@ -92,8 +105,9 @@ llm = ChatGoogleGenerativeAI(
     model="gemini-2.5-flash",
     temperature=0,
     max_tokens=2048,
-    api_key=Config.GOOGLE_AI_API_KEY
+    api_key=Config.GOOGLE_AI_API_KEY,
 )
+
 
 # ==========================================================
 # STEP 1: SEMANTIC ROUTER
@@ -122,19 +136,20 @@ Respond with ONLY the category name (no explanation)."""
     except:
         return "document_qa"
 
+
 # ==========================================================
 # STEP 2: DOCUMENT RETRIEVAL
 # ==========================================================
-def retrieve_documents(state: AgentState, index, bm25, chunks, embeddings_model) -> dict:
+def retrieve_documents(
+    state: AgentState, index, bm25, chunks, embeddings_model
+) -> dict:
     """Retrieve relevant documents using hybrid search"""
 
     docs = hybrid_search(state["question"], index, bm25, chunks, embeddings_model)
     route = semantic_router(state)
 
-    return {
-        "retrieved_docs": docs,
-        "routing_decision": route
-    }
+    return {"retrieved_docs": docs, "routing_decision": route}
+
 
 # ==========================================================
 # STEP 3: FILE LISTING
@@ -142,7 +157,11 @@ def retrieve_documents(state: AgentState, index, bm25, chunks, embeddings_model)
 def file_list_handler(state: AgentState, documents) -> dict:
     """Handle file listing queries"""
 
-    unique_files = set(doc.metadata.get("source_file") for doc in documents if "source_file" in doc.metadata)
+    unique_files = set(
+        doc.metadata.get("source_file")
+        for doc in documents
+        if "source_file" in doc.metadata
+    )
 
     if not unique_files:
         answer = "No files loaded."
@@ -151,6 +170,7 @@ def file_list_handler(state: AgentState, documents) -> dict:
         answer = f"Available files:\n{file_info}"
 
     return {"answer": answer, "analysis": "file_list"}
+
 
 # ==========================================================
 # STEP 4: CSV ANALYTICS
@@ -164,8 +184,7 @@ def csv_analytics_handler(state: AgentState, csv_dataframes) -> dict:
         return {"answer": "No CSV files available.", "analysis": "csv_analysis"}
 
     dataframes_info = "\n".join(
-        f"- '{name}': columns {list(df.columns)}"
-        for name, df in csv_dataframes.items()
+        f"- '{name}': columns {list(df.columns)}" for name, df in csv_dataframes.items()
     )
 
     code_prompt = f"""You are a data analyst. Write Python code to answer the question.
@@ -191,11 +210,7 @@ Write ONLY the Python code block:"""
             if code.startswith("python"):
                 code = code[6:]
 
-        local_env = {
-            "csv_dataframes": csv_dataframes,
-            "pd": pd,
-            "result": None
-        }
+        local_env = {"csv_dataframes": csv_dataframes, "pd": pd, "result": None}
 
         exec(code, {"pd": pd, "csv_dataframes": csv_dataframes}, local_env)
         result = local_env.get("result", "Analysis completed")
@@ -206,10 +221,13 @@ Write ONLY the Python code block:"""
         answer = f"Analysis Result:\n{str(result)}"
         analysis = "csv_analysis"
     except Exception as e:
-        answer = f"Error: {str(e)}\n\nNote: Ensure code uses csv_dataframes dict correctly."
+        answer = (
+            f"Error: {str(e)}\n\nNote: Ensure code uses csv_dataframes dict correctly."
+        )
         analysis = "csv_analysis_error"
 
     return {"answer": answer, "analysis": analysis}
+
 
 # ==========================================================
 # STEP 5: DOCUMENT QA
@@ -223,7 +241,7 @@ def document_qa_handler(state: AgentState) -> dict:
     if not docs:
         return {
             "answer": "No relevant documents found to answer this question.",
-            "analysis": "no_docs_found"
+            "analysis": "no_docs_found",
         }
 
     # Build context with citations
@@ -260,10 +278,8 @@ Answer:"""
 
     answer = llm.invoke(qa_prompt).content
 
-    return {
-        "answer": answer,
-        "analysis": "document_qa"
-    }
+    return {"answer": answer, "analysis": "document_qa"}
+
 
 # ==========================================================
 # STEP 6: HYBRID HANDLER
@@ -276,10 +292,8 @@ def hybrid_handler(state: AgentState, csv_dataframes) -> dict:
 
     combined = f"📄 Document Analysis:\n{doc_result['answer']}\n\n📊 Data Analysis:\n{csv_result['answer']}"
 
-    return {
-        "answer": combined,
-        "analysis": "hybrid"
-    }
+    return {"answer": combined, "analysis": "hybrid"}
+
 
 # ==========================================================
 # LANGGRAPH WORKFLOW
@@ -295,6 +309,7 @@ def route_handler(state: AgentState) -> str:
         return "hybrid"
     else:
         return "document_qa"
+
 
 def process_rag_query(query: str, files):
     """Main function to process RAG query with files"""
@@ -330,17 +345,16 @@ def process_rag_query(query: str, files):
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=Config.CHUNK_SIZE,
             chunk_overlap=Config.CHUNK_OVERLAP,
-            separators=["\n\n", "\n", ". ", " ", ""]
+            separators=["\n\n", "\n", ". ", " ", ""],
         )
 
         chunks = []
         for doc in documents:
             doc_chunks = text_splitter.split_text(doc.page_content)
             for chunk in doc_chunks:
-                chunks.append(Document(
-                    page_content=chunk,
-                    metadata=doc.metadata.copy()
-                ))
+                chunks.append(
+                    Document(page_content=chunk, metadata=doc.metadata.copy())
+                )
 
         # Create embeddings model
         embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
@@ -354,7 +368,7 @@ def process_rag_query(query: str, files):
                 name=Config.PINECONE_INDEX_NAME,
                 dimension=384,
                 metric="cosine",
-                spec=ServerlessSpec(cloud="aws", region="us-east-1")
+                spec=ServerlessSpec(cloud="aws", region="us-east-1"),
             )
 
         index = pc.Index(Config.PINECONE_INDEX_NAME)
@@ -363,13 +377,13 @@ def process_rag_query(query: str, files):
         vectors = []
         for i, chunk in enumerate(chunks):
             vector = embeddings.embed_query(chunk.page_content)
-            metadata = {k: v for k, v in chunk.metadata.items() if isinstance(v, (str, int, float, bool))}
-            metadata['text'] = chunk.page_content
-            vectors.append({
-                "id": f"chunk_{i}",
-                "values": vector,
-                "metadata": metadata
-            })
+            metadata = {
+                k: v
+                for k, v in chunk.metadata.items()
+                if isinstance(v, (str, int, float, bool))
+            }
+            metadata["text"] = chunk.page_content
+            vectors.append({"id": f"chunk_{i}", "values": vector, "metadata": metadata})
 
         index.upsert(vectors=vectors)
 
@@ -379,19 +393,28 @@ def process_rag_query(query: str, files):
 
         # Build graph
         graph = StateGraph(AgentState)
-        graph.add_node("retrieve", lambda state: retrieve_documents(state, index, bm25, chunks, embeddings))
+        graph.add_node(
+            "retrieve",
+            lambda state: retrieve_documents(state, index, bm25, chunks, embeddings),
+        )
         graph.add_node("file_list", lambda state: file_list_handler(state, documents))
-        graph.add_node("csv_analytics", lambda state: csv_analytics_handler(state, csv_dataframes))
+        graph.add_node(
+            "csv_analytics", lambda state: csv_analytics_handler(state, csv_dataframes)
+        )
         graph.add_node("document_qa", document_qa_handler)
         graph.add_node("hybrid", lambda state: hybrid_handler(state, csv_dataframes))
 
         graph.set_entry_point("retrieve")
-        graph.add_conditional_edges("retrieve", route_handler, {
-            "file_list": "file_list",
-            "csv_analytics": "csv_analytics",
-            "document_qa": "document_qa",
-            "hybrid": "hybrid"
-        })
+        graph.add_conditional_edges(
+            "retrieve",
+            route_handler,
+            {
+                "file_list": "file_list",
+                "csv_analytics": "csv_analytics",
+                "document_qa": "document_qa",
+                "hybrid": "hybrid",
+            },
+        )
 
         graph.set_finish_point("file_list")
         graph.set_finish_point("csv_analytics")
@@ -401,19 +424,22 @@ def process_rag_query(query: str, files):
         app_graph = graph.compile()
 
         # Invoke
-        result = app_graph.invoke({
-            "question": query,
-            "retrieved_docs": [],
-            "routing_decision": "",
-            "analysis": "",
-            "answer": ""
-        })
+        result = app_graph.invoke(
+            {
+                "question": query,
+                "retrieved_docs": [],
+                "routing_decision": "",
+                "analysis": "",
+                "answer": "",
+            }
+        )
 
         answer = result.get("answer", "No answer generated")
         analysis = result.get("analysis", "unknown")
 
         # Clean up temp files
         import shutil
+
         shutil.rmtree(temp_dir)
 
         return {"answer": answer, "analysis": analysis}

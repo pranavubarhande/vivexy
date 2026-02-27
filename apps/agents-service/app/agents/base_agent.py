@@ -6,38 +6,39 @@ Supports task planning, RAG, todos, artifacts, file tools, and human-in-the-loop
 Tool execution is always SEQUENTIAL — never concurrent — to avoid LLM rate limits.
 """
 
-import os
-import json
-import uuid
 import asyncio
-from typing import List, Dict, Any, Optional, AsyncGenerator
-from datetime import datetime
+import json
+import os
+import uuid
 from dataclasses import dataclass
+from datetime import datetime
+from typing import Any, AsyncGenerator, Dict, List, Optional
 
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, ToolMessage
-from langchain_core.tools import BaseTool
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_core.rate_limiters import InMemoryRateLimiter
+from langchain_core.tools import BaseTool
+from langchain_google_genai import ChatGoogleGenerativeAI
 
 from app.agents.config import (
-    AgentConfig,
-    AgentType,
-    FileContext,
-    ToolCall,
-    ReasoningStep,
-    ApprovalRequest,
-    SYSTEM_PROMPTS,
     APPROVAL_REQUIRED_TOOLS,
+    SYSTEM_PROMPTS,
     TASK_PLANNING_PROMPT,
+    AgentConfig,
     AgentPhase,
+    AgentType,
+    ApprovalRequest,
+    FileContext,
+    ReasoningStep,
     TaskItem,
     TaskStatus,
+    ToolCall,
 )
 
 
 @dataclass
 class StreamEvent:
     """Event emitted during streaming for SSE."""
+
     type: str  # start, content, reasoning, tool_call, approval_request, artifact, todo,
     # task_planned, task_started, task_completed, task_error, phase_change, done, error
     data: Any
@@ -77,7 +78,9 @@ class BaseAgent:
                 unique_tools.append(tool)
         self.tools = unique_tools
         self.llm = self._create_llm()
-        self.llm_with_tools = self.llm.bind_tools(self.tools) if self.tools else self.llm
+        self.llm_with_tools = (
+            self.llm.bind_tools(self.tools) if self.tools else self.llm
+        )
         self.tool_map = {t.name: t for t in self.tools}
 
     # ------------------------------------------------------------------
@@ -103,6 +106,7 @@ class BaseAgent:
             )
         if self.config.provider == "openai":
             from langchain_openai import ChatOpenAI
+
             return ChatOpenAI(
                 model=self.config.model,
                 temperature=self.config.temperature,
@@ -113,6 +117,7 @@ class BaseAgent:
             )
         if self.config.provider == "anthropic":
             from langchain_anthropic import ChatAnthropic
+
             return ChatAnthropic(
                 model=self.config.model,
                 temperature=self.config.temperature,
@@ -122,6 +127,7 @@ class BaseAgent:
             )
         if self.config.provider == "groq":
             from langchain_groq import ChatGroq
+
             return ChatGroq(
                 model=self.config.model,
                 temperature=self.config.temperature,
@@ -155,20 +161,30 @@ class BaseAgent:
         context_note = " Files are attached and will be searched." if has_files else ""
         planning_input = f"User request: {user_message}{context_note}"
         try:
-            response = await self.llm.ainvoke([
-                SystemMessage(content=TASK_PLANNING_PROMPT),
-                HumanMessage(content=planning_input),
-            ])
+            response = await self.llm.ainvoke(
+                [
+                    SystemMessage(content=TASK_PLANNING_PROMPT),
+                    HumanMessage(content=planning_input),
+                ]
+            )
             content = response.content
             if isinstance(content, list):
                 content = "".join(
-                    p if isinstance(p, str) else (p.get("text", "") if isinstance(p, dict) else "")
+                    (
+                        p
+                        if isinstance(p, str)
+                        else (p.get("text", "") if isinstance(p, dict) else "")
+                    )
                     for p in content
                 )
             content = (content or "").strip()
             if content.startswith("```"):
                 parts = content.split("```", 2)
-                content = parts[-1].replace("json", "", 1).strip() if len(parts) >= 2 else content
+                content = (
+                    parts[-1].replace("json", "", 1).strip()
+                    if len(parts) >= 2
+                    else content
+                )
                 if content.endswith("```"):
                     content = content[:-3].strip()
             raw = json.loads(content)
@@ -176,12 +192,14 @@ class BaseAgent:
                 raise ValueError("Expected JSON array")
             tasks = []
             for i, t in enumerate(raw[:8]):
-                tasks.append(TaskItem(
-                    id=t.get("id", f"t{i+1}"),
-                    title=t.get("title", f"Task {i+1}"),
-                    description=t.get("description"),
-                    status=TaskStatus.PENDING.value,
-                ))
+                tasks.append(
+                    TaskItem(
+                        id=t.get("id", f"t{i+1}"),
+                        title=t.get("title", f"Task {i+1}"),
+                        description=t.get("description"),
+                        status=TaskStatus.PENDING.value,
+                    )
+                )
             return tasks
         except Exception:
             tasks = [TaskItem(id="t1", title="Analyze request and gather information")]
@@ -226,7 +244,9 @@ class BaseAgent:
         has_files = bool(files)
 
         yield StreamEvent(type="start", data={})
-        yield StreamEvent(type="phase_change", data={"phase": AgentPhase.PLANNING.value})
+        yield StreamEvent(
+            type="phase_change", data={"phase": AgentPhase.PLANNING.value}
+        )
 
         task_plan = await self._plan_tasks(last_user, has_files)
         for task in task_plan:
@@ -240,9 +260,13 @@ class BaseAgent:
             iteration = 0
 
             if has_files:
-                yield StreamEvent(type="phase_change", data={"phase": AgentPhase.SEARCHING.value})
+                yield StreamEvent(
+                    type="phase_change", data={"phase": AgentPhase.SEARCHING.value}
+                )
             else:
-                yield StreamEvent(type="phase_change", data={"phase": AgentPhase.EXECUTING.value})
+                yield StreamEvent(
+                    type="phase_change", data={"phase": AgentPhase.EXECUTING.value}
+                )
 
             while iteration < self.config.max_iterations:
                 # Yield control to the event loop between iterations to keep SSE alive
@@ -257,8 +281,13 @@ class BaseAgent:
                         cv = chunk.content
                         if isinstance(cv, list):
                             cv = "".join(
-                                p if isinstance(p, str)
-                                else (p.get("text", "") if isinstance(p, dict) else "")
+                                (
+                                    p
+                                    if isinstance(p, str)
+                                    else (
+                                        p.get("text", "") if isinstance(p, dict) else ""
+                                    )
+                                )
                                 for p in cv
                             )
                         if isinstance(cv, str) and cv:
@@ -272,13 +301,17 @@ class BaseAgent:
                     # No tool calls → generation is complete
                     break
 
-                lc_messages.append(AIMessage(
-                    content=response_content,
-                    tool_calls=tool_calls_in_iteration,
-                ))
+                lc_messages.append(
+                    AIMessage(
+                        content=response_content,
+                        tool_calls=tool_calls_in_iteration,
+                    )
+                )
 
                 if iteration == 1 and has_files:
-                    yield StreamEvent(type="phase_change", data={"phase": AgentPhase.EXECUTING.value})
+                    yield StreamEvent(
+                        type="phase_change", data={"phase": AgentPhase.EXECUTING.value}
+                    )
 
                 # ---- Sequential tool execution ----
                 for tc in tool_calls_in_iteration:
@@ -288,7 +321,9 @@ class BaseAgent:
 
                     if current_task:
                         current_task.status = TaskStatus.RUNNING.value
-                        yield StreamEvent(type="task_started", data=current_task.to_dict())
+                        yield StreamEvent(
+                            type="task_started", data=current_task.to_dict()
+                        )
 
                     yield StreamEvent(
                         type="reasoning",
@@ -317,25 +352,35 @@ class BaseAgent:
                                 create_approval_event,
                                 wait_for_approval,
                             )
+
                             create_approval_event(request_id)
-                            approved = await wait_for_approval(request_id, timeout=120.0)
+                            approved = await wait_for_approval(
+                                request_id, timeout=120.0
+                            )
                         except Exception:
                             approved = False  # Fail-safe: reject on error
 
                         if not approved:
-                            lc_messages.append(ToolMessage(
-                                content="User rejected this action. Do not attempt it again.",
-                                tool_call_id=tool_call_id,
-                            ))
+                            lc_messages.append(
+                                ToolMessage(
+                                    content="User rejected this action. Do not attempt it again.",
+                                    tool_call_id=tool_call_id,
+                                )
+                            )
                             if current_task:
                                 current_task.status = TaskStatus.ERROR.value
                                 current_task.error = "Rejected by user"
-                                yield StreamEvent(type="task_error", data=current_task.to_dict())
+                                yield StreamEvent(
+                                    type="task_error", data=current_task.to_dict()
+                                )
                                 current_task = next(task_iter, None)
                             continue
 
                     if tool_name == "create_artifact":
-                        yield StreamEvent(type="phase_change", data={"phase": AgentPhase.GENERATING.value})
+                        yield StreamEvent(
+                            type="phase_change",
+                            data={"phase": AgentPhase.GENERATING.value},
+                        )
 
                     # ---- Execute tool ----
                     tool = self.tool_map.get(tool_name)
@@ -343,7 +388,9 @@ class BaseAgent:
                         try:
                             result = tool.invoke(tool_input)
                             tool_output_str = (
-                                result if isinstance(result, str) else json.dumps(result)
+                                result
+                                if isinstance(result, str)
+                                else json.dumps(result)
                             )
                             yield StreamEvent(
                                 type="tool_call",
@@ -358,7 +405,9 @@ class BaseAgent:
                             parsed: Optional[Dict] = None
                             if isinstance(result, dict):
                                 parsed = result
-                            elif isinstance(result, str) and result.strip().startswith("{"):
+                            elif isinstance(result, str) and result.strip().startswith(
+                                "{"
+                            ):
                                 try:
                                     parsed = json.loads(result)
                                 except (json.JSONDecodeError, TypeError):
@@ -367,16 +416,23 @@ class BaseAgent:
                             if isinstance(parsed, dict):
                                 if parsed.get("todo"):
                                     yield StreamEvent(type="todo", data=parsed["todo"])
-                                if parsed.get("todos") and isinstance(parsed["todos"], list):
+                                if parsed.get("todos") and isinstance(
+                                    parsed["todos"], list
+                                ):
                                     for t in parsed["todos"]:
                                         if isinstance(t, dict) and t.get("id"):
                                             yield StreamEvent(type="todo", data=t)
                                 if parsed.get("artifact"):
                                     artifact_data = parsed["artifact"]
                                     # Propagate version if present at top level
-                                    if "version" in parsed and "version" not in artifact_data:
+                                    if (
+                                        "version" in parsed
+                                        and "version" not in artifact_data
+                                    ):
                                         artifact_data["version"] = parsed["version"]
-                                    yield StreamEvent(type="artifact", data=artifact_data)
+                                    yield StreamEvent(
+                                        type="artifact", data=artifact_data
+                                    )
                                 # Versioned file event for frontend artifact panel
                                 if parsed.get("version") and parsed.get("url"):
                                     yield StreamEvent(
@@ -389,41 +445,55 @@ class BaseAgent:
                                         },
                                     )
 
-                            lc_messages.append(ToolMessage(
-                                content=tool_output_str,
-                                tool_call_id=tool_call_id,
-                            ))
+                            lc_messages.append(
+                                ToolMessage(
+                                    content=tool_output_str,
+                                    tool_call_id=tool_call_id,
+                                )
+                            )
                             if current_task:
                                 current_task.status = TaskStatus.DONE.value
-                                yield StreamEvent(type="task_completed", data=current_task.to_dict())
+                                yield StreamEvent(
+                                    type="task_completed", data=current_task.to_dict()
+                                )
                                 current_task = next(task_iter, None)
 
                         except Exception as e:
                             err_msg = f"Error: {str(e)}"
                             yield StreamEvent(type="error", data={"message": err_msg})
-                            lc_messages.append(ToolMessage(
-                                content=err_msg,
-                                tool_call_id=tool_call_id,
-                            ))
+                            lc_messages.append(
+                                ToolMessage(
+                                    content=err_msg,
+                                    tool_call_id=tool_call_id,
+                                )
+                            )
                             if current_task:
                                 current_task.status = TaskStatus.ERROR.value
                                 current_task.error = str(e)
-                                yield StreamEvent(type="task_error", data=current_task.to_dict())
+                                yield StreamEvent(
+                                    type="task_error", data=current_task.to_dict()
+                                )
                                 current_task = next(task_iter, None)
                     else:
-                        lc_messages.append(ToolMessage(
-                            content=f"Tool not found: {tool_name}",
-                            tool_call_id=tool_call_id,
-                        ))
+                        lc_messages.append(
+                            ToolMessage(
+                                content=f"Tool not found: {tool_name}",
+                                tool_call_id=tool_call_id,
+                            )
+                        )
 
             # Mark any remaining pending tasks as done
             while current_task:
                 if current_task.status == TaskStatus.PENDING.value:
                     current_task.status = TaskStatus.DONE.value
-                    yield StreamEvent(type="task_completed", data=current_task.to_dict())
+                    yield StreamEvent(
+                        type="task_completed", data=current_task.to_dict()
+                    )
                 current_task = next(task_iter, None)
 
-            yield StreamEvent(type="phase_change", data={"phase": AgentPhase.DONE.value})
+            yield StreamEvent(
+                type="phase_change", data={"phase": AgentPhase.DONE.value}
+            )
             yield StreamEvent(
                 type="done",
                 data={"content": full_content, "refetch": ["artifacts", "todos"]},
@@ -438,8 +508,10 @@ class BaseAgent:
 
     def approve_tool_call(self, request_id: str) -> bool:
         from app.agents.approval_store import resolve_approval
+
         return resolve_approval(request_id, approved=True)
 
     def reject_tool_call(self, request_id: str) -> bool:
         from app.agents.approval_store import resolve_approval
+
         return resolve_approval(request_id, approved=False)

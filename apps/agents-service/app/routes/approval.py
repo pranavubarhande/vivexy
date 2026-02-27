@@ -1,6 +1,7 @@
-from flask import Blueprint, request, jsonify
-from app.middlewares.auth import auth_middleware
+from flask import Blueprint, jsonify, request
+
 from app.business_logic.chat import get_user_chat
+from app.middlewares.auth import auth_middleware
 
 bp = Blueprint("approval", __name__, url_prefix="/chat")
 
@@ -23,15 +24,18 @@ def approve_tool(chat_id):
             return jsonify({"error": "Chat not found"}), 404
 
         from app.agents.approval_store import resolve_approval
+
         signalled = resolve_approval(request_id, approved=True)
 
-        return jsonify({
-            "success": True,
-            "message": "Tool approved",
-            "requestId": request_id,
-            "status": "approved",
-            "signalled": signalled,
-        })
+        return jsonify(
+            {
+                "success": True,
+                "message": "Tool approved",
+                "requestId": request_id,
+                "status": "approved",
+                "signalled": signalled,
+            }
+        )
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -55,15 +59,18 @@ def reject_tool(chat_id):
             return jsonify({"error": "Chat not found"}), 404
 
         from app.agents.approval_store import resolve_approval
+
         signalled = resolve_approval(request_id, approved=False)
 
-        return jsonify({
-            "success": True,
-            "message": "Tool rejected",
-            "requestId": request_id,
-            "status": "rejected",
-            "signalled": signalled,
-        })
+        return jsonify(
+            {
+                "success": True,
+                "message": "Tool rejected",
+                "requestId": request_id,
+                "status": "rejected",
+                "signalled": signalled,
+            }
+        )
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500

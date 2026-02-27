@@ -1,20 +1,18 @@
 from app.models.base import db
-
+from app.models.chat import Artifact, Chat, ChatAttachment, Message, Todo
 from app.models.enums import (
-    Role,
-    TeamRole,
-    SubscriptionStatus,
+    ArtifactType,
+    MessageRole,
     Plan,
+    Role,
+    SubscriptionStatus,
+    TeamRole,
     TodoPriority,
     TodoStatus,
-    MessageRole,
-    ArtifactType,
 )
-
-from app.models.user import User
-from app.models.team import Team, TeamMember, TeamInvite
-from app.models.subscription import Subscription, Invoice, StripeEventLog
-from app.models.stock import Stock, StockDataBlob, StockNews
 from app.models.job import Job, JobStock
 from app.models.llm import LLMModel
-from app.models.chat import Chat, Message, Artifact, Todo, ChatAttachment
+from app.models.stock import Stock, StockDataBlob, StockNews
+from app.models.subscription import Invoice, StripeEventLog, Subscription
+from app.models.team import Team, TeamInvite, TeamMember
+from app.models.user import User

@@ -5,10 +5,10 @@ All file-write operations use versioned S3 keys so each generation produces
 a new version that can be inspected or downloaded independently.
 """
 
-import os
 import json
+import os
 import tempfile
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional
 
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field
@@ -16,56 +16,85 @@ from pydantic import BaseModel, Field
 from app.services.file_processor import FileProcessor
 from app.services.s3_service import S3Service
 
-
 # ============================================
 # Input Schemas
 # ============================================
 
+
 class ReadFileInput(BaseModel):
     """Input for reading a file"""
-    filename: str = Field(..., description="Name of the file to read from the chat's uploaded files")
+
+    filename: str = Field(
+        ..., description="Name of the file to read from the chat's uploaded files"
+    )
 
 
 class WriteCsvInput(BaseModel):
     """Input for writing CSV file"""
-    data: str = Field(..., description="JSON string representing table data. Can be an array of objects or an object with arrays as values.")
-    filename: str = Field(..., description="Output filename (will be saved with .csv extension)")
+
+    data: str = Field(
+        ...,
+        description="JSON string representing table data. Can be an array of objects or an object with arrays as values.",
+    )
+    filename: str = Field(
+        ..., description="Output filename (will be saved with .csv extension)"
+    )
 
 
 class WriteXlsxInput(BaseModel):
     """Input for writing Excel file"""
-    data: str = Field(..., description="JSON string representing table data. Can be an array of objects or an object with arrays as values.")
-    filename: str = Field(..., description="Output filename (will be saved with .xlsx extension)")
+
+    data: str = Field(
+        ...,
+        description="JSON string representing table data. Can be an array of objects or an object with arrays as values.",
+    )
+    filename: str = Field(
+        ..., description="Output filename (will be saved with .xlsx extension)"
+    )
 
 
 class WritePdfInput(BaseModel):
     """Input for writing PDF file"""
+
     content: str = Field(..., description="Text content to write to the PDF")
-    filename: str = Field(..., description="Output filename (will be saved with .pdf extension)")
+    filename: str = Field(
+        ..., description="Output filename (will be saved with .pdf extension)"
+    )
     title: Optional[str] = Field(None, description="Optional document title")
 
 
 class WriteDocxInput(BaseModel):
     """Input for writing Word document"""
+
     content: str = Field(..., description="Text content to write to the document")
-    filename: str = Field(..., description="Output filename (will be saved with .docx extension)")
+    filename: str = Field(
+        ..., description="Output filename (will be saved with .docx extension)"
+    )
     title: Optional[str] = Field(None, description="Optional document title")
 
 
 class WriteMdInput(BaseModel):
     """Input for writing Markdown file"""
+
     content: str = Field(..., description="Markdown content to write")
-    filename: str = Field(..., description="Output filename (will be saved with .md extension)")
+    filename: str = Field(
+        ..., description="Output filename (will be saved with .md extension)"
+    )
 
 
 class AnalyzeDataInput(BaseModel):
     """Input for data analysis"""
-    filename: str = Field(..., description="Name of the CSV or XLSX file to analyze from the chat's uploaded files")
+
+    filename: str = Field(
+        ...,
+        description="Name of the CSV or XLSX file to analyze from the chat's uploaded files",
+    )
 
 
 # ============================================
 # Tool Functions
 # ============================================
+
 
 def read_file_func(chat_id: str, filename: str) -> Dict[str, Any]:
     """Read a file from the chat's files"""
@@ -77,7 +106,10 @@ def read_file_func(chat_id: str, filename: str) -> Dict[str, Any]:
             (f for f in files if filename.lower() in f["filename"].lower()), None
         )
         if not target_file:
-            return {"success": False, "error": f"File '{filename}' not found in chat files"}
+            return {
+                "success": False,
+                "error": f"File '{filename}' not found in chat files",
+            }
 
         local_path = s3.download_file(target_file["s3_key"])
         if not local_path:
@@ -88,7 +120,10 @@ def read_file_func(chat_id: str, filename: str) -> Dict[str, Any]:
             result = processor.read_file(local_path)
             text = result.get("text", "")
             if len(text) > 5000:
-                text = text[:5000] + "\n... [Content truncated, use analyze_data for full analysis]"
+                text = (
+                    text[:5000]
+                    + "\n... [Content truncated, use analyze_data for full analysis]"
+                )
             return {
                 "success": True,
                 "filename": filename,
@@ -126,7 +161,9 @@ def write_csv_func(chat_id: str, data: str, filename: str) -> Dict[str, Any]:
             temp_path = f.name
 
         s3 = S3Service()
-        result = s3.upload_generated_file_versioned(temp_path, chat_id, filename, "text/csv")
+        result = s3.upload_generated_file_versioned(
+            temp_path, chat_id, filename, "text/csv"
+        )
         os.unlink(temp_path)
 
         if result.get("success"):
@@ -172,7 +209,9 @@ def write_xlsx_func(chat_id: str, data: str, filename: str) -> Dict[str, Any]:
 
         s3 = S3Service()
         result = s3.upload_generated_file_versioned(
-            temp_path, chat_id, filename,
+            temp_path,
+            chat_id,
+            filename,
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
         os.unlink(temp_path)
@@ -200,7 +239,9 @@ def write_xlsx_func(chat_id: str, data: str, filename: str) -> Dict[str, Any]:
         return {"success": False, "error": str(e)}
 
 
-def write_pdf_func(chat_id: str, content: str, filename: str, title: Optional[str] = None) -> Dict[str, Any]:
+def write_pdf_func(
+    chat_id: str, content: str, filename: str, title: Optional[str] = None
+) -> Dict[str, Any]:
     """Write content to a versioned PDF file on S3."""
     try:
         if not filename.endswith(".pdf"):
@@ -215,7 +256,9 @@ def write_pdf_func(chat_id: str, content: str, filename: str, title: Optional[st
             return result
 
         s3 = S3Service()
-        upload_result = s3.upload_generated_file_versioned(temp_path, chat_id, filename, "application/pdf")
+        upload_result = s3.upload_generated_file_versioned(
+            temp_path, chat_id, filename, "application/pdf"
+        )
         os.unlink(temp_path)
 
         if upload_result.get("success"):
@@ -237,7 +280,9 @@ def write_pdf_func(chat_id: str, content: str, filename: str, title: Optional[st
         return {"success": False, "error": str(e)}
 
 
-def write_docx_func(chat_id: str, content: str, filename: str, title: Optional[str] = None) -> Dict[str, Any]:
+def write_docx_func(
+    chat_id: str, content: str, filename: str, title: Optional[str] = None
+) -> Dict[str, Any]:
     """Write content to a versioned Word document on S3."""
     try:
         if not filename.endswith(".docx"):
@@ -253,7 +298,9 @@ def write_docx_func(chat_id: str, content: str, filename: str, title: Optional[s
 
         s3 = S3Service()
         upload_result = s3.upload_generated_file_versioned(
-            temp_path, chat_id, filename,
+            temp_path,
+            chat_id,
+            filename,
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         )
         os.unlink(temp_path)
@@ -283,12 +330,16 @@ def write_md_func(chat_id: str, content: str, filename: str) -> Dict[str, Any]:
         if not filename.endswith(".md"):
             filename = f"{filename}.md"
 
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False, encoding="utf-8") as f:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".md", delete=False, encoding="utf-8"
+        ) as f:
             f.write(content)
             temp_path = f.name
 
         s3 = S3Service()
-        upload_result = s3.upload_generated_file_versioned(temp_path, chat_id, filename, "text/markdown")
+        upload_result = s3.upload_generated_file_versioned(
+            temp_path, chat_id, filename, "text/markdown"
+        )
         os.unlink(temp_path)
 
         if upload_result.get("success"):
@@ -321,7 +372,10 @@ def analyze_data_func(chat_id: str, filename: str) -> Dict[str, Any]:
             (f for f in files if filename.lower() in f["filename"].lower()), None
         )
         if not target_file:
-            return {"success": False, "error": f"File '{filename}' not found in chat files"}
+            return {
+                "success": False,
+                "error": f"File '{filename}' not found in chat files",
+            }
 
         local_path = s3.download_file(target_file["s3_key"])
         if not local_path:
@@ -340,6 +394,7 @@ def analyze_data_func(chat_id: str, filename: str) -> Dict[str, Any]:
 # ============================================
 # Tool Factory Functions
 # ============================================
+
 
 def get_file_read_tool(chat_id: str) -> StructuredTool:
     """Get file read tool"""

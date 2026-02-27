@@ -9,8 +9,8 @@ from typing import Optional
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field
 
-from app.models import Chat, ArtifactType
 from app.business_logic.artifacts import create_artifact
+from app.models import ArtifactType, Chat
 from app.schemas import ArtifactCreate
 
 
@@ -18,8 +18,12 @@ class CreateArtifactInput(BaseModel):
     title: Optional[str] = Field(None, description="Title of the artifact")
     type: str = Field("MD", description="Type: MD, HTML, JS, TXT, JSON, CSV")
     filename: Optional[str] = Field(None, description="Optional filename")
-    language: Optional[str] = Field(None, description="Language for code (e.g. python, javascript)")
-    content: str = Field(..., description="Full content of the artifact (markdown, HTML, code, etc.)")
+    language: Optional[str] = Field(
+        None, description="Language for code (e.g. python, javascript)"
+    )
+    content: str = Field(
+        ..., description="Full content of the artifact (markdown, HTML, code, etc.)"
+    )
 
 
 def create_artifact_func(chat_id: str, input_data: dict) -> str:
@@ -52,20 +56,22 @@ def create_artifact_func(chat_id: str, input_data: dict) -> str:
         )
         artifact = create_artifact(chat_id, data, user_id)
 
-        return json.dumps({
-            "success": True,
-            "artifact": {
-                "id": artifact["id"],
-                "chatId": artifact["chatId"],
-                "title": artifact["title"],
-                "type": artifact["type"],
-                "filename": artifact.get("filename"),
-                "language": artifact.get("language"),
-                "content": artifact["content"],
-                "seq": artifact["seq"],
-                "createdAt": artifact["createdAt"],
-            },
-        })
+        return json.dumps(
+            {
+                "success": True,
+                "artifact": {
+                    "id": artifact["id"],
+                    "chatId": artifact["chatId"],
+                    "title": artifact["title"],
+                    "type": artifact["type"],
+                    "filename": artifact.get("filename"),
+                    "language": artifact.get("language"),
+                    "content": artifact["content"],
+                    "seq": artifact["seq"],
+                    "createdAt": artifact["createdAt"],
+                },
+            }
+        )
     except Exception as e:
         return json.dumps({"success": False, "error": str(e)})
 

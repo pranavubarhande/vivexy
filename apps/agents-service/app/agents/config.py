@@ -5,9 +5,9 @@ Single source of truth for the unified agent and event contract.
 
 import os
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional, TypedDict, Annotated
 from enum import Enum
 from operator import add
+from typing import Annotated, Any, Dict, List, Optional, TypedDict
 
 from langchain_core.messages import BaseMessage
 
@@ -62,7 +62,9 @@ class AgentConfig:
     @classmethod
     def from_env(cls, provider: str = "google", model: str = "gemini-2.5-flash"):
         if provider == "google":
-            api_key = os.getenv("GOOGLE_AI_API_KEY", "") or os.getenv("GOOGLE_API_KEY", "")
+            api_key = os.getenv("GOOGLE_AI_API_KEY", "") or os.getenv(
+                "GOOGLE_API_KEY", ""
+            )
         elif provider == "openai":
             api_key = os.getenv("OPENAI_API_KEY", "")
         elif provider == "anthropic":
@@ -137,7 +139,16 @@ AGENT_METADATA = {
         "description": "Your AI assistant for portfolio tasks: stocks, documents, tasks, and files.",
         "icon": "🤖",
         "color": "#6366f1",
-        "tools": ["rag", "todos", "artifacts", "files", "stocks", "news", "financial_sheets", "data_analysis"],
+        "tools": [
+            "rag",
+            "todos",
+            "artifacts",
+            "files",
+            "stocks",
+            "news",
+            "financial_sheets",
+            "data_analysis",
+        ],
     },
 }
 

@@ -2,20 +2,34 @@ import os
 import sys
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
+from sqlalchemy import engine_from_config, pool
 
 from alembic import context
 
 # Add the app directory to the Python path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 # Import your models here
-from app.models import db
 from app.models import (
-    User, Team, TeamMember, TeamInvite, Subscription, Invoice,
-    Stock, StockDataBlob, StockNews, Job, JobStock,
-    StripeEventLog, LLMModel, Chat, Message, Artifact, Todo, ChatAttachment
+    Artifact,
+    Chat,
+    ChatAttachment,
+    Invoice,
+    Job,
+    JobStock,
+    LLMModel,
+    Message,
+    Stock,
+    StockDataBlob,
+    StockNews,
+    StripeEventLog,
+    Subscription,
+    Team,
+    TeamInvite,
+    TeamMember,
+    Todo,
+    User,
+    db,
 )
 
 # this is the Alembic Config object, which provides
@@ -84,9 +98,7 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
-        )
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()
@@ -94,12 +106,13 @@ def run_migrations_online() -> None:
 
 def create_database_if_not_exists(database_url: str) -> None:
     """Create PostgreSQL database if it doesn't exist."""
-    from sqlalchemy import create_engine, text
     import re
+
+    from sqlalchemy import create_engine, text
 
     # Parse the database URL to extract database name
     # Format: postgresql://user:password@host:port/database
-    match = re.match(r'postgresql://([^:]+):([^@]+)@([^:]+):(\d+)/(.+)', database_url)
+    match = re.match(r"postgresql://([^:]+):([^@]+)@([^:]+):(\d+)/(.+)", database_url)
     if not match:
         return
 
@@ -112,8 +125,10 @@ def create_database_if_not_exists(database_url: str) -> None:
     try:
         with admin_engine.connect() as conn:
             # Check if database exists
-            result = conn.execute(text("SELECT 1 FROM pg_database WHERE datname = :db_name"),
-                                {"db_name": database})
+            result = conn.execute(
+                text("SELECT 1 FROM pg_database WHERE datname = :db_name"),
+                {"db_name": database},
+            )
             exists = result.fetchone()
 
             if not exists:

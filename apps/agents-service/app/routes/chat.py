@@ -3,34 +3,45 @@ Chat API and SSE stream.
 Two-way communication: REST for CRUD, POST /chat/stream for agent streaming.
 """
 
-import json
 import asyncio
-from flask import Blueprint, request, jsonify, Response
-from werkzeug.utils import secure_filename
-from pydantic import ValidationError
+import json
 
-from app.middlewares.auth import auth_middleware
-from app.business_logic.chat import (
-    get_user_chats,
-    create_chat,
-    get_user_chat,
-    get_chat_messages,
-    create_message,
-    update_message,
-    get_llm_models,
-    update_chat,
-    revert_to_message,
+from flask import Blueprint, Response, jsonify, request
+from pydantic import ValidationError
+from werkzeug.utils import secure_filename
+
+from app.business_logic.artifacts import (
+    create_artifact,
+    get_chat_artifacts,
+    link_artifacts_to_message,
 )
-from app.business_logic.artifacts import get_chat_artifacts, create_artifact, link_artifacts_to_message
+from app.business_logic.attachments import create_attachment, get_chat_attachments
+from app.business_logic.chat import (
+    create_chat,
+    create_message,
+    get_chat_messages,
+    get_llm_models,
+    get_user_chat,
+    get_user_chats,
+    revert_to_message,
+    update_chat,
+    update_message,
+)
 from app.business_logic.todos import (
-    get_chat_todos,
     create_todo,
+    delete_todo,
+    get_chat_todos,
     get_todo,
     update_todo,
-    delete_todo,
 )
-from app.business_logic.attachments import get_chat_attachments, create_attachment
-from app.schemas import ChatCreate, MessageCreate, ArtifactCreate, TodoCreate, TodoUpdate
+from app.middlewares.auth import auth_middleware
+from app.schemas import (
+    ArtifactCreate,
+    ChatCreate,
+    MessageCreate,
+    TodoCreate,
+    TodoUpdate,
+)
 
 bp = Blueprint("chat", __name__, url_prefix="/chat")
 
@@ -281,12 +292,15 @@ def upload_attachment(chat_id):
         filename = secure_filename(file.filename)
         mime_type = file.mimetype or "application/octet-stream"
         from app.services.s3_service import S3Service
+
         s3 = S3Service()
         s3_result = s3.upload_file(file, chat_id, filename, mime_type)
         s3_key = s3_result.get("s3_key") if s3_result.get("success") else None
         if not s3_key:
             s3_key = f"chats/{chat_id}/files/{filename}"
-        attachment = create_attachment(chat_id, filename, mime_type, size, user.id, s3_key=s3_key)
+        attachment = create_attachment(
+            chat_id, filename, mime_type, size, user.id, s3_key=s3_key
+        )
         return jsonify(attachment), 201
     except ValueError as e:
         return jsonify({"error": str(e)}), 404
@@ -300,11 +314,11 @@ def stream_chat():
     """SSE stream: agent runs and emits events for the client."""
     try:
         from app.agents.agent_factory import create_langgraph_agent
-        from app.agents.config import FileContext, DEFAULT_AGENT_ID
-        from app.services.s3_service import S3Service
-        from app.services.file_processor import FileProcessor
-        from app.tools.chat.chat_tools import generate_chat_title_func
+        from app.agents.config import DEFAULT_AGENT_ID, FileContext
         from app.models import ChatAttachment
+        from app.services.file_processor import FileProcessor
+        from app.services.s3_service import S3Service
+        from app.tools.chat.chat_tools import generate_chat_title_func
 
         user = request.user
         user_id = user.id
@@ -326,6 +340,7 @@ def stream_chat():
         file_contexts = []
         try:
             import os
+
             if file_ids:
                 attachments = ChatAttachment.query.filter(
                     ChatAttachment.id.in_(file_ids),
@@ -360,6 +375,7 @@ def stream_chat():
                                 pass
         except Exception as e:
             import traceback
+
             traceback.print_exc()
 
         messages = [{"role": m["role"], "content": m["content"]} for m in messages_data]
@@ -369,14 +385,25 @@ def stream_chat():
         last_msg = messages[-1]
         saved_user_message = create_message(
             chat_id,
-            {"role": last_msg["role"], "content": last_msg["content"], "model_id": model_db_id},
+            {
+                "role": last_msg["role"],
+                "content": last_msg["content"],
+                "model_id": model_db_id,
+            },
             user_id,
             skip_auto_response=True,
         )
-        update_chat(chat_id, {"last_model_id": model_db_id, "agent_id": DEFAULT_AGENT_ID}, user_id)
+        update_chat(
+            chat_id,
+            {"last_model_id": model_db_id, "agent_id": DEFAULT_AGENT_ID},
+            user_id,
+        )
 
-        agent = create_langgraph_agent(DEFAULT_AGENT_ID, model_provider, model_id, chat_id)
+        agent = create_langgraph_agent(
+            DEFAULT_AGENT_ID, model_provider, model_id, chat_id
+        )
         from flask import current_app
+
         app_context = current_app.app_context()
 
         def generate():
@@ -396,7 +423,9 @@ def stream_chat():
                         return None
 
                 try:
-                    async_gen = agent.stream_simple(messages, file_contexts if file_contexts else None)
+                    async_gen = agent.stream_simple(
+                        messages, file_contexts if file_contexts else None
+                    )
                     while True:
                         event = loop.run_until_complete(get_next())
                         if event is None:
@@ -406,7 +435,9 @@ def stream_chat():
                             continue
                         event_dict = {"type": event.type, "data": event.data}
                         if event.type == "content":
-                            full_content += event.data if isinstance(event.data, str) else ""
+                            full_content += (
+                                event.data if isinstance(event.data, str) else ""
+                            )
                         elif event.type == "reasoning":
                             reasoning_steps.append(event.data)
                         elif event.type == "approval_request":
@@ -442,7 +473,9 @@ def stream_chat():
                 done_event = {
                     "type": "done",
                     "messageId": assistant_message["id"],
-                    "userMessageId": saved_user_message.get("id") if saved_user_message else None,
+                    "userMessageId": (
+                        saved_user_message.get("id") if saved_user_message else None
+                    ),
                     "data": {
                         **(agent_done_data or {}),
                         "refetch": ["artifacts", "todos"],
@@ -451,6 +484,7 @@ def stream_chat():
                 yield f"data: {json.dumps(done_event)}\n\n"
             except Exception as e:
                 import traceback
+
                 traceback.print_exc()
                 yield f"data: {json.dumps({'type': 'error', 'data': {'message': str(e)}})}\n\n"
             finally:
@@ -464,5 +498,6 @@ def stream_chat():
         )
     except Exception as e:
         import traceback
+
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500

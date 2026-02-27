@@ -1,6 +1,8 @@
-from pydantic import BaseModel
-from typing import Optional, List
 from datetime import datetime
+from typing import List, Optional
+
+from pydantic import BaseModel
+
 
 class JobBase(BaseModel):
     name: str
@@ -8,8 +10,10 @@ class JobBase(BaseModel):
     run_at_time: str = "01:00"
     is_active: bool = True
 
+
 class JobCreate(JobBase):
     selected_stocks: List[str]
+
 
 class JobResponse(JobBase):
     id: str

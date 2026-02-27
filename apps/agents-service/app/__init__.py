@@ -5,8 +5,8 @@ Agents Service - Flask application factory.
 from flask import Flask
 from flask_cors import CORS
 
-from config import Config
 from app.models import db
+from config import Config
 
 
 def create_app(config_object=None):
@@ -16,13 +16,13 @@ def create_app(config_object=None):
 
     db.init_app(app)
 
-    from app.routes.auth import bp as auth_bp
-    from app.routes.users import bp as users_bp
-    from app.routes.teams import bp as teams_bp
-    from app.routes.stripe import bp as stripe_bp
     from app.routes.approval import bp as approval_bp
-    from app.routes.rag import bp as rag_bp
+    from app.routes.auth import bp as auth_bp
     from app.routes.chat import bp as chat_bp
+    from app.routes.rag import bp as rag_bp
+    from app.routes.stripe import bp as stripe_bp
+    from app.routes.teams import bp as teams_bp
+    from app.routes.users import bp as users_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(users_bp)

@@ -3,23 +3,24 @@ Chat Tools
 Tools for chat management: title setting and conversation summarization.
 """
 
-from typing import Dict, Any
 import os
+from typing import Any, Dict
 
-from langchain_core.tools import StructuredTool
-from pydantic import BaseModel, Field
-from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage
+from langchain_core.tools import StructuredTool
+from langchain_google_genai import ChatGoogleGenerativeAI
+from pydantic import BaseModel, Field
 
 from config import Config
-
 
 # ============================================
 # Input Schemas
 # ============================================
 
+
 class SetChatTitleInput(BaseModel):
     """Input for setting the chat title"""
+
     title: str = Field(
         ...,
         description=(
@@ -31,18 +32,27 @@ class SetChatTitleInput(BaseModel):
 
 class GenerateTitleInput(BaseModel):
     """Input for generating chat title via LLM (internal helper)"""
-    user_message: str = Field(..., description="The user's message to base the title on")
-    assistant_response: str = Field("", description="Optional assistant response for context")
+
+    user_message: str = Field(
+        ..., description="The user's message to base the title on"
+    )
+    assistant_response: str = Field(
+        "", description="Optional assistant response for context"
+    )
 
 
 class ConversationSummaryInput(BaseModel):
     """Input for summarizing conversation"""
-    messages: str = Field(..., description="JSON string of conversation messages to summarize")
+
+    messages: str = Field(
+        ..., description="JSON string of conversation messages to summarize"
+    )
 
 
 # ============================================
 # Tool Functions
 # ============================================
+
 
 def set_chat_title_func(chat_id: str, title: str) -> Dict[str, Any]:
     """
@@ -70,7 +80,9 @@ def set_chat_title_func(chat_id: str, title: str) -> Dict[str, Any]:
         return {"success": False, "error": str(e)}
 
 
-def generate_chat_title_func(user_message: str, assistant_response: str = "") -> Dict[str, Any]:
+def generate_chat_title_func(
+    user_message: str, assistant_response: str = ""
+) -> Dict[str, Any]:
     """
     Generate a concise title for a chat (used by the stream route as a fallback).
     """
@@ -139,6 +151,7 @@ def summarize_conversation_func(messages: str) -> Dict[str, Any]:
 # ============================================
 # Tool Factory Functions
 # ============================================
+
 
 def get_set_chat_title_tool(chat_id: str) -> StructuredTool:
     """

@@ -3,46 +3,46 @@ Agent Factory
 Creates a single unified agent with access to all tools.
 """
 
-from typing import List, Optional, Dict, Any
+from typing import Any, Dict, List, Optional
 
 from langchain_core.tools import BaseTool
 
+from app.agents.base_agent import BaseAgent
 from app.agents.config import (
-    AgentConfig,
-    AgentType,
-    FileContext,
     AGENT_METADATA,
     DEFAULT_AGENT_ID,
     UNIFIED_SYSTEM_PROMPT,
+    AgentConfig,
+    AgentType,
+    FileContext,
 )
-from app.agents.base_agent import BaseAgent
-from app.tools.rag.rag_tools import get_rag_tools
-from app.tools.tasks.task_todos import get_todo_tools
 from app.tools.artifacts.artifact_creation import get_artifact_creation_tool
+from app.tools.chat.chat_tools import get_set_chat_title_tool
 from app.tools.files.file_tools import (
+    get_analyze_data_tool,
     get_file_read_tool,
     get_file_write_tools,
-    get_analyze_data_tool,
 )
-from app.tools.stocks.yahoo_finance_tools import (
-    get_stock_quote_tool,
-    get_yahoo_finance_quote_tool,
-    get_yahoo_finance_quote_summary_tool,
-    get_yahoo_finance_historical_tool,
-    get_yahoo_finance_search_tool,
-)
+from app.tools.rag.rag_tools import get_rag_tools
 from app.tools.stocks.financial_sheets_tools import get_financial_sheets_tool
 from app.tools.stocks.news_tools import get_stock_news_tool
-from app.tools.chat.chat_tools import get_set_chat_title_tool
+from app.tools.stocks.yahoo_finance_tools import (
+    get_stock_quote_tool,
+    get_yahoo_finance_historical_tool,
+    get_yahoo_finance_quote_summary_tool,
+    get_yahoo_finance_quote_tool,
+    get_yahoo_finance_search_tool,
+)
+from app.tools.tasks.task_todos import get_todo_tools
 
 
 def get_base_tools(chat_id: str) -> List[BaseTool]:
     """
     Get the base tools available to all agents.
-    
+
     Args:
         chat_id: Chat ID for context-aware tools
-        
+
     Returns:
         List of base tools
     """
@@ -59,25 +59,25 @@ def get_base_tools(chat_id: str) -> List[BaseTool]:
         tools.extend(get_rag_tools(chat_id))
     except ImportError:
         pass
-    
+
     # Todo tools
     try:
         tools.extend(get_todo_tools(chat_id))
     except ImportError:
         pass
-    
+
     # Artifact tools
     try:
         tools.append(get_artifact_creation_tool(chat_id))
     except ImportError:
         pass
-    
+
     # File tools (basic read operations)
     try:
         tools.append(get_file_read_tool(chat_id))
     except ImportError:
         pass
-    
+
     return tools
 
 
@@ -138,7 +138,7 @@ def create_langgraph_agent(
     provider: str,
     model_id: str,
     chat_id: str,
-    files: Optional[List[FileContext]] = None
+    files: Optional[List[FileContext]] = None,
 ) -> BaseAgent:
     """
     Create the single unified LangGraph agent with access to all tools.

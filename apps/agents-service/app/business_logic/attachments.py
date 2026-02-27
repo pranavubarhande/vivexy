@@ -1,7 +1,8 @@
-from typing import List, Dict, Any
 import uuid
 from datetime import datetime
-from app.models import ChatAttachment, Chat, db
+from typing import Any, Dict, List
+
+from app.models import Chat, ChatAttachment, db
 
 
 def get_chat_attachments(chat_id: str, user_id: str) -> List[Dict[str, Any]]:
@@ -82,6 +83,7 @@ def delete_attachment(attachment_id: str, user_id: str) -> bool:
 # Private helpers
 # ------------------------------------------------------------------
 
+
 def _attachment_to_dict(attachment: ChatAttachment) -> Dict[str, Any]:
     return {
         "id": attachment.id,
@@ -101,8 +103,9 @@ def _try_index_attachment(chat_id: str, s3_key: str, filename: str) -> None:
     """
     try:
         import os
-        from app.services.s3_service import S3Service
+
         from app.services.file_processor import FileProcessor
+        from app.services.s3_service import S3Service
         from app.tools.rag.rag_tools import add_to_knowledge_base_func
 
         s3 = S3Service()

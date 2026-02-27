@@ -1,6 +1,8 @@
-from pydantic import BaseModel
-from typing import Optional
 from datetime import datetime
+from typing import Optional
+
+from pydantic import BaseModel
+
 
 class StockBase(BaseModel):
     symbol: str
@@ -15,6 +17,7 @@ class StockBase(BaseModel):
     qtr_sales_var_pct: Optional[str] = None
     roce_pct: Optional[str] = None
     link: Optional[str] = None
+
 
 class StockResponse(StockBase):
     id: str
