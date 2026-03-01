@@ -1,9 +1,11 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+from sqlalchemy.orm import joinedload
+
 from app.models import Chat, LLMModel, Message, db
 from app.schemas import ChatCreate, ChatResponse, LLMModelResponse, MessageRole
-from sqlalchemy.orm import joinedload
+
 
 def get_user_chats(user_id: str) -> List[Dict[str, Any]]:
     """Get all chats for a user."""

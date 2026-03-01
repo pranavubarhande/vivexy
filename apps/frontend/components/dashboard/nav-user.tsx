@@ -6,8 +6,8 @@ import {
   ChevronsUpDown,
   CreditCard,
   LogOut,
-  Sparkles,
   Settings,
+  Blocks,
 } from 'lucide-react';
 import Link from 'next/link';
 import { ROUTES } from '@/constants/routes';
@@ -109,6 +109,12 @@ export function NavUser() {
                 <Link href={ROUTES.settings}>
                   <Settings />
                   Settings
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href={ROUTES.connectors}>
+                  <Blocks />
+                  Integrations
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem>

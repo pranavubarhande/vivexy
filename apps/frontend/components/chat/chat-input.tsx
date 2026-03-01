@@ -9,7 +9,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Plus, Paperclip } from 'lucide-react';
+import { Plus, Paperclip, Blocks } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { ROUTES } from '@/constants/routes';
 import { FileUpload, UploadedFile } from './file-upload';
 
 interface ChatInputProps {
@@ -36,6 +38,7 @@ export function ChatInput({
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [showUploader, setShowUploader] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const router = useRouter();
 
   const handleSubmit = useCallback(() => {
     const trimmedMessage = message.trim();
@@ -151,6 +154,13 @@ export function ChatInput({
               >
                 <Paperclip className="h-4 w-4" />
                 Add files
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={() => router.push(ROUTES.connectors)}
+                className="gap-2"
+              >
+                <Blocks className="h-4 w-4" />
+                Connect Integrations
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

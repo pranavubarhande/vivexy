@@ -7,6 +7,7 @@ from app.models import db
 from app.routes.approval import bp as approval_bp
 from app.routes.auth import bp as auth_bp
 from app.routes.chat import bp as chat_bp
+from app.routes.connectors import bp as connectors_bp
 from app.routes.rag import bp as rag_bp
 from app.routes.stripe import bp as stripe_bp
 from app.routes.teams import bp as teams_bp
@@ -83,5 +84,6 @@ def create_app(config_object=None):
     app.register_blueprint(approval_bp)
     app.register_blueprint(rag_bp)
     app.register_blueprint(chat_bp)
+    app.register_blueprint(connectors_bp)
 
     return app

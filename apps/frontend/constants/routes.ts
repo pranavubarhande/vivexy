@@ -6,6 +6,7 @@ export const ROUTES = {
   settings: '/settings',
   teams: '/teams',
   billing: '/billing',
+  connectors: '/connectors',
   chat: (chatId?: string) => (chatId ? `/chat/${chatId}` : '/chat'),
 } as const;
 

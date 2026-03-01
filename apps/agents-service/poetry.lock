@@ -743,6 +743,65 @@ files = [
 markers = {main = "platform_system == \"Windows\"", dev = "platform_system == \"Windows\" or sys_platform == \"win32\""}
 
 [[package]]
+name = "composio"
+version = "0.11.1"
+description = "SDK for integrating Composio with your applications."
+optional = false
+python-versions = "<4,>=3.9"
+groups = ["main"]
+files = [
+    {file = "composio-0.11.1-py3-none-any.whl", hash = "sha256:af30fd5102c7c454a92574d93c7d9eeaac86a8f1e664a9adfcbf2655240f7658"},
+    {file = "composio-0.11.1.tar.gz", hash = "sha256:0b86192e603bdf69fea9bf250a84677e6c4669f071040cca9b1a68dc6c77c786"},
+]
+
+[package.dependencies]
+composio-client = "1.27.0"
+json-schema-to-pydantic = ">=0.4.8"
+openai = "*"
+pydantic = ">=2.6.4"
+pysher = ">=1.0.8"
+typing-extensions = ">=4.0.0"
+
+[[package]]
+name = "composio-client"
+version = "1.27.0"
+description = "The official Python library for the composio API"
+optional = false
+python-versions = ">=3.9"
+groups = ["main"]
+files = [
+    {file = "composio_client-1.27.0-py3-none-any.whl", hash = "sha256:45697bb0f8a29290271727d9c1a3233e859dc61c515e6669f59408843fa590f0"},
+    {file = "composio_client-1.27.0.tar.gz", hash = "sha256:684d33a4e701f92d6d2cca1a66b638e509afb46263e9f13266673ee7c55efefe"},
+]
+
+[package.dependencies]
+anyio = ">=3.5.0,<5"
+distro = ">=1.7.0,<2"
+httpx = ">=0.23.0,<1"
+pydantic = ">=1.9.0,<3"
+sniffio = "*"
+typing-extensions = ">=4.10,<5"
+
+[package.extras]
+aiohttp = ["aiohttp", "httpx-aiohttp (>=0.1.9)"]
+
+[[package]]
+name = "composio-langchain"
+version = "0.11.1"
+description = "Use Composio to get an array of tools with your Langchain agent."
+optional = false
+python-versions = "<4,>=3.9"
+groups = ["main"]
+files = [
+    {file = "composio_langchain-0.11.1-py3-none-any.whl", hash = "sha256:40a9b4e9214c284fdac7211925e273321e221f9fbcab86c5a55006ae64630ff7"},
+    {file = "composio_langchain-0.11.1.tar.gz", hash = "sha256:1d7c89bca0202bd6a16b9575a987598746c2efad89d1b95af96dcac0726b069d"},
+]
+
+[package.dependencies]
+composio = "*"
+langchain = ">=1.1.0,<2.0.0"
+
+[[package]]
 name = "cryptography"
 version = "46.0.3"
 description = "cryptography is a package which provides cryptographic recipes and primitives to Python developers."
@@ -1817,6 +1876,24 @@ files = [
     {file = "joblib-1.5.3-py3-none-any.whl", hash = "sha256:5fc3c5039fc5ca8c0276333a188bbd59d6b7ab37fe6632daa76bc7f9ec18e713"},
     {file = "joblib-1.5.3.tar.gz", hash = "sha256:8561a3269e6801106863fd0d6d84bb737be9e7631e33aaed3fb9ce5953688da3"},
 ]
+
+[[package]]
+name = "json-schema-to-pydantic"
+version = "0.4.9"
+description = "A Python library for automatically generating Pydantic v2 models from JSON Schema definitions"
+optional = false
+python-versions = ">=3.9"
+groups = ["main"]
+files = [
+    {file = "json_schema_to_pydantic-0.4.9-py3-none-any.whl", hash = "sha256:7b1126aa70a482f8442866139d14e71a5f678ae5bece72b51db28374c4237cc9"},
+    {file = "json_schema_to_pydantic-0.4.9.tar.gz", hash = "sha256:f71bc57c9016a6cecaf259392b4a3f35a34ad79da3934a64d21d73f526c6e28d"},
+]
+
+[package.dependencies]
+pydantic = ">=2.10.4"
+
+[package.extras]
+dev = ["pytest (>=8.3.4)", "pytest-cov (>=6.0.0)"]
 
 [[package]]
 name = "jsonpatch"
@@ -4403,6 +4480,21 @@ full = ["Pillow (>=8.0.0)", "cryptography"]
 image = ["Pillow (>=8.0.0)"]
 
 [[package]]
+name = "pysher"
+version = "1.0.8"
+description = "Pusher websocket client for python, based on Erik Kulyk's PythonPusherClient"
+optional = false
+python-versions = "*"
+groups = ["main"]
+files = [
+    {file = "Pysher-1.0.8.tar.gz", hash = "sha256:7849c56032b208e49df67d7bd8d49029a69042ab0bb45b2ed59fa08f11ac5988"},
+]
+
+[package.dependencies]
+requests = ">=2.26.0"
+websocket-client = "!=0.49"
+
+[[package]]
 name = "pytest"
 version = "8.4.2"
 description = "pytest: simple powerful testing with Python"
@@ -5968,6 +6060,23 @@ files = [
 ]
 
 [[package]]
+name = "websocket-client"
+version = "1.9.0"
+description = "WebSocket client for Python with low level API options"
+optional = false
+python-versions = ">=3.9"
+groups = ["main"]
+files = [
+    {file = "websocket_client-1.9.0-py3-none-any.whl", hash = "sha256:af248a825037ef591efbf6ed20cc5faa03d3b47b9e5a2230a529eeee1c1fc3ef"},
+    {file = "websocket_client-1.9.0.tar.gz", hash = "sha256:9e813624b6eb619999a97dc7958469217c3176312b3a16a4bd1bc7e08a46ec98"},
+]
+
+[package.extras]
+docs = ["Sphinx (>=6.0)", "myst-parser (>=2.0.0)", "sphinx_rtd_theme (>=1.1.0)"]
+optional = ["python-socks", "wsaccel"]
+test = ["pytest", "websockets"]
+
+[[package]]
 name = "websockets"
 version = "15.0.1"
 description = "An implementation of the WebSocket Protocol (RFC 6455 & 7692)"
@@ -6624,4 +6733,4 @@ cffi = ["cffi (>=1.17,<2.0) ; platform_python_implementation != \"PyPy\" and pyt
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.11"
-content-hash = "014c179b6b48352cfe3b40d182c89098504a790cdfdbac021e6ecf3de700de41"
+content-hash = "0e56e59622e3ff88d322dd1bbac2a9a1307ec6d08d6a49a737f8bc6b80a6b4a9"

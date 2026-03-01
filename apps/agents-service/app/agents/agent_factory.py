@@ -5,6 +5,8 @@ Creates a single unified agent with access to all tools.
 
 from typing import Any, Dict, List, Optional
 
+from composio import Composio
+from composio_langchain import LangchainProvider
 from langchain_core.tools import BaseTool
 
 from app.agents.base_agent import BaseAgent
@@ -16,6 +18,7 @@ from app.agents.config import (
     AgentType,
     FileContext,
 )
+from app.models.chat import Chat
 from app.tools.artifacts.artifact_creation import get_artifact_creation_tool
 from app.tools.chat.chat_tools import get_set_chat_title_tool
 from app.tools.files.file_tools import (
@@ -126,11 +129,44 @@ def get_all_tools(chat_id: str) -> List[BaseTool]:
     tools.extend(get_finance_tools())
     doc_tools = get_document_tools(chat_id)
     base_names = {t.name for t in tools}
-    for t in doc_tools:
+    # Add Composio Tools
+    composio_tools = get_composio_tools(chat_id)
+    for t in composio_tools:
         if t.name not in base_names:
             tools.append(t)
             base_names.add(t.name)
+
     return tools
+
+
+def get_composio_tools(chat_id: str) -> List[BaseTool]:
+    """Get Composio tools for the user associated with this chat."""
+    try:
+        chat = Chat.query.get(chat_id)
+        if not chat:
+            return []
+
+        composio_client = Composio(provider=LangchainProvider())
+
+        # Determine which apps are actively connected by this user
+        connections = composio_client.connected_accounts.list(user_ids=[chat.user_id])
+        active_toolkits = []
+        for conn in connections.items:
+            slug = getattr(getattr(conn, "toolkit", None), "slug", None)
+            if slug:
+                active_toolkits.append(slug)
+
+        if not active_toolkits:
+            return []
+
+        return composio_client.tools.get(user_id=chat.user_id, toolkits=active_toolkits)
+
+    except Exception as e:
+        import traceback
+
+        print(f"Error loading Composio tools:", e)
+        traceback.print_exc()
+        return []
 
 
 def create_langgraph_agent(
