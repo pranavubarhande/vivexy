@@ -22,6 +22,7 @@ import {
   Users,
   CreditCard,
   MessageSquare,
+  Blocks,
 } from 'lucide-react';
 import { NavUser } from './nav-user';
 
@@ -48,6 +49,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       label: 'Chat',
       href: ROUTES.chat(),
       icon: MessageSquare,
+    },
+    {
+      label: 'Integrations',
+      href: ROUTES.connectors,
+      icon: Blocks,
     },
   ];
 

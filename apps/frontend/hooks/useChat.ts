@@ -116,6 +116,20 @@ export function useChat(chatId?: string) {
     staleTime: 30_000,
   });
 
+  const createArtifactMutation = useMutation({
+    mutationFn: (data: {
+      title?: string;
+      type: string;
+      filename?: string;
+      language?: string;
+      content: string;
+      seq?: number;
+    }) => chatService.createArtifact(chatId!, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: chatKeys.artifacts(chatId!) });
+    },
+  });
+
   const updateTodoMutation = useMutation({
     mutationFn: ({
       todoId,
@@ -129,6 +143,16 @@ export function useChat(chatId?: string) {
         prev.map((t) => (t.id === updatedTodo.id ? updatedTodo : t))
       );
     },
+  });
+
+  const exportArtifactMutation = useMutation({
+    mutationFn: ({
+      artifactId,
+      format,
+    }: {
+      artifactId: string;
+      format: 'pdf' | 'docx';
+    }) => chatService.exportArtifact(chatId!, artifactId, format),
   });
 
   const revertMutation = useMutation({
@@ -205,6 +229,9 @@ export function useChat(chatId?: string) {
     // Mutations
     updateTodo: updateTodoMutation.mutateAsync,
     revertToMessage: revertMutation.mutateAsync,
+    createArtifact: createArtifactMutation.mutateAsync,
+    exportArtifact: exportArtifactMutation.mutateAsync,
+    isExporting: exportArtifactMutation.isPending,
 
     invalidateChatData,
   };

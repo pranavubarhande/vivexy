@@ -55,3 +55,4 @@ class ArtifactType(enum.Enum):
     TXT = "TXT"
     JSON = "JSON"
     CSV = "CSV"
+    XLSX = "XLSX"

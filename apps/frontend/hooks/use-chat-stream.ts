@@ -83,6 +83,7 @@ function normalizeArtifact(data: unknown): Artifact {
     createdAt:
       typeof r.createdAt === 'string' ? r.createdAt : new Date().toISOString(),
     messageId: r.messageId != null ? String(r.messageId) : null,
+    metadata: r.metadata,
   };
 }
 
@@ -135,9 +136,11 @@ export function useChatStream(deps: StreamDeps) {
   );
 
   const patchArtifact = useCallback(
-    (chatId: string, filename: string, patch: Partial<Artifact>) => {
+    (chatId: string, filenameOrTitle: string, patch: Partial<Artifact>) => {
       qc.setQueryData<Artifact[]>(chatKeys.artifacts(chatId), (prev = []) => {
-        const idx = prev.findLastIndex((a) => a.filename === filename);
+        const idx = prev.findLastIndex(
+          (a) => a.filename === filenameOrTitle || a.title === filenameOrTitle
+        );
         if (idx < 0) return prev;
         const updated = [...prev];
         updated[idx] = { ...updated[idx], ...patch };
@@ -349,13 +352,82 @@ export function useChatStream(deps: StreamDeps) {
               break;
             }
 
+            case 'artifact_stream': {
+              const streamData = event.data as Record<string, unknown>;
+              const fileKey = String(
+                streamData.filename || streamData.title || 'Untitled'
+              );
+
+              const currentArtifacts =
+                qc.getQueryData<Artifact[]>(chatKeys.artifacts(targetChatId)) ||
+                [];
+              const existingIdx = currentArtifacts.findLastIndex(
+                (a) => a.filename === fileKey || a.title === fileKey
+              );
+              const newContent = String(streamData.content || '');
+
+              if (existingIdx >= 0) {
+                flushSync(() => {
+                  patchArtifact(targetChatId, fileKey, { content: newContent });
+                  assistantMsg.artifacts = (assistantMsg.artifacts || []).map(
+                    (a) =>
+                      a.filename === fileKey || a.title === fileKey
+                        ? { ...a, content: newContent }
+                        : a
+                  );
+                  patchMessage(targetChatId, assistantMsg.id, {
+                    artifacts: assistantMsg.artifacts,
+                  });
+                });
+              } else {
+                const tempArtifact: Artifact = {
+                  id: `stream-art-${Date.now()}`,
+                  title: String(streamData.title || fileKey),
+                  filename: streamData.filename
+                    ? String(streamData.filename)
+                    : null,
+                  type: String(streamData.type || 'MD'),
+                  seq: currentArtifacts.length + 1,
+                  content: newContent,
+                  createdAt: new Date().toISOString(),
+                  messageId: assistantMsg.id,
+                };
+                flushSync(() => {
+                  appendArtifact(targetChatId, tempArtifact);
+                  assistantMsg.artifacts = [
+                    ...(assistantMsg.artifacts ?? []),
+                    tempArtifact,
+                  ];
+                  patchMessage(targetChatId, assistantMsg.id, {
+                    artifacts: assistantMsg.artifacts,
+                  });
+                });
+              }
+              break;
+            }
+
             case 'artifact': {
               const artifact = normalizeArtifact(event.data);
               if (!artifact.id) break;
               flushSync(() => {
-                appendArtifact(targetChatId, artifact);
+                const fileKey = artifact.filename || artifact.title;
+                const existingIdx = (assistantMsg.artifacts || []).findIndex(
+                  (a) => a.filename === fileKey || a.title === fileKey
+                );
+
+                if (existingIdx >= 0) {
+                  // Replace temporary with final
+                  assistantMsg.artifacts![existingIdx] = artifact;
+                  patchArtifact(targetChatId, fileKey!, { ...artifact });
+                } else {
+                  appendArtifact(targetChatId, artifact);
+                  assistantMsg.artifacts = [
+                    ...(assistantMsg.artifacts ?? []),
+                    artifact,
+                  ];
+                }
                 patchMessage(targetChatId, assistantMsg.id, {
-                  artifacts: [...(assistantMsg.artifacts ?? []), artifact],
+                  artifacts: assistantMsg.artifacts,
                 });
               });
               break;

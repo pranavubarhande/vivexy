@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { cn } from '@/utils/common';
 import { Button } from '@/components/ui/button';
@@ -24,13 +24,12 @@ import { UploadedFile } from '@/components/chat/file-upload';
 import { useChat, useChatHistory, useModels } from '@/hooks/useChat';
 import { useChatStream } from '@/hooks/use-chat-stream';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { LLMModel } from '@/services/chat.service';
+import { Artifact, LLMModel } from '@/services/chat.service';
 
 import {
   Plus,
   Share2,
   Maximize2,
-  PanelRight,
   CheckSquare,
   PanelRightClose,
   File,
@@ -115,6 +114,8 @@ export function AgenticChat({ config, initialChatId }: AgenticChatProps) {
     'artifacts' | 'todos' | null
   >(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [panelWidth, setPanelWidth] = useState(600); // Default width for side panel
+  const isResizingRef = useRef(false);
 
   // ---- Data (TanStack Query backed) ----
   const { models, isLoading: isLoadingModels } = useModels();
@@ -134,7 +135,7 @@ export function AgenticChat({ config, initialChatId }: AgenticChatProps) {
     chatDetail,
     updateTodo,
     revertToMessage,
-    invalidateChatData,
+    createArtifact,
   } = useChat(chatId || undefined);
 
   // ---- Stream ----
@@ -153,7 +154,7 @@ export function AgenticChat({ config, initialChatId }: AgenticChatProps) {
     refetchHistory,
   });
 
-  // ---- URL sync ----
+  // ---- URL sync (defer setState to avoid synchronous setState in effect) ----
   useEffect(() => {
     const urlId = searchParams.get('id');
     if (
@@ -161,25 +162,35 @@ export function AgenticChat({ config, initialChatId }: AgenticChatProps) {
       !isCreatingChatRef.current &&
       !isStreamingRef.current
     ) {
-      setChatId(urlId || null);
+      const next = urlId || null;
+      queueMicrotask(() => setChatId(next));
     }
   }, [searchParams, chatId, isCreatingChatRef, isStreamingRef]);
 
-  // ---- Sync preferences from loaded chat ----
+  // ---- Sync preferences from loaded chat (defer setState to avoid synchronous setState in effect) ----
   useEffect(() => {
     if (!chatDetail) return;
+    const updates: Array<() => void> = [];
     if (chatDetail.lastModelId) {
       const model = models.find(
         (m: LLMModel) => m.id === chatDetail.lastModelId
       );
       if (model) {
-        setSelectedModelDbId(model.id);
-        setSelectedModelId(model.modelId);
-        setSelectedProvider(model.provider);
-        setSelectedModelName(model.name);
+        updates.push(
+          () => setSelectedModelDbId(model.id),
+          () => setSelectedModelId(model.modelId),
+          () => setSelectedProvider(model.provider),
+          () => setSelectedModelName(model.name)
+        );
       }
     }
-    if (chatDetail.agentId) setSelectedAgentId(chatDetail.agentId);
+    if (chatDetail.agentId) {
+      const agentId = chatDetail.agentId;
+      updates.push(() => setSelectedAgentId(agentId));
+    }
+    if (updates.length > 0) {
+      queueMicrotask(() => updates.forEach((fn) => fn()));
+    }
   }, [chatDetail, models]);
 
   // ---- Save preferences ----
@@ -207,6 +218,42 @@ export function AgenticChat({ config, initialChatId }: AgenticChatProps) {
     },
     [router]
   );
+
+  // ---- Resizing handler ----
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizingRef.current) return;
+      // Calculate new width: window innerWidth - mouse X position
+      let newWidth = window.innerWidth - e.clientX;
+      // Clamp the width between sensible values
+      if (newWidth < 300) newWidth = 300;
+      if (newWidth > 800) newWidth = 800;
+      if (newWidth > window.innerWidth - 300)
+        newWidth = window.innerWidth - 300; // prevent crushing main chat
+      setPanelWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      isResizingRef.current = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, []);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    isResizingRef.current = true;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none'; // Prevent text selection while dragging
+  };
 
   // ---- Handlers ----
   const handleSend = async (
@@ -304,10 +351,29 @@ export function AgenticChat({ config, initialChatId }: AgenticChatProps) {
   );
 
   // ---- Panel JSX ----
+  const handleSaveArtifact = async (
+    artifact: Artifact & { language?: string },
+    newContent: string
+  ) => {
+    if (!chatId) return;
+    try {
+      await createArtifact({
+        title: artifact.title || undefined,
+        type: artifact.type,
+        filename: artifact.filename || undefined,
+        language: artifact.language || undefined,
+        content: newContent,
+      });
+    } catch (e) {
+      console.error('Failed to save artifact', e);
+      alert('Failed to save artifact');
+    }
+  };
+
   const panelContent = showSidePanel && (
     <>
       {showSidePanel === 'artifacts' ? (
-        <ArtifactsPanel artifacts={artifacts} />
+        <ArtifactsPanel artifacts={artifacts} onSave={handleSaveArtifact} />
       ) : (
         <TodosPanel todos={todos} onStatusChange={handleTodoStatus} />
       )}
@@ -344,7 +410,7 @@ export function AgenticChat({ config, initialChatId }: AgenticChatProps) {
             setShowSidePanel(null);
             setIsFullscreen(false);
           }}
-          className="p-1.5 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+          className="p-1.5 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground hidden sm:block"
           title="Close panel"
         >
           <PanelRightClose size={14} />
@@ -564,9 +630,19 @@ export function AgenticChat({ config, initialChatId }: AgenticChatProps) {
 
       {/* Desktop side panel */}
       {showSidePanel && !isMobile && !isFullscreen && (
-        <div className="w-[400px] xl:w-[440px] border-l flex flex-col bg-background shrink-0">
-          {panelHeader}
-          <div className="flex-1 min-h-0 overflow-hidden">{panelContent}</div>
+        <div
+          className="relative flex flex-col bg-background shrink-0"
+          style={{ width: panelWidth }}
+        >
+          {/* Drag Handle */}
+          <div
+            className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary/50 transition-colors z-50 -ml-[0.5px]"
+            onMouseDown={handleMouseDown}
+          />
+          <div className="flex-1 flex flex-col border-l min-h-0 overflow-hidden">
+            {panelHeader}
+            <div className="flex-1 min-h-0 overflow-hidden">{panelContent}</div>
+          </div>
         </div>
       )}
 

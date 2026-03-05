@@ -111,7 +111,7 @@ export function ApprovalDialog({
                 <Code2 className="h-3.5 w-3.5" />
                 Parameters:
               </div>
-              <pre className="text-xs bg-background border rounded-md p-2.5 overflow-auto max-h-40 leading-relaxed">
+              <pre className="text-xs bg-background border rounded-md p-2.5 overflow-auto max-h-40 leading-relaxed whitespace-pre-wrap wrap-break-word">
                 {JSON.stringify(request.tool_input, null, 2)}
               </pre>
             </div>

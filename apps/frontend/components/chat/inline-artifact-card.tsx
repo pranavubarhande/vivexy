@@ -4,6 +4,13 @@ import { useState } from 'react';
 import { cn } from '@/utils/common';
 import { ArtifactContent } from './artifact-content';
 import type { Artifact } from '@/services/chat.service';
+import { useChat } from '@/hooks/useChat';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { ChevronDown, ChevronUp, Download, Sparkles } from 'lucide-react';
 
 const TYPE_ICONS: Record<string, string> = {
@@ -31,6 +38,30 @@ export function InlineArtifactCard({
   className,
 }: InlineArtifactCardProps) {
   const [expanded, setExpanded] = useState(true);
+  const { exportArtifact, isExporting } = useChat(artifact.chatId);
+
+  const handleExport = async (format: 'pdf' | 'docx') => {
+    if (!artifact.chatId) return;
+    try {
+      const blob = await exportArtifact({ artifactId: artifact.id, format });
+      const downloadUrl = URL.createObjectURL(blob as Blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      const baseName = (
+        artifact.filename ||
+        artifact.title ||
+        `artifact-${artifact.seq}`
+      ).replace(/\.[^/.]+$/, '');
+      a.download = `${baseName}.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(downloadUrl);
+    } catch (e) {
+      console.error(`Failed to export artifact to ${format}`, e);
+      alert(`Failed to export artifact to ${format.toUpperCase()}`);
+    }
+  };
 
   const handleDownload = () => {
     if (onDownload) {
@@ -71,15 +102,54 @@ export function InlineArtifactCard({
           </p>
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          <button
-            type="button"
-            onClick={handleDownload}
-            className="p-2 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
-            title="Download"
-            aria-label="Download artifact"
-          >
-            <Download className="w-4 h-4" />
-          </button>
+          {artifact.type === 'MD' ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  disabled={isExporting}
+                  className={cn(
+                    'p-2 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground outline-none',
+                    isExporting && 'opacity-50 cursor-not-allowed'
+                  )}
+                  title="Download / Export"
+                  aria-label="Download artifact options"
+                >
+                  <Download className="w-4 h-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onClick={handleDownload}
+                  className="cursor-pointer"
+                >
+                  Download .md
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => handleExport('pdf')}
+                  className="cursor-pointer"
+                >
+                  Export to .pdf
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => handleExport('docx')}
+                  className="cursor-pointer"
+                >
+                  Export to .docx
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <button
+              type="button"
+              onClick={handleDownload}
+              className="p-2 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+              title="Download"
+              aria-label="Download artifact"
+            >
+              <Download className="w-4 h-4" />
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setExpanded((e) => !e)}

@@ -17,6 +17,7 @@ from typing import Any, AsyncGenerator, Dict, List, Optional
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_core.rate_limiters import InMemoryRateLimiter
 from langchain_core.tools import BaseTool
+from langchain_core.utils.json import parse_partial_json
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 from app.agents.config import (
@@ -274,6 +275,7 @@ class BaseAgent:
                 iteration += 1
                 response_content = ""
                 tool_calls_in_iteration: List[Dict] = []
+                active_tool_calls: Dict[int, Dict] = {}
 
                 # ---- Single LLM call (streaming) ----
                 async for chunk in self.llm_with_tools.astream(lc_messages):
@@ -294,6 +296,52 @@ class BaseAgent:
                             response_content += cv
                             full_content += cv
                             yield StreamEvent(type="content", data=cv)
+
+                    if getattr(chunk, "tool_call_chunks", None):
+                        for tcc in chunk.tool_call_chunks:
+                            idx = tcc.get("index")
+                            if idx not in active_tool_calls:
+                                active_tool_calls[idx] = {
+                                    "name": "",
+                                    "args": "",
+                                    "id": "",
+                                }
+                            if tcc.get("name"):
+                                active_tool_calls[idx]["name"] += tcc["name"]
+                            if tcc.get("id"):
+                                active_tool_calls[idx]["id"] += tcc["id"]
+                            if tcc.get("args"):
+                                active_tool_calls[idx]["args"] += tcc["args"]
+
+                            if active_tool_calls[idx]["name"] == "create_artifact":
+                                try:
+                                    parsed = parse_partial_json(
+                                        active_tool_calls[idx]["args"]
+                                    )
+                                    if (
+                                        parsed
+                                        and isinstance(parsed, dict)
+                                        and (
+                                            parsed.get("content")
+                                            or parsed.get("title")
+                                            or parsed.get("filename")
+                                        )
+                                    ):
+                                        yield StreamEvent(
+                                            type="artifact_stream",
+                                            data={
+                                                "filename": parsed.get("filename")
+                                                or parsed.get("title")
+                                                or "Untitled",
+                                                "title": parsed.get("title"),
+                                                "type": parsed.get("type", "MD"),
+                                                "language": parsed.get("language"),
+                                                "content": parsed.get("content", ""),
+                                            },
+                                        )
+                                except Exception:
+                                    pass
+
                     if getattr(chunk, "tool_calls", None):
                         tool_calls_in_iteration.extend(chunk.tool_calls)
 

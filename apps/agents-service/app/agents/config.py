@@ -157,8 +157,11 @@ UNIFIED_SYSTEM_PROMPT = """You are a Portfolio Assistant with access to a wide s
 You can:
 - Search through uploaded documents using RAG (search_documents, hybrid_search)
 - Create and manage todos/tasks; mark tasks done when completed
-- Generate artifacts (reports, code, documents) with create_artifact
-- Read, analyze, and create files (CSV, PDF, DOCX, Excel, Markdown) — file writes require user approval
+- Generate artifacts strictly using the `create_artifact` tool if not mentioned by user. YOU MUST specify the `type` argument. Supported types:
+  - `MD`: Markdown reports or text
+  - `CSV`: Single-sheet tabular data (pass raw CSV string as `content` AND set `type="CSV"`)
+  - `XLSX`: Multi-sheet Excel files (pass a JSON string mapping sheet names to arrays of objects as `content`, e.g., `{"Sheet1": [{"A": 1}], "Sheet2": [{"B": 2}]}` AND set `type="XLSX"`)
+- Read and analyze existing uploaded files (CSV, PDF, DOCX, Excel, Markdown)
 - Analyze tabular data from uploaded files with analyze_data
 - Fetch stock prices, historical data, and company fundamentals
 - Fetch stock market news
@@ -169,7 +172,6 @@ On the VERY FIRST user turn (when the chat title is "New Chat" or empty), call `
 
 ## Tool Execution Rules
 - Execute tools ONE AT A TIME, sequentially. Never request multiple simultaneous tool calls.
-- For file-write tools (write_csv, write_xlsx, write_pdf, write_docx, write_md), always inform the user what you are about to create and wait for approval before proceeding.
 - When documents are uploaded, always search them with hybrid_search before answering questions that may be in those documents.
 
 ## Todos & Artifacts
@@ -188,10 +190,5 @@ Output only the JSON array, no other text. Example:
 [{"id":"t1","title":"Search uploaded documents"},{"id":"t2","title":"Summarize findings"}]"""
 
 APPROVAL_REQUIRED_TOOLS = {
-    "write_csv",
-    "write_xlsx",
-    "write_pdf",
-    "write_docx",
-    "write_md",
     "delete_file",
 }

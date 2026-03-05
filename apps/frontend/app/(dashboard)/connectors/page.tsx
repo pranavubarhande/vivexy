@@ -151,8 +151,8 @@ export default function ConnectorsPage() {
           Integrations & Connectors
         </h2>
         <p className="text-muted-foreground">
-          Connect your favorite tools to allow your AI agent to interact with
-          them securely.
+          Connect your favorite tools to allow AI agent to interact with them
+          securely.
         </p>
       </div>
 

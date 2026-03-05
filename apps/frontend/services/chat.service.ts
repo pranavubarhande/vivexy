@@ -37,7 +37,10 @@ export interface Artifact {
   version?: number;
   createdAt: string;
   messageId?: string | null;
+  chatId?: string;
   url?: string | null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  metadata?: any;
 }
 
 export interface Todo {
@@ -76,6 +79,7 @@ export type SSEEvent =
   | { type: 'reasoning'; data: Record<string, unknown>; isUpdate?: boolean }
   | { type: 'tool_call'; data: { tool: string; output: string } }
   | { type: 'artifact'; data: Record<string, unknown> }
+  | { type: 'artifact_stream'; data: Record<string, unknown> }
   | {
       type: 'file_version';
       data: { filename?: string; version?: number; url?: string };
@@ -136,6 +140,39 @@ export const chatService = {
   getChatArtifacts: async (chatId: string) => {
     const response = await axiosInstance.get<Artifact[]>(
       `/chat/${chatId}/artifacts`
+    );
+    return response.data;
+  },
+
+  createArtifact: async (
+    chatId: string,
+    data: {
+      title?: string;
+      type: string;
+      filename?: string;
+      language?: string;
+      content: string;
+      seq?: number;
+    }
+  ) => {
+    const payload = { chatId, seq: 1, ...data };
+    const response = await axiosInstance.post<Artifact>(
+      `/chat/${chatId}/artifacts`,
+      payload
+    );
+    return response.data;
+  },
+
+  exportArtifact: async (
+    chatId: string,
+    artifactId: string,
+    format: 'pdf' | 'docx'
+  ) => {
+    const response = await axiosInstance.get<Blob>(
+      `/chat/${chatId}/artifacts/${artifactId}/export?format=${format}`,
+      {
+        responseType: 'blob',
+      }
     );
     return response.data;
   },

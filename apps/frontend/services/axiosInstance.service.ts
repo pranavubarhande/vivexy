@@ -36,7 +36,8 @@ axiosInstance.interceptors.request.use(
 axiosInstance.interceptors.response.use(
   (response) => {
     // Convert incoming response data from snake_case → camelCase.
-    if (response.data) {
+    // Skip if the response is a Blob (e.g. for file downloads)
+    if (response.data && !(response.data instanceof Blob)) {
       response.data = snakeToCamel(response.data);
     }
     return response;

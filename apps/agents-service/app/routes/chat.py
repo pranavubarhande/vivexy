@@ -5,13 +5,15 @@ Two-way communication: REST for CRUD, POST /chat/stream for agent streaming.
 
 import asyncio
 import json
+import os
 
-from flask import Blueprint, Response, jsonify, request
+from flask import Blueprint, Response, after_this_request, jsonify, request, send_file
 from pydantic import ValidationError
 from werkzeug.utils import secure_filename
 
 from app.business_logic.artifacts import (
     create_artifact,
+    export_artifact,
     get_chat_artifacts,
     link_artifacts_to_message,
 )
@@ -184,6 +186,50 @@ def create_new_artifact(chat_id):
     except ValueError as e:
         return jsonify({"error": str(e)}), 404
     except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@bp.route("/<chat_id>/artifacts/<artifact_id>/export", methods=["GET"])
+@auth_middleware
+def export_artifact_endpoint(chat_id, artifact_id):
+    try:
+        user = request.user
+        fmt = request.args.get("format", "pdf").lower()
+        if fmt not in ["pdf", "docx"]:
+            return (
+                jsonify(
+                    {"error": "Invalid format requested. Supported formats: pdf, docx"}
+                ),
+                400,
+            )
+
+        file_path = export_artifact(chat_id, artifact_id, fmt, user.id)
+
+        @after_this_request
+        def remove_file(response):
+            try:
+                os.remove(file_path)
+            except Exception as e:
+                print(f"Error removing temporary export file {file_path}: {e}")
+            return response
+
+        mimetype = (
+            "application/pdf"
+            if fmt == "pdf"
+            else "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        )
+        return send_file(
+            file_path,
+            mimetype=mimetype,
+            as_attachment=True,
+            download_name=f"artifact_export.{fmt}",
+        )
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 404
+    except Exception as e:
+        import traceback
+
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
 

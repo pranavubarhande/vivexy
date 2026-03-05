@@ -21,11 +21,7 @@ from app.agents.config import (
 from app.models.chat import Chat
 from app.tools.artifacts.artifact_creation import get_artifact_creation_tool
 from app.tools.chat.chat_tools import get_set_chat_title_tool
-from app.tools.files.file_tools import (
-    get_analyze_data_tool,
-    get_file_read_tool,
-    get_file_write_tools,
-)
+from app.tools.files.file_tools import get_analyze_data_tool, get_file_read_tool
 from app.tools.rag.rag_tools import get_rag_tools
 from app.tools.stocks.financial_sheets_tools import get_financial_sheets_tool
 from app.tools.stocks.news_tools import get_stock_news_tool
@@ -84,17 +80,6 @@ def get_base_tools(chat_id: str) -> List[BaseTool]:
     return tools
 
 
-def get_file_generation_tools(chat_id: str) -> List[BaseTool]:
-    """
-    Get file generation tools (write operations).
-    These require human approval.
-    """
-    try:
-        return get_file_write_tools(chat_id)
-    except ImportError:
-        return []
-
-
 def get_finance_tools() -> List[BaseTool]:
     """Get finance-specific tools (stocks, news, financial sheets)."""
     try:
@@ -121,14 +106,20 @@ def get_document_tools(chat_id: str) -> List[BaseTool]:
 
 def get_all_tools(chat_id: str) -> List[BaseTool]:
     """
-    Get all tools for the unified agent: base + file generation + finance + document.
+    Get all tools for the unified agent: base + finance + document.
     """
     tools = []
     tools.extend(get_base_tools(chat_id))
-    tools.extend(get_file_generation_tools(chat_id))
     tools.extend(get_finance_tools())
     doc_tools = get_document_tools(chat_id)
     base_names = {t.name for t in tools}
+
+    # Add document tools explicitly
+    for t in doc_tools:
+        if t.name not in base_names:
+            tools.append(t)
+            base_names.add(t.name)
+
     # Add Composio Tools
     composio_tools = get_composio_tools(chat_id)
     for t in composio_tools:

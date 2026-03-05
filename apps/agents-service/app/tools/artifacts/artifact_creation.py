@@ -16,13 +16,14 @@ from app.schemas import ArtifactCreate
 
 class CreateArtifactInput(BaseModel):
     title: Optional[str] = Field(None, description="Title of the artifact")
-    type: str = Field("MD", description="Type: MD, HTML, JS, TXT, JSON, CSV")
+    type: str = Field("MD", description="Type: MD, CSV, XLSX")
     filename: Optional[str] = Field(None, description="Optional filename")
     language: Optional[str] = Field(
         None, description="Language for code (e.g. python, javascript)"
     )
     content: str = Field(
-        ..., description="Full content of the artifact (markdown, HTML, code, etc.)"
+        ...,
+        description="Full content of the artifact. For MD: markdown text. For CSV: CSV string. For XLSX: JSON string mapping sheet names to lists of dictionaries.",
     )
 
 
@@ -37,6 +38,8 @@ def create_artifact_func(chat_id: str, input_data: dict) -> str:
 
         user_id = chat.user_id
         artifact_type_str = (input_data.get("type") or "MD").upper()
+        if artifact_type_str not in ["MD", "CSV", "XLSX"]:
+            artifact_type_str = "MD"
         try:
             artifact_type = ArtifactType(artifact_type_str)
         except ValueError:
@@ -68,6 +71,7 @@ def create_artifact_func(chat_id: str, input_data: dict) -> str:
                     "language": artifact.get("language"),
                     "content": artifact["content"],
                     "seq": artifact["seq"],
+                    "metadata": artifact.get("metadata"),
                     "createdAt": artifact["createdAt"],
                 },
             }
@@ -80,7 +84,7 @@ def get_artifact_creation_tool(chat_id: str) -> StructuredTool:
     """Return the create_artifact LangChain tool bound to this chat."""
     return StructuredTool.from_function(
         name="create_artifact",
-        description="Create an artifact (report, code, markdown document) and attach it to this chat. Use for summaries, code snippets, or generated documents.",
+        description="Create an artifact (MD, CSV, or XLSX) and attach it to this chat. For multi-sheet Excel, use type='XLSX' and content as a JSON string mapping sheet names to data.",
         func=lambda **kwargs: create_artifact_func(chat_id, kwargs),
         args_schema=CreateArtifactInput,
     )
