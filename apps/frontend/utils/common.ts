@@ -9,9 +9,10 @@ export function slugify(text: string): string {
   return text
     .toLowerCase()
     .replace(/[^\w\s-]/g, '') // Remove special characters
+    .trim()
     .replace(/\s+/g, '-') // Replace spaces with hyphens
     .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
-    .trim();
+    .replace(/^-+|-+$/g, ''); // Trim leading and trailing hyphens
 }
 
 export function generateRandomToken(length: number = 32): string {
