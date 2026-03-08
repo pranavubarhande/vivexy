@@ -11,7 +11,7 @@ from langchain_core.tools import StructuredTool
 from langchain_google_genai import ChatGoogleGenerativeAI
 from pydantic import BaseModel, Field
 
-from config import Config
+from configs import Config
 
 # ============================================
 # Input Schemas

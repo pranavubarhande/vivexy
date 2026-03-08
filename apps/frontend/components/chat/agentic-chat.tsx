@@ -1,40 +1,27 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/utils/common';
 import { Button } from '@/components/ui/button';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet';
+import { toast } from 'sonner';
 
 import { AgentSelector } from '@/components/chat/agent-selector';
 import { ModelSelector } from '@/components/chat/model-selector';
 import { ChatInput } from '@/components/chat/chat-input';
-import { ArtifactsPanel } from '@/components/chat/artifacts-panel';
-import { TodosPanel } from '@/components/chat/todos-panel';
-import { ChatHistoryDropdown } from '@/components/chat/chat-history-dropdown';
+import { ChatHeader } from '@/components/chat/chat-header';
+import { ChatMessageList } from '@/components/chat/chat-message-list';
+import { ChatPanels } from '@/components/chat/chat-panels';
 import { ApprovalDialog } from '@/components/chat/approval-dialog';
-import { ChatMessage } from '@/components/chat/chat-message';
 import { UploadedFile } from '@/components/chat/file-upload';
 
 import { useChat, useChatHistory, useModels } from '@/hooks/useChat';
 import { useChatStream } from '@/hooks/use-chat-stream';
-import { useIsMobile } from '@/hooks/use-mobile';
-import { Artifact, LLMModel } from '@/services/chat.service';
+import { useWorkspace } from '@/components/desktop/workspace-provider';
 
-import {
-  Plus,
-  Share2,
-  Maximize2,
-  CheckSquare,
-  PanelRightClose,
-  File,
-} from 'lucide-react';
-import { MobileSidebarTrigger } from '../shared/app-shell';
+import { Artifact, LLMModel } from '@/services/chat.service';
+import { File } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -53,7 +40,6 @@ export interface AgenticChatConfig {
   defaultAgentId?: string;
   allowFileUpload?: boolean;
   showArtifacts?: boolean;
-  showTodos?: boolean;
   showReasoning?: boolean;
   className?: string;
   basePath?: string;
@@ -79,14 +65,13 @@ const savePref = (key: string, value: string) => {
 // Component
 // ---------------------------------------------------------------------------
 
-export function AgenticChat({ config, initialChatId }: AgenticChatProps) {
-  const router = useRouter();
+export const AgenticChat = ({ config, initialChatId }: AgenticChatProps) => {
   const searchParams = useSearchParams();
-  const isMobile = useIsMobile();
 
   // ---- Chat ID ----
+  // Read from URL only on mount; after that, chatId is managed imperatively.
   const [chatId, setChatId] = useState<string | null>(
-    initialChatId || searchParams.get('id')
+    () => initialChatId || searchParams.get('id') || null
   );
 
   // ---- Preferences ----
@@ -110,12 +95,7 @@ export function AgenticChat({ config, initialChatId }: AgenticChatProps) {
   );
 
   // ---- Panel state ----
-  const [showSidePanel, setShowSidePanel] = useState<
-    'artifacts' | 'todos' | null
-  >(null);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [panelWidth, setPanelWidth] = useState(600); // Default width for side panel
-  const isResizingRef = useRef(false);
+  const [showSidePanel, setShowSidePanel] = useState<'artifacts' | null>(null);
 
   // ---- Data (TanStack Query backed) ----
   const { models, isLoading: isLoadingModels } = useModels();
@@ -128,15 +108,23 @@ export function AgenticChat({ config, initialChatId }: AgenticChatProps) {
     removeChatFromCache,
   } = useChatHistory();
 
-  const {
-    messages,
-    artifacts,
-    todos,
-    chatDetail,
-    updateTodo,
-    revertToMessage,
-    createArtifact,
-  } = useChat(chatId || undefined);
+  const { messages, artifacts, chatDetail, revertToMessage, createArtifact } =
+    useChat(chatId || undefined);
+
+  // ---- Workspace ----
+  const { refreshWorkspaceInfo, workspacePath } = useWorkspace();
+  const qc = useQueryClient();
+  const prevWorkspaceRef = useRef(workspacePath);
+
+  useEffect(() => {
+    if (
+      prevWorkspaceRef.current !== null &&
+      workspacePath !== prevWorkspaceRef.current
+    ) {
+      qc.invalidateQueries({ queryKey: ['chats'] });
+    }
+    prevWorkspaceRef.current = workspacePath;
+  }, [workspacePath, qc]);
 
   // ---- Stream ----
   const {
@@ -145,29 +133,41 @@ export function AgenticChat({ config, initialChatId }: AgenticChatProps) {
     approvalRequest,
     isCreatingChatRef,
     isStreamingRef,
+    streamingMessages,
     sendMessage,
     stopStreaming,
     handleApprove,
     handleReject,
+    patchArtifact,
   } = useChatStream({
     messages,
     refetchHistory,
+    onStreamEnd: refreshWorkspaceInfo,
   });
 
-  // ---- URL sync (defer setState to avoid synchronous setState in effect) ----
-  useEffect(() => {
-    const urlId = searchParams.get('id');
-    if (
-      urlId !== chatId &&
-      !isCreatingChatRef.current &&
-      !isStreamingRef.current
-    ) {
-      const next = urlId || null;
-      queueMicrotask(() => setChatId(next));
-    }
-  }, [searchParams, chatId, isCreatingChatRef, isStreamingRef]);
+  // Merge query-backed messages with any currently-streaming messages.
+  // During streaming, the user/assistant messages live in local React state
+  // for immediate re-renders; once done they're persisted to the TQ cache.
+  // We deduplicate by id to handle the brief overlap window when the TQ
+  // cache has been written but streamingMessages hasn't cleared yet.
+  const displayMessages = (() => {
+    if (streamingMessages.length === 0) return messages;
+    const ids = new Set(streamingMessages.map((m) => m.id));
+    return [...messages.filter((m) => !ids.has(m.id)), ...streamingMessages];
+  })();
 
-  // ---- Sync preferences from loaded chat (defer setState to avoid synchronous setState in effect) ----
+  // ---- URL sync (browser back/forward only) ----
+  useEffect(() => {
+    const onPopState = () => {
+      if (isStreamingRef.current || isCreatingChatRef.current) return;
+      const urlId = new URL(window.location.href).searchParams.get('id');
+      setChatId(urlId || null);
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, [isStreamingRef, isCreatingChatRef]);
+
+  // ---- Sync preferences from loaded chat ----
   useEffect(() => {
     if (!chatDetail) return;
     const updates: Array<() => void> = [];
@@ -209,51 +209,14 @@ export function AgenticChat({ config, initialChatId }: AgenticChatProps) {
   ]);
 
   // ---- URL helper ----
-  const updateUrl = useCallback(
-    (newChatId: string) => {
-      const url = new URL(window.location.href);
-      if (newChatId) url.searchParams.set('id', newChatId);
-      else url.searchParams.delete('id');
-      router.push(url.pathname + url.search, { scroll: false });
-    },
-    [router]
-  );
-
-  // ---- Resizing handler ----
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isResizingRef.current) return;
-      // Calculate new width: window innerWidth - mouse X position
-      let newWidth = window.innerWidth - e.clientX;
-      // Clamp the width between sensible values
-      if (newWidth < 300) newWidth = 300;
-      if (newWidth > 800) newWidth = 800;
-      if (newWidth > window.innerWidth - 300)
-        newWidth = window.innerWidth - 300; // prevent crushing main chat
-      setPanelWidth(newWidth);
-    };
-
-    const handleMouseUp = () => {
-      isResizingRef.current = false;
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-    };
-
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
+  // Use replaceState to avoid triggering Next.js navigation (which causes
+  // searchParams to change asynchronously and can race with streaming).
+  const updateUrl = useCallback((newChatId: string) => {
+    const url = new URL(window.location.href);
+    if (newChatId) url.searchParams.set('id', newChatId);
+    else url.searchParams.delete('id');
+    window.history.replaceState({}, '', url.pathname + url.search);
   }, []);
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    e.preventDefault();
-    isResizingRef.current = true;
-    document.body.style.cursor = 'col-resize';
-    document.body.style.userSelect = 'none'; // Prevent text selection while dragging
-  };
 
   // ---- Handlers ----
   const handleSend = async (
@@ -309,18 +272,7 @@ export function AgenticChat({ config, initialChatId }: AgenticChatProps) {
       removeChatFromCache(id);
       if (chatId === id) handleNewChat();
     } catch {
-      alert('Failed to delete chat');
-    }
-  };
-
-  const handleShare = async () => {
-    if (!chatId) return;
-    const url = `${window.location.origin}${config.basePath || '/chat'}?id=${chatId}`;
-    try {
-      await navigator.clipboard.writeText(url);
-      alert('Chat link copied to clipboard');
-    } catch {
-      alert('Could not copy link');
+      toast.error('Failed to delete chat');
     }
   };
 
@@ -333,16 +285,8 @@ export function AgenticChat({ config, initialChatId }: AgenticChatProps) {
     }
   };
 
-  const handleTodoStatus = (
-    todoId: string,
-    status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
-  ) => {
-    updateTodo({ todoId, status });
-  };
-
-  const togglePanel = (panel: 'artifacts' | 'todos') => {
-    setShowSidePanel((p) => (p === panel ? null : panel));
-    setIsFullscreen(false);
+  const toggleArtifactsPanel = () => {
+    setShowSidePanel((p) => (p === 'artifacts' ? null : 'artifacts'));
   };
 
   // ---- Derived ----
@@ -350,7 +294,6 @@ export function AgenticChat({ config, initialChatId }: AgenticChatProps) {
     (a) => a.id === selectedAgentId
   );
 
-  // ---- Panel JSX ----
   const handleSaveArtifact = async (
     artifact: Artifact & { language?: string },
     newContent: string
@@ -364,62 +307,14 @@ export function AgenticChat({ config, initialChatId }: AgenticChatProps) {
         language: artifact.language || undefined,
         content: newContent,
       });
+      patchArtifact(chatId, artifact.filename || artifact.title || '', {
+        content: newContent,
+      });
     } catch (e) {
       console.error('Failed to save artifact', e);
-      alert('Failed to save artifact');
+      toast.error('Failed to save artifact');
     }
   };
-
-  const panelContent = showSidePanel && (
-    <>
-      {showSidePanel === 'artifacts' ? (
-        <ArtifactsPanel artifacts={artifacts} onSave={handleSaveArtifact} />
-      ) : (
-        <TodosPanel todos={todos} onStatusChange={handleTodoStatus} />
-      )}
-    </>
-  );
-
-  const panelHeader = showSidePanel && (
-    <div className="flex items-center justify-between px-4 py-3 border-b bg-background/95 backdrop-blur-sm shrink-0">
-      <div className="flex items-center gap-2">
-        {showSidePanel === 'artifacts' ? (
-          <File size={15} className="text-primary" />
-        ) : (
-          <CheckSquare size={15} className="text-primary" />
-        )}
-        <h3 className="font-semibold text-sm">
-          {showSidePanel === 'artifacts' ? 'Artifacts' : 'Tasks'}
-        </h3>
-        <span className="text-xs px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
-          {showSidePanel === 'artifacts' ? artifacts.length : todos.length}
-        </span>
-      </div>
-      <div className="flex items-center gap-1">
-        {showSidePanel === 'artifacts' && !isMobile && (
-          <button
-            onClick={() => setIsFullscreen((f) => !f)}
-            className="p-1.5 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
-            title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
-          >
-            <Maximize2 size={14} />
-          </button>
-        )}
-        <button
-          onClick={() => {
-            setShowSidePanel(null);
-            setIsFullscreen(false);
-          }}
-          className="p-1.5 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground hidden sm:block"
-          title="Close panel"
-        >
-          <PanelRightClose size={14} />
-        </button>
-      </div>
-    </div>
-  );
-
-  const hasPanelButtons = config.showTodos || config.showArtifacts;
 
   return (
     <div className={cn('flex h-full overflow-hidden', config.className)}>
@@ -431,104 +326,33 @@ export function AgenticChat({ config, initialChatId }: AgenticChatProps) {
         onReject={(reqId) => handleReject(chatId, reqId)}
       />
 
-      {/* Fullscreen overlay */}
-      {isFullscreen && showSidePanel && !isMobile && (
-        <div className="fixed inset-0 z-50 bg-background flex flex-col">
-          {panelHeader}
-          <div className="flex-1 min-h-0 overflow-hidden">{panelContent}</div>
-        </div>
-      )}
-
       {/* Main chat */}
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-14 border-b border-border/50 bg-background/95 backdrop-blur-sm flex items-center justify-between px-4 pl-4 sticky top-0 z-10 shrink-0">
-          <div className="flex items-center gap-2 min-w-0">
-            <MobileSidebarTrigger />
-            <ChatHistoryDropdown
-              chats={chats}
-              onSelect={handleChatSelect}
-              onDelete={handleChatDelete}
-              activeChatId={chatId}
-            />
-            <button
-              onClick={handleNewChat}
-              className="p-2 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground shrink-0"
-              title="New chat"
-            >
-              <Plus size={18} />
-            </button>
-          </div>
-          <div className="flex items-center gap-2">
-            <div
-              className={cn(
-                'flex items-center gap-1.5 text-xs font-medium text-muted-foreground',
-                isStreaming && 'text-primary'
-              )}
-            >
-              <div
-                className={cn(
-                  'w-1.5 h-1.5 rounded-full shrink-0',
-                  isStreaming
-                    ? 'bg-primary animate-pulse'
-                    : 'bg-muted-foreground/30'
-                )}
-              />
-              <span className="hidden sm:inline">
-                {isStreaming ? 'Generating…' : 'Idle'}
-              </span>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleShare}
-              disabled={!chatId}
-              className="gap-1.5 h-8 text-xs"
-            >
-              <Share2 size={14} />
-              <span className="hidden sm:inline">Share</span>
-            </Button>
-          </div>
-        </header>
+        <ChatHeader
+          chats={chats}
+          chatId={chatId}
+          isStreaming={isStreaming}
+          basePath={config.basePath}
+          onChatSelect={handleChatSelect}
+          onChatDelete={handleChatDelete}
+          onNewChat={handleNewChat}
+        />
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 custom-scrollbar chat-bg-pattern">
           <div className="max-w-3xl mx-auto space-y-6">
-            {messages.length === 0 && (
-              <div className="h-full min-h-[40vh] flex flex-col items-center justify-center text-center space-y-4 animate-in fade-in zoom-in-95 duration-500">
-                <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-2 shadow-sm">
-                  <span className="text-3xl">{selectedAgent?.icon}</span>
-                </div>
-                <h1 className="text-2xl font-semibold tracking-tight">
-                  {selectedAgent?.name
-                    ? `How can ${selectedAgent.name} help?`
-                    : 'How can I help today?'}
-                </h1>
-                <p className="text-muted-foreground max-w-sm text-sm leading-relaxed">
-                  {selectedAgent?.description ||
-                    "I'm your agentic portfolio assistant. I can analyze stocks, manage documents, and help with your financial goals."}
-                </p>
-              </div>
-            )}
-
-            {messages.map((message) => (
-              <ChatMessage
-                key={message.id}
-                message={message}
-                agentName={selectedAgent?.name}
-                agentIcon={selectedAgent?.icon}
-                agentColor={selectedAgent?.color}
-                showReasoning={config.showReasoning !== false}
-                onRevert={handleRevert}
-              />
-            ))}
-            <div className="h-4" />
+            <ChatMessageList
+              messages={displayMessages}
+              agent={selectedAgent}
+              showReasoning={config.showReasoning !== false}
+              onRevert={handleRevert}
+            />
           </div>
         </div>
 
         {/* Input area */}
         <div className="border-t border-border/50 bg-background/98 p-3 sm:p-4 shrink-0">
           <div className="max-w-3xl mx-auto space-y-2">
-            {/* Stop button */}
             {isStreaming && (
               <div className="flex justify-center -mt-8 mb-1">
                 <Button
@@ -554,9 +378,8 @@ export function AgenticChat({ config, initialChatId }: AgenticChatProps) {
               className="rounded-2xl border border-border bg-background shadow-sm overflow-hidden focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary/30 transition-all"
             />
 
-            {/* Toolbar: selectors on left, panel toggles on right */}
+            {/* Toolbar */}
             <div className="flex items-center justify-between gap-2">
-              {/* Selectors */}
               <div className="flex items-center gap-1 min-w-0 overflow-x-auto no-scrollbar">
                 <AgentSelector
                   agents={config.availableAgents}
@@ -574,47 +397,25 @@ export function AgenticChat({ config, initialChatId }: AgenticChatProps) {
                 />
               </div>
 
-              {/* Panel toggles */}
-              {hasPanelButtons && (
+              {config.showArtifacts && (
                 <div className="flex items-center gap-1 shrink-0">
-                  {config.showTodos && (
-                    <button
-                      onClick={() => togglePanel('todos')}
-                      className={cn(
-                        'flex items-center gap-1 h-7 px-2 rounded-lg text-xs font-medium transition-all shrink-0',
-                        showSidePanel === 'todos'
-                          ? 'bg-primary/10 text-primary'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                      )}
-                    >
-                      <CheckSquare size={12} />
-                      <span className="hidden xs:inline sm:inline">Tasks</span>
-                      {todos.length > 0 && (
-                        <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-primary/20 text-primary text-[9px] font-bold">
-                          {todos.length}
-                        </span>
-                      )}
-                    </button>
-                  )}
-                  {config.showArtifacts && (
-                    <button
-                      onClick={() => togglePanel('artifacts')}
-                      className={cn(
-                        'flex items-center gap-1 h-7 px-2 rounded-lg text-xs font-medium transition-all shrink-0',
-                        showSidePanel === 'artifacts'
-                          ? 'bg-primary/10 text-primary'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                      )}
-                    >
-                      <File size={12} />
-                      <span className="hidden xs:inline sm:inline">Files</span>
-                      {artifacts.length > 0 && (
-                        <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-primary/20 text-primary text-[9px] font-bold">
-                          {artifacts.length}
-                        </span>
-                      )}
-                    </button>
-                  )}
+                  <button
+                    onClick={toggleArtifactsPanel}
+                    className={cn(
+                      'flex items-center gap-1 h-7 px-2 rounded-lg text-xs font-medium transition-all shrink-0',
+                      showSidePanel === 'artifacts'
+                        ? 'bg-primary/10 text-primary'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                    )}
+                  >
+                    <File size={12} />
+                    <span className="hidden xs:inline sm:inline">Files</span>
+                    {artifacts.length > 0 && (
+                      <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-primary/20 text-primary text-[9px] font-bold">
+                        {artifacts.length}
+                      </span>
+                    )}
+                  </button>
                 </div>
               )}
             </div>
@@ -628,44 +429,13 @@ export function AgenticChat({ config, initialChatId }: AgenticChatProps) {
         </div>
       </div>
 
-      {/* Desktop side panel */}
-      {showSidePanel && !isMobile && !isFullscreen && (
-        <div
-          className="relative flex flex-col bg-background shrink-0"
-          style={{ width: panelWidth }}
-        >
-          {/* Drag Handle */}
-          <div
-            className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary/50 transition-colors z-50 -ml-[0.5px]"
-            onMouseDown={handleMouseDown}
-          />
-          <div className="flex-1 flex flex-col border-l min-h-0 overflow-hidden">
-            {panelHeader}
-            <div className="flex-1 min-h-0 overflow-hidden">{panelContent}</div>
-          </div>
-        </div>
-      )}
-
-      {/* Mobile bottom sheet */}
-      {isMobile && (
-        <Sheet
-          open={!!showSidePanel}
-          onOpenChange={(open) => !open && setShowSidePanel(null)}
-        >
-          <SheetContent
-            side="bottom"
-            className="h-[80vh] flex flex-col p-0 rounded-t-2xl"
-          >
-            <SheetHeader className="sr-only">
-              <SheetTitle>
-                {showSidePanel === 'artifacts' ? 'Artifacts' : 'Tasks'}
-              </SheetTitle>
-            </SheetHeader>
-            {panelHeader}
-            <div className="flex-1 min-h-0 overflow-hidden">{panelContent}</div>
-          </SheetContent>
-        </Sheet>
-      )}
+      {/* Side panels */}
+      <ChatPanels
+        showSidePanel={showSidePanel}
+        setShowSidePanel={setShowSidePanel}
+        artifacts={artifacts}
+        onSaveArtifact={handleSaveArtifact}
+      />
     </div>
   );
-}
+};

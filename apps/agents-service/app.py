@@ -6,7 +6,7 @@ Run with: poetry run python app.py
 import os
 
 from app import create_app
-from config import Config
+from configs import Config
 
 app = create_app(Config)
 

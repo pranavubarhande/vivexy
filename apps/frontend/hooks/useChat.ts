@@ -5,9 +5,9 @@ import {
   Chat,
   Message,
   Artifact,
-  Todo,
   LLMModel,
 } from '@/services/chat.service';
+import { platform } from '@/lib/platform';
 
 // ---------------------------------------------------------------------------
 // Query keys — single source of truth
@@ -18,7 +18,6 @@ export const chatKeys = {
   detail: (id: string) => [...chatKeys.all, 'detail', id] as const,
   messages: (id: string) => [...chatKeys.all, id, 'messages'] as const,
   artifacts: (id: string) => [...chatKeys.all, id, 'artifacts'] as const,
-  todos: (id: string) => [...chatKeys.all, id, 'todos'] as const,
   models: () => ['models'] as const,
 };
 
@@ -86,27 +85,44 @@ export function useModels() {
 export function useChat(chatId?: string) {
   const qc = useQueryClient();
 
+  // In Electron mode, artifacts and todos are local-only (stored via SSE
+  // events in the TQ cache). We must NOT refetch from the server because
+  // the server returns empty arrays and would wipe the cache.
+  const isDesktop = platform.isDesktop;
+
   const messagesQuery = useQuery<Message[]>({
     queryKey: chatKeys.messages(chatId!),
     queryFn: () => chatService.getChatMessages(chatId!),
     enabled: !!chatId,
-    // Keep stale for a few seconds so that immediately after a stream redirect
-    // it doesn't instantly refetch and wipe optimistic updates
-    staleTime: 5000,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
   });
 
   const artifactsQuery = useQuery<Artifact[]>({
     queryKey: chatKeys.artifacts(chatId!),
-    queryFn: () => chatService.getChatArtifacts(chatId!),
+    queryFn: isDesktop
+      ? async () => {
+          // Load from local filesystem via IPC (persists across refresh)
+          const local = await platform.listArtifacts(chatId!);
+          // Merge with any existing cache data (from current streaming session)
+          const cached =
+            qc.getQueryData<Artifact[]>(chatKeys.artifacts(chatId!)) ?? [];
+          // Use cached items first (more up-to-date), then add local-only items
+          const cachedIds = new Set(cached.map((a) => a.id));
+          const merged = [...cached];
+          for (const item of local as Artifact[]) {
+            if (!cachedIds.has(item.id)) {
+              merged.push(item);
+            }
+          }
+          return merged;
+        }
+      : () => chatService.getChatArtifacts(chatId!),
     enabled: !!chatId,
-    staleTime: 5000,
-  });
-
-  const todosQuery = useQuery<Todo[]>({
-    queryKey: chatKeys.todos(chatId!),
-    queryFn: () => chatService.getChatTodos(chatId!),
-    enabled: !!chatId,
-    staleTime: 5000,
+    staleTime: isDesktop ? Infinity : 5000,
+    placeholderData: [],
   });
 
   const chatDetailQuery = useQuery<Chat>({
@@ -130,29 +146,22 @@ export function useChat(chatId?: string) {
     },
   });
 
-  const updateTodoMutation = useMutation({
-    mutationFn: ({
-      todoId,
-      status,
-    }: {
-      todoId: string;
-      status: Todo['status'];
-    }) => chatService.updateTodoStatus(chatId!, todoId, status),
-    onSuccess: (updatedTodo) => {
-      qc.setQueryData<Todo[]>(chatKeys.todos(chatId!), (prev = []) =>
-        prev.map((t) => (t.id === updatedTodo.id ? updatedTodo : t))
-      );
-    },
-  });
-
   const exportArtifactMutation = useMutation({
     mutationFn: ({
       artifactId,
       format,
+      content,
     }: {
       artifactId: string;
       format: 'pdf' | 'docx';
-    }) => chatService.exportArtifact(chatId!, artifactId, format),
+      content?: string;
+    }) => {
+      // In Electron mode, use content-based export since artifact isn't in server DB
+      if (isDesktop && content) {
+        return chatService.exportContent(chatId!, content, format);
+      }
+      return chatService.exportArtifact(chatId!, artifactId, format);
+    },
   });
 
   const revertMutation = useMutation({
@@ -166,68 +175,22 @@ export function useChat(chatId?: string) {
     },
   });
 
-  // ---- Streaming helpers: update cache from SSE events ----
-
-  function appendMessage(msg: Message) {
-    qc.setQueryData<Message[]>(chatKeys.messages(chatId!), (prev = []) => [
-      ...prev,
-      msg,
-    ]);
-  }
-
-  function patchMessage(id: string, patch: Partial<Message>) {
-    qc.setQueryData<Message[]>(chatKeys.messages(chatId!), (prev = []) =>
-      prev.map((m) => (m.id === id ? { ...m, ...patch } : m))
-    );
-  }
-
-  function appendArtifact(artifact: Artifact) {
-    qc.setQueryData<Artifact[]>(chatKeys.artifacts(chatId!), (prev = []) => [
-      ...prev,
-      artifact,
-    ]);
-  }
-
-  function patchArtifact(filename: string, patch: Partial<Artifact>) {
-    qc.setQueryData<Artifact[]>(chatKeys.artifacts(chatId!), (prev = []) => {
-      const idx = prev.findLastIndex((a) => a.filename === filename);
-      if (idx < 0) return prev;
-      const updated = [...prev];
-      updated[idx] = { ...updated[idx], ...patch };
-      return updated;
-    });
-  }
-
-  function upsertTodo(todo: Todo) {
-    qc.setQueryData<Todo[]>(chatKeys.todos(chatId!), (prev = []) => {
-      const exists = prev.find((t) => t.id === todo.id);
-      if (exists)
-        return prev.map((t) => (t.id === todo.id ? { ...t, ...todo } : t));
-      return [...prev, todo];
-    });
-  }
-
   function invalidateChatData() {
     if (!chatId) return;
     qc.invalidateQueries({ queryKey: chatKeys.messages(chatId) });
-    qc.invalidateQueries({ queryKey: chatKeys.artifacts(chatId) });
-    qc.invalidateQueries({ queryKey: chatKeys.todos(chatId) });
+    if (!isDesktop) {
+      qc.invalidateQueries({ queryKey: chatKeys.artifacts(chatId) });
+    }
   }
 
   return {
-    // Data
     messages: messagesQuery.data ?? [],
     artifacts: artifactsQuery.data ?? [],
-    todos: todosQuery.data ?? [],
     chatDetail: chatDetailQuery.data ?? null,
 
-    // Loading states
     isLoadingMessages: messagesQuery.isLoading,
     isLoadingArtifacts: artifactsQuery.isLoading,
-    isLoadingTodos: todosQuery.isLoading,
 
-    // Mutations
-    updateTodo: updateTodoMutation.mutateAsync,
     revertToMessage: revertMutation.mutateAsync,
     createArtifact: createArtifactMutation.mutateAsync,
     exportArtifact: exportArtifactMutation.mutateAsync,

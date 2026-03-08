@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import { cn } from '@/utils/common';
 import { ArtifactContent } from './artifact-content';
 import { useChat } from '@/hooks/useChat';
+import { toast } from 'sonner';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,20 +34,7 @@ import {
   File,
   Download,
 } from 'lucide-react';
-
-interface Artifact {
-  id: string;
-  title: string | null;
-  type: string;
-  seq: number;
-  content: string;
-  filename: string | null;
-  createdAt: string;
-  version?: number;
-  chatId?: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  metadata?: any;
-}
+import type { Artifact } from '@/services/chat.service';
 
 interface ArtifactsPanelProps {
   artifacts: Artifact[];
@@ -167,7 +155,11 @@ export function ArtifactsPanel({
   const handleExport = async (artifact: Artifact, format: 'pdf' | 'docx') => {
     if (!artifact.chatId) return;
     try {
-      const blob = await exportArtifact({ artifactId: artifact.id, format });
+      const blob = await exportArtifact({
+        artifactId: artifact.id,
+        format,
+        content: artifact.content,
+      });
       const downloadUrl = URL.createObjectURL(blob as Blob);
       const a = document.createElement('a');
       a.href = downloadUrl;
@@ -183,7 +175,7 @@ export function ArtifactsPanel({
       URL.revokeObjectURL(downloadUrl);
     } catch (e) {
       console.error(`Failed to export artifact to ${format}`, e);
-      alert(`Failed to export artifact to ${format.toUpperCase()}`);
+      toast.error(`Failed to export artifact to ${format.toUpperCase()}`);
     }
   };
 

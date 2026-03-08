@@ -3,22 +3,33 @@ Chat API and SSE stream.
 Two-way communication: REST for CRUD, POST /chat/stream for agent streaming.
 """
 
-import asyncio
 import json
+import logging
 import os
 
-from flask import Blueprint, Response, after_this_request, jsonify, request, send_file
+from flask import (
+    Blueprint,
+    Response,
+    after_this_request,
+    current_app,
+    jsonify,
+    request,
+    send_file,
+)
 from pydantic import ValidationError
 from werkzeug.utils import secure_filename
 
+from app.agents.client_tool_store import resolve_client_tool
+from app.agents.config import DEFAULT_AGENT_ID
 from app.business_logic.artifacts import (
     create_artifact,
     export_artifact,
+    export_md_content,
     get_chat_artifacts,
-    link_artifacts_to_message,
 )
 from app.business_logic.attachments import create_attachment, get_chat_attachments
 from app.business_logic.chat import (
+    build_file_contexts,
     create_chat,
     create_message,
     get_chat_messages,
@@ -29,21 +40,12 @@ from app.business_logic.chat import (
     update_chat,
     update_message,
 )
-from app.business_logic.todos import (
-    create_todo,
-    delete_todo,
-    get_chat_todos,
-    get_todo,
-    update_todo,
-)
+from app.business_logic.streaming import run_agent_stream
 from app.middlewares.auth import auth_middleware
-from app.schemas import (
-    ArtifactCreate,
-    ChatCreate,
-    MessageCreate,
-    TodoCreate,
-    TodoUpdate,
-)
+from app.schemas import ArtifactCreate, ChatCreate, MessageCreate
+from app.services.s3_service import S3Service
+
+logger = logging.getLogger(__name__)
 
 bp = Blueprint("chat", __name__, url_prefix="/chat")
 
@@ -179,6 +181,8 @@ def create_new_artifact(chat_id):
         user = request.user
         data = request.get_json()
         artifact_data = ArtifactCreate(**data)
+
+        # TODO: We might have to update the artifact storing logic across desktop and web clients for scalability.
         artifact = create_artifact(chat_id, artifact_data, user.id)
         return jsonify(artifact), 201
     except ValidationError as e:
@@ -210,7 +214,9 @@ def export_artifact_endpoint(chat_id, artifact_id):
             try:
                 os.remove(file_path)
             except Exception as e:
-                print(f"Error removing temporary export file {file_path}: {e}")
+                logger.warning(
+                    "Error removing temporary export file %s: %s", file_path, e
+                )
             return response
 
         mimetype = (
@@ -227,82 +233,39 @@ def export_artifact_endpoint(chat_id, artifact_id):
     except ValueError as e:
         return jsonify({"error": str(e)}), 404
     except Exception as e:
-        import traceback
-
-        traceback.print_exc()
+        logger.exception("export_artifact_endpoint error")
         return jsonify({"error": str(e)}), 500
 
 
-@bp.route("/<chat_id>/todos", methods=["GET"])
+@bp.route("/<chat_id>/export-content", methods=["POST"])
 @auth_middleware
-def get_todos(chat_id):
+def export_content_endpoint(chat_id):
+    """Export markdown content to PDF/DOCX without needing the artifact in DB."""
     try:
-        user = request.user
-        todos = get_chat_todos(chat_id, user.id)
-        return jsonify(todos)
-    except ValueError as e:
-        return jsonify({"error": str(e)}), 404
+        data = request.get_json() or {}
+        content = data.get("content", "")
+        fmt = data.get("format", "pdf").lower()
+
+        if fmt not in ["pdf", "docx"]:
+            return jsonify({"error": "Supported formats: pdf, docx"}), 400
+        if not content:
+            return jsonify({"error": "Content is required"}), 400
+
+        file_path = export_md_content(content, fmt)
+
+        mimetype = (
+            "application/pdf"
+            if fmt == "pdf"
+            else "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        )
+        return send_file(
+            file_path,
+            mimetype=mimetype,
+            as_attachment=True,
+            download_name=f"artifact_export.{fmt}",
+        )
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-@bp.route("/<chat_id>/todos", methods=["POST"])
-@auth_middleware
-def create_new_todo(chat_id):
-    try:
-        user = request.user
-        data = request.get_json()
-        todo_data = TodoCreate(**data)
-        todo = create_todo(chat_id, todo_data, user.id)
-        return jsonify(todo), 201
-    except ValidationError as e:
-        return jsonify({"error": "Invalid input data", "details": e.errors()}), 400
-    except ValueError as e:
-        return jsonify({"error": str(e)}), 404
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-@bp.route("/<chat_id>/todos/<todo_id>", methods=["GET"])
-@auth_middleware
-def get_single_todo(chat_id, todo_id):
-    try:
-        user = request.user
-        todo = get_todo(todo_id, chat_id, user.id)
-        return jsonify(todo)
-    except ValueError as e:
-        return jsonify({"error": str(e)}), 404
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-@bp.route("/<chat_id>/todos/<todo_id>", methods=["PUT", "PATCH"])
-@auth_middleware
-def update_existing_todo(chat_id, todo_id):
-    try:
-        user = request.user
-        data = request.get_json()
-        todo_data = TodoUpdate(**data)
-        todo = update_todo(todo_id, chat_id, todo_data, user.id)
-        return jsonify(todo)
-    except ValidationError as e:
-        return jsonify({"error": "Invalid input data", "details": e.errors()}), 400
-    except ValueError as e:
-        return jsonify({"error": str(e)}), 404
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-@bp.route("/<chat_id>/todos/<todo_id>", methods=["DELETE"])
-@auth_middleware
-def delete_existing_todo(chat_id, todo_id):
-    try:
-        user = request.user
-        delete_todo(todo_id, chat_id, user.id)
-        return jsonify({"success": True})
-    except ValueError as e:
-        return jsonify({"error": str(e)}), 404
-    except Exception as e:
+        logger.exception("export_content_endpoint error")
         return jsonify({"error": str(e)}), 500
 
 
@@ -326,18 +289,22 @@ def upload_attachment(chat_id):
         user = request.user
         if "file" not in request.files:
             return jsonify({"error": "No file provided"}), 400
+
         file = request.files["file"]
         if file.filename == "":
             return jsonify({"error": "No file selected"}), 400
+
         max_size = 10 * 1024 * 1024
         file.seek(0, 2)
+
         size = file.tell()
         file.seek(0)
+
         if size > max_size:
             return jsonify({"error": "File too large (max 10MB)"}), 400
+
         filename = secure_filename(file.filename)
         mime_type = file.mimetype or "application/octet-stream"
-        from app.services.s3_service import S3Service
 
         s3 = S3Service()
         s3_result = s3.upload_file(file, chat_id, filename, mime_type)
@@ -359,13 +326,6 @@ def upload_attachment(chat_id):
 def stream_chat():
     """SSE stream: agent runs and emits events for the client."""
     try:
-        from app.agents.agent_factory import create_langgraph_agent
-        from app.agents.config import DEFAULT_AGENT_ID, FileContext
-        from app.models import ChatAttachment
-        from app.services.file_processor import FileProcessor
-        from app.services.s3_service import S3Service
-        from app.tools.chat.chat_tools import generate_chat_title_func
-
         user = request.user
         user_id = user.id
 
@@ -382,22 +342,17 @@ def stream_chat():
         model_id = data.get("model_id")
         model_db_id = data.get("model_db_id")
         model_provider = data.get("model_provider", "google")
-        model_name = data.get("model_name")
         file_ids = data.get("file_ids", [])
 
         if not chat_id:
             return jsonify({"error": "chat_id is required"}), 400
-        chat = get_user_chat(chat_id, user_id)
-        if not chat:
-            return jsonify({"error": "Chat not found"}), 404
+
+        get_user_chat(chat_id, user_id)
 
         # Process new inline file uploads
         if is_multipart:
             files_to_upload = request.files.getlist("files")
             if files_to_upload:
-                from app.business_logic.attachments import create_attachment
-                from app.services.s3_service import S3Service
-
                 s3 = S3Service()
                 for file in files_to_upload:
                     if file.filename == "":
@@ -419,49 +374,35 @@ def stream_chat():
                     file_ids.append(str(attachment["id"]))
 
         file_contexts = []
+        client_tools_enabled = (
+            request.headers.get("X-Client-Tools", "").lower() == "true"
+        )
+
         try:
-            import os
-
-            if file_ids:
-                attachments = ChatAttachment.query.filter(
-                    ChatAttachment.id.in_(file_ids),
-                    ChatAttachment.chat_id == chat_id,
-                ).all()
-            else:
-                attachments = ChatAttachment.query.filter_by(chat_id=chat_id).all()
-            if attachments:
-                s3 = S3Service()
-                processor = FileProcessor()
-                for att in attachments:
-                    if not att.s3_key:
-                        continue
-                    local_path = s3.download_file(att.s3_key)
-                    if local_path:
-                        try:
-                            content = processor.read_file(local_path)
-                            file_contexts.append(
-                                FileContext(
-                                    file_id=str(att.id),
-                                    filename=att.filename,
-                                    file_type=content.get("type", "unknown"),
-                                    content=content.get("text", ""),
-                                    s3_key=att.s3_key,
-                                    metadata={"mime_type": att.mime_type},
-                                )
-                            )
-                        finally:
-                            try:
-                                os.unlink(local_path)
-                            except Exception:
-                                pass
-        except Exception as e:
-            import traceback
-
-            traceback.print_exc()
+            if not client_tools_enabled:
+                file_contexts = build_file_contexts(chat_id, file_ids)
+        except Exception:
+            logger.exception("Failed to build file contexts")
 
         messages = [{"role": m["role"], "content": m["content"]} for m in messages_data]
         if not messages:
             return jsonify({"error": "messages are required"}), 400
+
+        local_filenames = data.get("local_filenames", [])
+
+        # TODO: We might have to limit files context here.
+        if client_tools_enabled and local_filenames:
+            filenames_str = ", ".join(local_filenames)
+            messages.append(
+                {
+                    "role": "user",
+                    "content": (
+                        f"[System Context: The user has attached the following local "
+                        f"files to this chat: {filenames_str}. You can use the "
+                        f"`read_file` and `analyze_data` tools to inspect them if needed.]"
+                    ),
+                }
+            )
 
         last_msg = messages[-1]
         saved_user_message = create_message(
@@ -480,105 +421,42 @@ def stream_chat():
             user_id,
         )
 
-        agent = create_langgraph_agent(
-            DEFAULT_AGENT_ID, model_provider, model_id, chat_id
-        )
-        from flask import current_app
-
-        app_context = current_app.app_context()
-
-        def generate():
-            app_context.push()
-            try:
-                yield f"data: {json.dumps({'type': 'start'})}\n\n"
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                full_content = ""
-                reasoning_steps = []
-                agent_done_data = None
-
-                async def get_next():
-                    try:
-                        return await async_gen.__anext__()
-                    except StopAsyncIteration:
-                        return None
-
-                try:
-                    async_gen = agent.stream_simple(
-                        messages, file_contexts if file_contexts else None
-                    )
-                    while True:
-                        event = loop.run_until_complete(get_next())
-                        if event is None:
-                            break
-                        if event.type == "done":
-                            agent_done_data = event.data or {}
-                            continue
-                        event_dict = {"type": event.type, "data": event.data}
-                        if event.type == "content":
-                            full_content += (
-                                event.data if isinstance(event.data, str) else ""
-                            )
-                        elif event.type == "reasoning":
-                            reasoning_steps.append(event.data)
-                        elif event.type == "approval_request":
-                            event_dict["requires_approval"] = True
-                        if getattr(event, "message_id", None):
-                            event_dict["messageId"] = event.message_id
-                        yield f"data: {json.dumps(event_dict)}\n\n"
-                finally:
-                    loop.close()
-
-                assistant_message = create_message(
-                    chat_id,
-                    {
-                        "role": "assistant",
-                        "content": full_content,
-                        "model_id": model_db_id,
-                        "reasoning": reasoning_steps,
-                    },
-                    user_id,
-                )
-                try:
-                    link_artifacts_to_message(chat_id, assistant_message["id"], user_id)
-                except Exception as e:
-                    print(f"Warning: link_artifacts_to_message: {e}")
-
-                message_count = len(messages_data)
-                if message_count == 1 and saved_user_message:
-                    # Title generation is handled by the agent via set_chat_title tool.
-                    # As a fallback only, if the chat still has no meaningful title after
-                    # streaming, we skip — the agent should have set it already.
-                    pass
-
-                done_event = {
-                    "type": "done",
-                    "messageId": assistant_message["id"],
-                    "userMessageId": (
-                        saved_user_message.get("id") if saved_user_message else None
-                    ),
-                    "data": {
-                        **(agent_done_data or {}),
-                        "refetch": ["artifacts", "todos"],
-                    },
-                }
-                yield f"data: {json.dumps(done_event)}\n\n"
-            except Exception as e:
-                import traceback
-
-                traceback.print_exc()
-                yield f"data: {json.dumps({'type': 'error', 'data': {'message': str(e)}})}\n\n"
-            finally:
-                yield "data: [DONE]\n\n"
-                app_context.pop()
-
         return Response(
-            generate(),
+            run_agent_stream(
+                chat_id=chat_id,
+                user_id=user_id,
+                messages=messages,
+                model_id=model_id,
+                model_db_id=model_db_id,
+                model_provider=model_provider,
+                file_contexts=file_contexts,
+                client_tools_enabled=client_tools_enabled,
+                saved_user_message=saved_user_message,
+                app_context=current_app.app_context(),
+            ),
             mimetype="text/event-stream",
             headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
         )
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 404
     except Exception as e:
-        import traceback
+        logger.exception("stream_chat error")
+        return jsonify({"error": str(e)}), 500
 
-        traceback.print_exc()
+
+@bp.route("/<chat_id>/tool-result", methods=["POST"])
+@auth_middleware
+def post_tool_result(chat_id):
+    """Receive tool execution result from Electron desktop client."""
+    try:
+        data = request.get_json() or {}
+        request_id = data.get("request_id")
+        result = data.get("result", "")
+
+        if not request_id:
+            return jsonify({"error": "request_id is required"}), 400
+
+        success = resolve_client_tool(request_id, result)
+        return jsonify({"success": success})
+    except Exception as e:
         return jsonify({"error": str(e)}), 500

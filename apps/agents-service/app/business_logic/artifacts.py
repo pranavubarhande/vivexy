@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import tempfile
 from typing import Any, Dict, List
@@ -6,6 +7,7 @@ from typing import Any, Dict, List
 import markdown2
 import pandas as pd
 import pypandoc
+from docx import Document
 from weasyprint import HTML
 
 from app.models import Artifact, Chat, db
@@ -13,10 +15,31 @@ from app.models.enums import ArtifactType
 from app.schemas import ArtifactCreate
 from app.services.s3_service import S3Service
 
+logger = logging.getLogger(__name__)
+
+
+def resolve_artifact_content(artifact: Artifact) -> str:
+    """Return artifact content from DB or by fetching from S3 when stored externally."""
+    if artifact.content is not None:
+        return artifact.content
+    metadata = artifact.artifact_metadata or {}
+    s3_key = metadata.get("s3_key")
+    if not s3_key:
+        return ""
+    try:
+        s3 = S3Service()
+        raw = s3.get_file_content(s3_key)
+        if raw is None:
+            return ""
+        return raw.decode("utf-8")
+    except Exception as e:
+        logger.warning("Failed to resolve artifact content from S3 %s: %s", s3_key, e)
+        return ""
+
 
 def get_chat_artifacts(chat_id: str, user_id: str) -> List[Dict[str, Any]]:
     """Get all artifacts for a chat."""
-    # Verify chat belongs to user
+
     chat = Chat.query.filter_by(id=chat_id, user_id=user_id).first()
     if not chat:
         raise ValueError("Chat not found")
@@ -36,7 +59,7 @@ def get_chat_artifacts(chat_id: str, user_id: str) -> List[Dict[str, Any]]:
             "language": artifact.language,
             "version": artifact.version,
             "seq": artifact.seq,
-            "content": artifact.content,
+            "content": resolve_artifact_content(artifact),
             "metadata": artifact.artifact_metadata,
             "createdAt": artifact.created_at.isoformat(),
         }
@@ -46,7 +69,7 @@ def get_chat_artifacts(chat_id: str, user_id: str) -> List[Dict[str, Any]]:
 
 def create_artifact(chat_id: str, data: ArtifactCreate, user_id: str) -> Dict[str, Any]:
     """Create a new artifact."""
-    # Verify chat belongs to user
+
     chat = Chat.query.filter_by(id=chat_id, user_id=user_id).first()
     if not chat:
         raise ValueError("Chat not found")
@@ -74,6 +97,7 @@ def create_artifact(chat_id: str, data: ArtifactCreate, user_id: str) -> Dict[st
     version = existing.version + 1 if existing else 1
 
     metadata = data.metadata or {}
+    content_to_store = data.content  # None when we store in S3
 
     if data.type.value == "XLSX" and data.content:
         try:
@@ -113,8 +137,43 @@ def create_artifact(chat_id: str, data: ArtifactCreate, user_id: str) -> Dict[st
 
             if upload_result.get("success"):
                 metadata["download_url"] = upload_result.get("url")
+                metadata["s3_key"] = upload_result.get("s3_key")
+                content_to_store = None
         except Exception as e:
-            print(f"Failed to compile XLSX backend artifact: {e}")
+            logger.error("Failed to compile XLSX backend artifact: %s", e)
+
+    # Upload MD/CSV to S3 so we don't store content in DB (web path)
+    if data.type.value in ("MD", "CSV") and data.content:
+        try:
+            s3 = S3Service()
+            ext = ".md" if data.type.value == "MD" else ".csv"
+            s3_filename = data.filename or (data.title or "artifact") + ext
+            if not s3_filename.endswith(ext):
+                s3_filename += ext
+            fd, temp_path = tempfile.mkstemp(suffix=ext)
+            try:
+                os.write(fd, data.content.encode("utf-8"))
+                os.close(fd)
+                content_type = (
+                    "text/markdown" if data.type.value == "MD" else "text/csv"
+                )
+                upload_result = s3.upload_generated_file_versioned(
+                    file_path=temp_path,
+                    chat_id=chat_id,
+                    filename=s3_filename,
+                    content_type=content_type,
+                )
+                if upload_result.get("success"):
+                    metadata["download_url"] = upload_result.get("url")
+                    metadata["s3_key"] = upload_result.get("s3_key")
+                    content_to_store = None
+            finally:
+                try:
+                    os.unlink(temp_path)
+                except OSError:
+                    pass
+        except Exception as e:
+            logger.warning("Failed to upload artifact to S3, storing in DB: %s", e)
 
     artifact = Artifact(
         chat_id=chat_id,
@@ -125,7 +184,7 @@ def create_artifact(chat_id: str, data: ArtifactCreate, user_id: str) -> Dict[st
         language=data.language,
         version=version,
         seq=next_seq,
-        content=data.content,
+        content=content_to_store,
         artifact_metadata=metadata,
     )
 
@@ -142,7 +201,7 @@ def create_artifact(chat_id: str, data: ArtifactCreate, user_id: str) -> Dict[st
         "language": artifact.language,
         "version": artifact.version,
         "seq": artifact.seq,
-        "content": artifact.content,
+        "content": resolve_artifact_content(artifact),
         "metadata": artifact.artifact_metadata,
         "createdAt": artifact.created_at.isoformat(),
     }
@@ -173,8 +232,12 @@ def export_artifact(chat_id: str, artifact_id: str, format: str, user_id: str) -
     if artifact.type != ArtifactType.MD:
         raise ValueError("Only Markdown artifacts can be exported")
 
+    return export_md_content(resolve_artifact_content(artifact), format)
+
+
+def export_md_content(content: str, format: str) -> str:
+    """Convert raw Markdown content to PDF or DOCX. Returns path to temp file."""
     fmt = format.lower()
-    content = artifact.content or ""
 
     # Generate temp path
     fd, path = tempfile.mkstemp(suffix=f".{fmt}")
@@ -215,14 +278,13 @@ def export_artifact(chat_id: str, artifact_id: str, format: str, user_id: str) -
             try:
                 pypandoc.convert_text(content, "docx", format="md", outputfile=path)
             except Exception as outer_e:
-                print(
-                    f"pypandoc direct convert failed, trying manual fallback: {outer_e}"
+                logger.warning(
+                    "pypandoc direct convert failed, trying manual fallback: %s",
+                    outer_e,
                 )
                 # Fallback purely text stream using docx if pandoc misses layout
-                from docx import Document
-
                 doc = Document()
-                for line in content.split("\\n"):
+                for line in content.split("\n"):
                     doc.add_paragraph(line)
                 doc.save(path)
         else:

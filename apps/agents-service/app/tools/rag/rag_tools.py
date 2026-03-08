@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field
 
-from config import Config
+from configs import Config
 
 
 class SearchDocumentsInput(BaseModel):

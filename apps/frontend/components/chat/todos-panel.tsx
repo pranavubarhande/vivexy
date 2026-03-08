@@ -10,15 +10,7 @@ import {
   Calendar,
   ListTodo,
 } from 'lucide-react';
-
-interface Todo {
-  id: string;
-  title: string;
-  description: string | null;
-  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
-  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
-  dueDate: string | null;
-}
+import { Todo } from '@/services/chat.service';
 
 interface TodosPanelProps {
   todos: Todo[];

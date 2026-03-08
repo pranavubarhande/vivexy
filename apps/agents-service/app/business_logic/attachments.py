@@ -1,8 +1,20 @@
+import logging
+import os
 import uuid
 from datetime import datetime
 from typing import Any, Dict, List
 
 from app.models import Chat, ChatAttachment, db
+from app.services.file_processor import FileProcessor
+from app.services.s3_service import S3Service
+from app.tools.rag.rag_tools import add_to_knowledge_base_func
+
+try:
+    from worker.dispatcher import dispatch_rag_job
+except ImportError:
+    dispatch_rag_job = None
+
+logger = logging.getLogger(__name__)
 
 
 def get_chat_attachments(chat_id: str, user_id: str) -> List[Dict[str, Any]]:
@@ -45,8 +57,15 @@ def create_attachment(
     db.session.add(attachment)
     db.session.commit()
 
-    # Index the file into Pinecone for RAG (non-blocking; errors are logged only)
-    _try_index_attachment(chat_id, s3_key, filename)
+    # Dispatch RAG indexing to a background worker if RabbitMQ is available,
+    # otherwise fall back to synchronous (in-process) indexing.
+    if dispatch_rag_job is not None:
+        dispatched = dispatch_rag_job(chat_id=chat_id, s3_key=s3_key, filename=filename)
+    else:
+        dispatched = False
+
+    if not dispatched:
+        _try_index_attachment(chat_id, s3_key, filename)
 
     return _attachment_to_dict(attachment)
 
@@ -102,12 +121,6 @@ def _try_index_attachment(chat_id: str, s3_key: str, filename: str) -> None:
     Runs synchronously but catches all exceptions to avoid blocking the upload response.
     """
     try:
-        import os
-
-        from app.services.file_processor import FileProcessor
-        from app.services.s3_service import S3Service
-        from app.tools.rag.rag_tools import add_to_knowledge_base_func
-
         s3 = S3Service()
         local_path = s3.download_file(s3_key)
         if not local_path:
@@ -132,4 +145,9 @@ def _try_index_attachment(chat_id: str, s3_key: str, filename: str) -> None:
             except Exception:
                 pass
     except Exception as e:
-        print(f"[RAG] Failed to index attachment '{filename}' for chat {chat_id}: {e}")
+        logger.error(
+            "[RAG] Failed to index attachment '%s' for chat %s: %s",
+            filename,
+            chat_id,
+            e,
+        )

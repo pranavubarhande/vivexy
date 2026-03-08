@@ -1,10 +1,76 @@
+import logging
+import os
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy.orm import joinedload
 
-from app.models import Chat, LLMModel, Message, db
+from app.agents.config import FileContext
+from app.business_logic.artifacts import resolve_artifact_content
+from app.constants.stream_events import (
+    STREAM_EVENT_CONTENT,
+    STREAM_EVENT_DONE,
+    STREAM_EVENT_REASONING,
+)
+from app.models import Chat, ChatAttachment, LLMModel, Message, db
 from app.schemas import ChatCreate, ChatResponse, LLMModelResponse, MessageRole
+from app.services.file_processor import FileProcessor
+from app.services.s3_service import S3Service
+from app.tools.chat.chat_tools import generate_chat_title_func
+
+logger = logging.getLogger(__name__)
+
+
+def build_file_contexts(chat_id: str, file_ids: list) -> list:
+    """Extract text from S3-stored attachments and build FileContext objects."""
+    if file_ids:
+        attachments = ChatAttachment.query.filter(
+            ChatAttachment.id.in_(file_ids),
+            ChatAttachment.chat_id == chat_id,
+        ).all()
+    else:
+        attachments = ChatAttachment.query.filter_by(chat_id=chat_id).all()
+
+    if not attachments:
+        return []
+
+    s3 = S3Service()
+    processor = FileProcessor()
+    contexts = []
+
+    for att in attachments:
+        if not att.s3_key:
+            continue
+        local_path = s3.download_file(att.s3_key)
+        if not local_path:
+            continue
+        try:
+            content = processor.read_file(local_path)
+            contexts.append(
+                FileContext(
+                    file_id=str(att.id),
+                    filename=att.filename,
+                    file_type=content.get("type", "unknown"),
+                    content=content.get("text", ""),
+                    s3_key=att.s3_key,
+                    metadata={"mime_type": att.mime_type},
+                )
+            )
+        finally:
+            try:
+                os.unlink(local_path)
+            except Exception:
+                pass
+
+    return contexts
+
+
+def _message_to_dict_with_resolved_artifacts(msg: Message) -> Dict[str, Any]:
+    """Build message dict with artifact content resolved from DB or S3."""
+    d = msg.to_dict()
+    for i, a in enumerate(msg.artifacts):
+        d["artifacts"][i]["content"] = resolve_artifact_content(a)
+    return d
 
 
 def get_user_chats(user_id: str) -> List[Dict[str, Any]]:
@@ -28,7 +94,11 @@ def get_user_chats(user_id: str) -> List[Dict[str, Any]]:
             "lastModelId": chat.last_model_id,
             "createdAt": chat.created_at.isoformat(),
             "updatedAt": chat.updated_at.isoformat(),
-            "messages": [first_message.to_dict()] if first_message else [],
+            "messages": (
+                [_message_to_dict_with_resolved_artifacts(first_message)]
+                if first_message
+                else []
+            ),
         }
         result.append(chat_data)
 
@@ -56,7 +126,7 @@ def get_user_chat(chat_id: str, user_id: str) -> Dict[str, Any]:
         "lastModelId": chat.last_model_id,
         "createdAt": chat.created_at.isoformat(),
         "updatedAt": chat.updated_at.isoformat(),
-        "messages": [msg.to_dict() for msg in messages],
+        "messages": [_message_to_dict_with_resolved_artifacts(msg) for msg in messages],
     }
 
 
@@ -158,7 +228,7 @@ def get_chat_messages(chat_id: str, user_id: str) -> List[Dict[str, Any]]:
         .all()
     )
 
-    return [msg.to_dict() for msg in messages]
+    return [_message_to_dict_with_resolved_artifacts(msg) for msg in messages]
 
 
 def create_message(
@@ -229,10 +299,9 @@ def create_message(
                 chat.updated_at = datetime.utcnow()
                 db.session.commit()
 
-                # Generate chat title if this is the first user message
-                message_count = Message.query.filter_by(chat_id=chat_id).count()
-                if message_count == 2:  # User message + AI response just created
-                    generated_title = generate_chat_title(
+                # Generate chat title if none set
+                if not (chat.title and chat.title.strip()):
+                    generated_title = generate_chat_title_func(
                         data["content"], agent_response["content"]
                     )
                     if generated_title:
@@ -240,10 +309,10 @@ def create_message(
                         db.session.commit()
 
             except Exception as e:
-                print(f"Error generating AI response: {e}")
+                logger.error("Error generating AI response: %s", e)
                 # Don't throw error - user message was created successfully
 
-    return user_message.to_dict()
+    return _message_to_dict_with_resolved_artifacts(user_message)
 
 
 def update_message(
@@ -309,10 +378,9 @@ def update_message(
                 chat.updated_at = datetime.utcnow()
                 db.session.commit()
 
-                # Generate chat title if this is the first user message
-                message_count = Message.query.filter_by(chat_id=message.chat_id).count()
-                if message_count == 2:  # User message + AI response just created
-                    generated_title = generate_chat_title(
+                # Generate chat title if none set
+                if not (chat.title and chat.title.strip()):
+                    generated_title = generate_chat_title_func(
                         message.content, agent_response["content"]
                     )
                     if generated_title:
@@ -320,9 +388,9 @@ def update_message(
                         db.session.commit()
 
             except Exception as e:
-                print(f"Error generating AI response after message edit: {e}")
+                logger.error("Error generating AI response after message edit: %s", e)
 
-    return message.to_dict()
+    return _message_to_dict_with_resolved_artifacts(message)
 
 
 def get_llm_models() -> List[LLMModelResponse]:
@@ -331,13 +399,6 @@ def get_llm_models() -> List[LLMModelResponse]:
         LLMModel.query.filter_by(is_active=True).order_by(LLMModel.name.asc()).all()
     )
     return [LLMModelResponse.from_orm(model) for model in models]
-
-
-def generate_chat_title(user_content: str, assistant_content: str) -> Optional[str]:
-    """Generate a title for the chat."""
-    # This would use LLM to generate title, but for now return None
-    # TODO: Implement LLM-based title generation
-    return None
 
 
 def create_agent_response(
@@ -361,11 +422,13 @@ def create_agent_response(
         async def collect_response():
             nonlocal response_content, reasoning_steps
             async for event in agent.stream_simple(simple_messages, None):
-                if event.type == "content":
+                if event.type == STREAM_EVENT_CONTENT:
                     response_content += (
                         event.data if isinstance(event.data, str) else ""
                     )
-                elif event.type == "reasoning" and isinstance(event.data, dict):
+                elif event.type == STREAM_EVENT_REASONING and isinstance(
+                    event.data, dict
+                ):
                     reasoning_steps.append(
                         {
                             "thought": event.data.get("thought", ""),
@@ -374,14 +437,14 @@ def create_agent_response(
                             ),
                         }
                     )
-                elif event.type == "done":
+                elif event.type == STREAM_EVENT_DONE:
                     break
             return {"content": response_content, "reasoning": reasoning_steps}
 
         return asyncio.run(collect_response())
 
     except Exception as e:
-        print(f"Error generating agent response: {e}")
+        logger.error("Error generating agent response: %s", e)
         return {
             "content": "I apologize, but I encountered an error while processing your request.",
             "reasoning": [],

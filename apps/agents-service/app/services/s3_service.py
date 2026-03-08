@@ -9,7 +9,7 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Any, BinaryIO, Dict, List, Optional
 
-from config import Config
+from configs import Config
 
 
 class S3Service:

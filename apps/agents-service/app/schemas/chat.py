@@ -69,6 +69,7 @@ class ArtifactCreate(ArtifactBase):
 class ArtifactResponse(ArtifactBase):
     id: str
     created_at: datetime
+    content: Optional[str] = None  # Resolved from DB or S3 when needed
 
     class Config:
         from_attributes = True

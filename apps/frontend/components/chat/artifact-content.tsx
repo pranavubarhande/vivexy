@@ -11,7 +11,7 @@ const MultiSheetEditor = dynamic(
   { ssr: false }
 );
 
-function parseCSV(content: string): string[][] {
+const parseCSV = (content: string): string[][] => {
   const lines = content.trim().split(/\r?\n/);
   return lines.map((line) => {
     const row: string[] = [];
@@ -31,7 +31,7 @@ function parseCSV(content: string): string[][] {
     row.push(current.trim());
     return row;
   });
-}
+};
 
 export const ArtifactContent = ({ artifact }: { artifact: Artifact }) => {
   const type = (artifact.type || 'TXT').toUpperCase();
@@ -195,14 +195,15 @@ export const ArtifactContent = ({ artifact }: { artifact: Artifact }) => {
       );
     }
     case 'XLSX': {
-      const isCompiled = !!(
-        artifact.metadata?.download_url || artifact.metadata?.downloadUrl
+      const hasDownload = !!(
+        artifact.metadata?.download_url ||
+        artifact.metadata?.downloadUrl ||
+        artifact.metadata?.localPath
       );
       let parsedJson: string | null = null;
 
       try {
         if (content) {
-          // Just verifying it parses
           JSON.parse(content);
           parsedJson = content;
         }
@@ -210,19 +211,21 @@ export const ArtifactContent = ({ artifact }: { artifact: Artifact }) => {
         // Not valid JSON
       }
 
+      // Content is ready when we have parseable JSON data OR a download link
+      const isReady = !!parsedJson || hasDownload;
+
       return (
         <div className="flex flex-col w-full relative h-[400px] border border-border/50 rounded-lg overflow-hidden my-2">
-          {/* Output Header Status */}
           <div
             className={cn(
               'flex items-center justify-between px-4 py-2 text-xs border-b shrink-0',
-              isCompiled
+              isReady
                 ? 'bg-green-500/10 text-green-700 dark:text-green-500 border-green-500/20'
                 : 'bg-amber-500/10 text-amber-700 dark:text-amber-500 border-amber-500/20'
             )}
           >
             <div className="flex items-center gap-2 font-medium">
-              {isCompiled ? (
+              {isReady ? (
                 <>
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -235,8 +238,8 @@ export const ArtifactContent = ({ artifact }: { artifact: Artifact }) => {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                   >
-                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                    <polyline points="22 4 12 14.01 9 11.01" />
                   </svg>
                   Spreadsheet Data
                 </>
@@ -253,48 +256,47 @@ export const ArtifactContent = ({ artifact }: { artifact: Artifact }) => {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                   >
-                    <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path>
-                    <line x1="12" y1="9" x2="12" y2="13"></line>
-                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+                    <line x1="12" y1="9" x2="12" y2="13" />
+                    <line x1="12" y1="17" x2="12.01" y2="17" />
                   </svg>
-                  {parsedJson
-                    ? 'Spreadsheet Data (Excel compilation pending...)'
-                    : 'Processing background compilation...'}
+                  Processing spreadsheet data...
                 </>
               )}
             </div>
 
-            {isCompiled && (
-              <a
-                href={
-                  artifact.metadata.download_url ||
-                  artifact.metadata.downloadUrl
-                }
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1.5 bg-green-600 text-white hover:bg-green-700 px-3 py-1.5 rounded-md shadow-sm transition-colors text-[11px] font-semibold"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+            {hasDownload &&
+              (artifact.metadata?.download_url ||
+                artifact.metadata?.downloadUrl) && (
+                <a
+                  href={
+                    artifact.metadata.download_url ||
+                    artifact.metadata.downloadUrl
+                  }
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 bg-green-600 text-white hover:bg-green-700 px-3 py-1.5 rounded-md shadow-sm transition-colors text-[11px] font-semibold"
                 >
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                  <polyline points="7 10 12 15 17 10"></polyline>
-                  <line x1="12" y1="15" x2="12" y2="3"></line>
-                </svg>
-                Download .xlsx
-              </a>
-            )}
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  Download .xlsx
+                </a>
+              )}
           </div>
 
-          {/* Readonly Grid */}
           <div className="flex-1 min-h-0 relative">
             {parsedJson ? (
               <MultiSheetEditor jsonData={parsedJson} readonly={true} />

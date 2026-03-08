@@ -13,7 +13,7 @@ from app.routes.stripe import bp as stripe_bp
 from app.routes.teams import bp as teams_bp
 from app.routes.users import bp as users_bp
 from app.utils.casing import camel_to_snake, snake_to_camel
-from config import Config
+from configs import Config
 
 
 def create_app(config_object=None):

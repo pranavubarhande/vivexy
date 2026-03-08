@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ROUTES } from '@/constants/routes';
 import { APP_NAME } from '@/constants/project';
+import { useWorkspace } from '@/components/desktop/workspace-provider';
 import {
   Sidebar,
   SidebarHeader,
@@ -23,11 +24,21 @@ import {
   CreditCard,
   MessageSquare,
   Blocks,
+  FolderOpen,
+  ChevronRight,
 } from 'lucide-react';
 import { NavUser } from './nav-user';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
+  const { workspacePath, workspaceInfo, isDesktop, changeWorkspace } =
+    useWorkspace();
 
   const mainItems = [
     {
@@ -102,6 +113,45 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
       <SidebarFooter className="absolute bottom-0 w-full">
         <SidebarMenu>
+          {/* Workspace indicator — Electron only */}
+          {isDesktop && workspacePath && (
+            <SidebarMenuItem>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <SidebarMenuButton
+                      onClick={changeWorkspace}
+                      className="group-data-[collapsible=icon]:justify-center h-auto py-2"
+                    >
+                      <div className="shrink-0 w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <FolderOpen size={14} className="text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0 group-data-[collapsible=icon]:hidden">
+                        <div className="text-xs font-medium truncate">
+                          {workspaceInfo?.name || 'Project'}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground truncate">
+                          {workspaceInfo
+                            ? `${workspaceInfo.fileCount} files, ${workspaceInfo.folderCount} folders`
+                            : 'Change folder'}
+                        </div>
+                      </div>
+                      <ChevronRight
+                        size={12}
+                        className="shrink-0 text-muted-foreground/40 group-data-[collapsible=icon]:hidden"
+                      />
+                    </SidebarMenuButton>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">
+                    <p className="text-xs">{workspacePath}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Click to change
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </SidebarMenuItem>
+          )}
           <SidebarMenuItem>
             <NavUser />
           </SidebarMenuItem>

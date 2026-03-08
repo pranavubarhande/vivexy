@@ -4,6 +4,7 @@ import { cn } from '@/utils/common';
 import { MessageStream } from './message-stream';
 import { ReasoningDisplay } from './reasoning-display';
 import { InlineArtifactCard } from './inline-artifact-card';
+import { InlineTodoList } from './inline-todo-list';
 import React from 'react';
 import { RotateCcw, Copy, Check } from 'lucide-react';
 import { Message, Artifact } from '@/services/chat.service';
@@ -103,7 +104,13 @@ export function AssistantMessage({
       </div>
       <div className="w-full">
         {showReasoning && message.reasoning && message.reasoning.length > 0 && (
-          <ReasoningDisplay steps={message.reasoning} />
+          <ReasoningDisplay
+            steps={message.reasoning}
+            defaultCollapsed={!message.isStreaming}
+          />
+        )}
+        {message.todos && message.todos.length > 0 && (
+          <InlineTodoList todos={message.todos} />
         )}
         <MessageStream
           content={message.content}

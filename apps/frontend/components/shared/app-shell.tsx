@@ -4,12 +4,9 @@ import React from 'react';
 import { usePathname } from 'next/navigation';
 import { PUBLIC_ROUTES, AUTH_ROUTES } from '@/constants/routes';
 import { AppSidebar } from '@/components/dashboard/sidebar';
-import {
-  SidebarProvider,
-  SidebarTrigger,
-  useSidebar,
-} from '@/components/ui/sidebar';
+import { SidebarProvider, useSidebar } from '@/components/ui/sidebar';
 import { DashboardHeader } from '@/components/dashboard/header';
+import { WorkspaceProvider } from '@/components/desktop/workspace-provider';
 import { cn } from '@/utils/common';
 import { PanelLeft } from 'lucide-react';
 
@@ -49,23 +46,25 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isChatPage = pathname.includes('/chat');
 
   return (
-    <SidebarProvider>
-      <AppSidebar className="relative" />
-      <div className="flex flex-1 flex-col min-w-0">
-        {!isChatPage && (
-          <DashboardHeader heading={titleFromPath(pathname)}>
-            <MobileSidebarTrigger />
-          </DashboardHeader>
-        )}
-        <div
-          className={cn(
-            'flex flex-col gap-4 p-4 pt-0 h-[calc(100vh-3.5rem)] overflow-auto',
-            isChatPage && 'h-[calc(100vh)] p-0'
+    <WorkspaceProvider>
+      <SidebarProvider>
+        <AppSidebar className="relative" />
+        <div className="flex flex-1 flex-col min-w-0">
+          {!isChatPage && (
+            <DashboardHeader heading={titleFromPath(pathname)}>
+              <MobileSidebarTrigger />
+            </DashboardHeader>
           )}
-        >
-          {children}
+          <div
+            className={cn(
+              'flex flex-col gap-4 p-4 pt-0 h-[calc(100vh-3.5rem)] overflow-auto',
+              isChatPage && 'h-[calc(100vh)] p-0'
+            )}
+          >
+            {children}
+          </div>
         </div>
-      </div>
-    </SidebarProvider>
+      </SidebarProvider>
+    </WorkspaceProvider>
   );
 }

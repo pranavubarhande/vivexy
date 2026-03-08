@@ -9,7 +9,6 @@ const chatConfig: AgenticChatConfig = {
   defaultAgentId: 'assistant',
   allowFileUpload: true,
   showArtifacts: true,
-  showTodos: true,
   showReasoning: true,
   basePath: '/chat',
   className: 'h-full',

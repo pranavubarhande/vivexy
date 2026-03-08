@@ -1,8 +1,9 @@
+"""
+Flask application configuration.
+All env-derived settings for the web app.
+"""
+
 import os
-
-from dotenv import load_dotenv
-
-load_dotenv()
 
 
 class Config:
@@ -29,7 +30,7 @@ class Config:
     # JWT
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-jwt-secret-key")
 
-    # Redis
+    # Redis (shared with worker)
     REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
 
     # AWS S3 Configuration

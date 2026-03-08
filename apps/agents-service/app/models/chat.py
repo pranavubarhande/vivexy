@@ -82,7 +82,7 @@ class Artifact(db.Model):
     language = db.Column(db.String)
     version = db.Column(db.Integer, default=1)
     seq = db.Column(db.Integer, nullable=False)
-    content = db.Column(db.Text, nullable=False)
+    content = db.Column(db.Text, nullable=True)
     artifact_metadata = db.Column(db.JSON)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 

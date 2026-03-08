@@ -3,6 +3,7 @@ Agent Factory
 Creates a single unified agent with access to all tools.
 """
 
+import logging
 from typing import Any, Dict, List, Optional
 
 from composio import Composio
@@ -22,6 +23,11 @@ from app.models.chat import Chat
 from app.tools.artifacts.artifact_creation import get_artifact_creation_tool
 from app.tools.chat.chat_tools import get_set_chat_title_tool
 from app.tools.files.file_tools import get_analyze_data_tool, get_file_read_tool
+
+try:
+    from app.tools.files.fs_tools import get_fs_tools
+except ImportError:
+    get_fs_tools = None
 from app.tools.rag.rag_tools import get_rag_tools
 from app.tools.stocks.financial_sheets_tools import get_financial_sheets_tool
 from app.tools.stocks.news_tools import get_stock_news_tool
@@ -32,7 +38,8 @@ from app.tools.stocks.yahoo_finance_tools import (
     get_yahoo_finance_quote_tool,
     get_yahoo_finance_search_tool,
 )
-from app.tools.tasks.task_todos import get_todo_tools
+
+logger = logging.getLogger(__name__)
 
 
 def get_base_tools(chat_id: str) -> List[BaseTool]:
@@ -56,12 +63,6 @@ def get_base_tools(chat_id: str) -> List[BaseTool]:
     # RAG/Search tools
     try:
         tools.extend(get_rag_tools(chat_id))
-    except ImportError:
-        pass
-
-    # Todo tools
-    try:
-        tools.extend(get_todo_tools(chat_id))
     except ImportError:
         pass
 
@@ -153,10 +154,7 @@ def get_composio_tools(chat_id: str) -> List[BaseTool]:
         return composio_client.tools.get(user_id=chat.user_id, toolkits=active_toolkits)
 
     except Exception as e:
-        import traceback
-
-        print(f"Error loading Composio tools:", e)
-        traceback.print_exc()
+        logger.exception("Error loading Composio tools: %s", e)
         return []
 
 
@@ -166,6 +164,7 @@ def create_langgraph_agent(
     model_id: str,
     chat_id: str,
     files: Optional[List[FileContext]] = None,
+    client_tools_enabled: bool = False,
 ) -> BaseAgent:
     """
     Create the single unified LangGraph agent with access to all tools.
@@ -173,12 +172,25 @@ def create_langgraph_agent(
     """
     config = AgentConfig.from_env(provider=provider, model=model_id)
     tools = get_all_tools(chat_id)
+
+    if client_tools_enabled:
+        if get_fs_tools is not None:
+            try:
+                existing_names = {t.name for t in tools}
+                for t in get_fs_tools():
+                    if t.name not in existing_names:
+                        tools.append(t)
+                        existing_names.add(t.name)
+            except Exception:
+                pass
+
     return BaseAgent(
         config=config,
         chat_id=chat_id,
         tools=tools,
         system_prompt=UNIFIED_SYSTEM_PROMPT,
         agent_type=AgentType.GENERAL,
+        client_tools_enabled=client_tools_enabled,
     )
 
 

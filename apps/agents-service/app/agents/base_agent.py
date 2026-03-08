@@ -1,50 +1,60 @@
 """
 Base Agent Implementation
-LangGraph-based agent with streaming, tool execution, and SSE events for the frontend.
-Supports task planning, RAG, todos, artifacts, file tools, and human-in-the-loop approval.
-
-Tool execution is always SEQUENTIAL — never concurrent — to avoid LLM rate limits.
+Slim orchestration loop — delegates LLM construction, task planning,
+tool execution, and event publishing to dedicated modules.
 """
 
 import asyncio
 import json
-import os
+import logging
 import uuid
-from dataclasses import dataclass
-from datetime import datetime
 from typing import Any, AsyncGenerator, Dict, List, Optional
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
-from langchain_core.rate_limiters import InMemoryRateLimiter
 from langchain_core.tools import BaseTool
 from langchain_core.utils.json import parse_partial_json
-from langchain_google_genai import ChatGoogleGenerativeAI
 
+from app.agents.approval_store import (
+    create_approval_event,
+    resolve_approval,
+    wait_for_approval,
+)
+from app.agents.client_tool_store import create_client_tool_event, wait_for_client_tool
 from app.agents.config import (
     APPROVAL_REQUIRED_TOOLS,
+    CLIENT_EXECUTABLE_TOOLS,
     SYSTEM_PROMPTS,
-    TASK_PLANNING_PROMPT,
     AgentConfig,
     AgentPhase,
     AgentType,
-    ApprovalRequest,
     FileContext,
-    ReasoningStep,
-    TaskItem,
     TaskStatus,
-    ToolCall,
+)
+from app.agents.event_emitter import StreamEvent
+from app.agents.llm_factory import create_llm
+from app.agents.task_planner import plan_tasks
+from app.agents.tool_executor import execute_tool, parse_client_result
+from app.constants.stream_events import (
+    STREAM_EVENT_APPROVAL_REQUEST,
+    STREAM_EVENT_ARTIFACT,
+    STREAM_EVENT_ARTIFACT_STREAM,
+    STREAM_EVENT_CLIENT_TOOL_REQUEST,
+    STREAM_EVENT_CONTENT,
+    STREAM_EVENT_DONE,
+    STREAM_EVENT_ERROR,
+    STREAM_EVENT_FILE_VERSION,
+    STREAM_EVENT_PHASE_CHANGE,
+    STREAM_EVENT_REASONING,
+    STREAM_EVENT_START,
+    STREAM_EVENT_TASK_COMPLETED,
+    STREAM_EVENT_TASK_ERROR,
+    STREAM_EVENT_TASK_PLANNED,
+    STREAM_EVENT_TASK_STARTED,
+    STREAM_EVENT_TODO,
+    STREAM_EVENT_TOOL_CALL,
 )
 
-
-@dataclass
-class StreamEvent:
-    """Event emitted during streaming for SSE."""
-
-    type: str  # start, content, reasoning, tool_call, approval_request, artifact, todo,
-    # task_planned, task_started, task_completed, task_error, phase_change, done, error
-    data: Any
-    message_id: Optional[str] = None
-    requires_approval: bool = False
+logger = logging.getLogger(__name__)
 
 
 class BaseAgent:
@@ -63,10 +73,12 @@ class BaseAgent:
         tools: List[BaseTool],
         system_prompt: Optional[str] = None,
         agent_type: AgentType = AgentType.GENERAL,
+        client_tools_enabled: bool = False,
     ):
         self.config = config
         self.chat_id = chat_id
         self.agent_type = agent_type
+        self.client_tools_enabled = client_tools_enabled
         self.system_prompt = system_prompt or SYSTEM_PROMPTS.get(
             agent_type.value, SYSTEM_PROMPTS["general"]
         )
@@ -78,136 +90,24 @@ class BaseAgent:
                 seen_names.add(tool.name)
                 unique_tools.append(tool)
         self.tools = unique_tools
-        self.llm = self._create_llm()
+        self.llm = create_llm(config)
         self.llm_with_tools = (
             self.llm.bind_tools(self.tools) if self.tools else self.llm
         )
         self.tool_map = {t.name: t for t in self.tools}
 
     # ------------------------------------------------------------------
-    # LLM Construction
-    # ------------------------------------------------------------------
-
-    def _create_llm(self):
-        """Create LLM from config."""
-        rate_limiter = InMemoryRateLimiter(
-            requests_per_second=0.1,  # <-- Can only make a request once every 10 seconds!!
-            check_every_n_seconds=0.1,  # Wake up every 100 ms to check whether allowed to make a request,
-            max_bucket_size=10,  # Controls the maximum burst size.
-        )
-        if self.config.provider == "google":
-            os.environ["GOOGLE_API_KEY"] = self.config.api_key
-            return ChatGoogleGenerativeAI(
-                model=self.config.model,
-                temperature=self.config.temperature,
-                max_tokens=self.config.max_tokens,
-                streaming=True,
-                max_retries=1,
-                rate_limiter=rate_limiter,
-            )
-        if self.config.provider == "openai":
-            from langchain_openai import ChatOpenAI
-
-            return ChatOpenAI(
-                model=self.config.model,
-                temperature=self.config.temperature,
-                max_tokens=self.config.max_tokens,
-                api_key=self.config.api_key,
-                streaming=True,
-                rate_limiter=rate_limiter,
-            )
-        if self.config.provider == "anthropic":
-            from langchain_anthropic import ChatAnthropic
-
-            return ChatAnthropic(
-                model=self.config.model,
-                temperature=self.config.temperature,
-                max_tokens=self.config.max_tokens,
-                api_key=self.config.api_key,
-                streaming=True,
-            )
-        if self.config.provider == "groq":
-            from langchain_groq import ChatGroq
-
-            return ChatGroq(
-                model=self.config.model,
-                temperature=self.config.temperature,
-                max_tokens=self.config.max_tokens,
-                api_key=self.config.api_key,
-                streaming=True,
-                rate_limiter=rate_limiter,
-                # Groq natively supports tool calling — no extra config needed
-            )
-        raise ValueError(f"Unsupported provider: {self.config.provider}")
-
-    # ------------------------------------------------------------------
     # File Context
     # ------------------------------------------------------------------
 
-    def _build_file_context(self, files: List[FileContext]) -> str:
-        """Build context string from uploaded files."""
+    @staticmethod
+    def _build_file_context(files: List[FileContext]) -> str:
         parts = []
         for f in files:
             if f.content:
                 content = f.content[:3000] if len(f.content) > 3000 else f.content
                 parts.append(f"File: {f.filename} ({f.file_type})\n{content}")
         return "\n\n---\n\n".join(parts)
-
-    # ------------------------------------------------------------------
-    # Task Planning  (single LLM call, NOT counted against tool rate limits)
-    # ------------------------------------------------------------------
-
-    async def _plan_tasks(self, user_message: str, has_files: bool) -> List[TaskItem]:
-        """Produce a short task plan (2–6 items) for the current turn."""
-        context_note = " Files are attached and will be searched." if has_files else ""
-        planning_input = f"User request: {user_message}{context_note}"
-        try:
-            response = await self.llm.ainvoke(
-                [
-                    SystemMessage(content=TASK_PLANNING_PROMPT),
-                    HumanMessage(content=planning_input),
-                ]
-            )
-            content = response.content
-            if isinstance(content, list):
-                content = "".join(
-                    (
-                        p
-                        if isinstance(p, str)
-                        else (p.get("text", "") if isinstance(p, dict) else "")
-                    )
-                    for p in content
-                )
-            content = (content or "").strip()
-            if content.startswith("```"):
-                parts = content.split("```", 2)
-                content = (
-                    parts[-1].replace("json", "", 1).strip()
-                    if len(parts) >= 2
-                    else content
-                )
-                if content.endswith("```"):
-                    content = content[:-3].strip()
-            raw = json.loads(content)
-            if not isinstance(raw, list):
-                raise ValueError("Expected JSON array")
-            tasks = []
-            for i, t in enumerate(raw[:8]):
-                tasks.append(
-                    TaskItem(
-                        id=t.get("id", f"t{i+1}"),
-                        title=t.get("title", f"Task {i+1}"),
-                        description=t.get("description"),
-                        status=TaskStatus.PENDING.value,
-                    )
-                )
-            return tasks
-        except Exception:
-            tasks = [TaskItem(id="t1", title="Analyze request and gather information")]
-            if has_files:
-                tasks.append(TaskItem(id="t2", title="Search uploaded documents"))
-            tasks.append(TaskItem(id=f"t{len(tasks)+1}", title="Generate response"))
-            return tasks
 
     # ------------------------------------------------------------------
     # Main Streaming Entry Point
@@ -218,15 +118,7 @@ class BaseAgent:
         messages: List[Dict[str, Any]],
         files: Optional[List[FileContext]] = None,
     ) -> AsyncGenerator[StreamEvent, None]:
-        """
-        Stream agent run with clear events:
-          start → phase_change → task_planned → (content | reasoning | tool_call |
-          approval_request | artifact | todo | task_started | task_completed |
-          task_error | phase_change)* → done
-
-        Tool calls within a single LLM response are executed ONE AT A TIME
-        (sequential for-loop). No asyncio.gather or ThreadPoolExecutor is used.
-        """
+        """Stream agent run with clear events."""
         lc_messages = [SystemMessage(content=self.system_prompt)]
         if files:
             ctx = self._build_file_context(files)
@@ -244,40 +136,103 @@ class BaseAgent:
         )
         has_files = bool(files)
 
-        yield StreamEvent(type="start", data={})
+        yield StreamEvent(type=STREAM_EVENT_START, data={})
         yield StreamEvent(
-            type="phase_change", data={"phase": AgentPhase.PLANNING.value}
+            type=STREAM_EVENT_PHASE_CHANGE, data={"phase": AgentPhase.PLANNING.value}
         )
 
-        task_plan = await self._plan_tasks(last_user, has_files)
+        task_plan = await plan_tasks(self.llm, last_user, has_files)
         for task in task_plan:
-            yield StreamEvent(type="task_planned", data=task.to_dict())
+            yield StreamEvent(type=STREAM_EVENT_TASK_PLANNED, data=task.to_dict())
 
-        task_iter = iter(task_plan)
-        current_task: Optional[TaskItem] = next(task_iter, None)
+        total_tasks = len(task_plan)
+        task_idx = 0
+        artifact_created = False
+
+        # Detect if any planned task explicitly expects artifact creation.
+        # Only match unambiguous artifact-related keywords to avoid false
+        # positives from generic tasks like "Generate response".
+        _artifact_keywords = {
+            "create file",
+            "create report",
+            "build report",
+            "export",
+            "excel",
+            "xlsx",
+            "csv file",
+            "md file",
+            "create_artifact",
+        }
+        _expects_artifacts = any(
+            any(kw in t.title.lower() for kw in _artifact_keywords) for t in task_plan
+        )
+
+        def _advance_task(
+            status: str = TaskStatus.DONE.value, error: str = None, force: bool = False
+        ):
+            """Advance the current task and return a StreamEvent, or None."""
+            nonlocal task_idx
+            if task_idx >= total_tasks:
+                return None
+            # Don't complete the last task prematurely if artifacts are expected,
+            # unless forced (used during final cleanup to avoid infinite loops).
+            if (
+                not force
+                and _expects_artifacts
+                and not artifact_created
+                and task_idx >= total_tasks - 1
+            ):
+                return None
+            task = task_plan[task_idx]
+            task.status = status
+            if error:
+                task.error = error
+            evt_type = (
+                STREAM_EVENT_TASK_COMPLETED
+                if status == TaskStatus.DONE.value
+                else STREAM_EVENT_TASK_ERROR
+            )
+            task_idx += 1
+            return StreamEvent(type=evt_type, data=task.to_dict())
+
+        def _start_task():
+            """Mark the current task as RUNNING and return a StreamEvent, or None."""
+            if task_idx >= total_tasks:
+                return None
+            task = task_plan[task_idx]
+            if task.status != TaskStatus.RUNNING.value:
+                task.status = TaskStatus.RUNNING.value
+                return StreamEvent(type=STREAM_EVENT_TASK_STARTED, data=task.to_dict())
+            return None
 
         try:
             full_content = ""
             iteration = 0
+            tools_called = 0
 
-            if has_files:
-                yield StreamEvent(
-                    type="phase_change", data={"phase": AgentPhase.SEARCHING.value}
-                )
-            else:
-                yield StreamEvent(
-                    type="phase_change", data={"phase": AgentPhase.EXECUTING.value}
-                )
+            yield StreamEvent(
+                type=STREAM_EVENT_PHASE_CHANGE,
+                data={
+                    "phase": (
+                        AgentPhase.SEARCHING.value
+                        if has_files
+                        else AgentPhase.EXECUTING.value
+                    )
+                },
+            )
+
+            # Start the first task
+            ev = _start_task()
+            if ev:
+                yield ev
 
             while iteration < self.config.max_iterations:
-                # Yield control to the event loop between iterations to keep SSE alive
                 await asyncio.sleep(0.3)
                 iteration += 1
                 response_content = ""
                 tool_calls_in_iteration: List[Dict] = []
                 active_tool_calls: Dict[int, Dict] = {}
 
-                # ---- Single LLM call (streaming) ----
                 async for chunk in self.llm_with_tools.astream(lc_messages):
                     if getattr(chunk, "content", None):
                         cv = chunk.content
@@ -295,7 +250,7 @@ class BaseAgent:
                         if isinstance(cv, str) and cv:
                             response_content += cv
                             full_content += cv
-                            yield StreamEvent(type="content", data=cv)
+                            yield StreamEvent(type=STREAM_EVENT_CONTENT, data=cv)
 
                     if getattr(chunk, "tool_call_chunks", None):
                         for tcc in chunk.tool_call_chunks:
@@ -328,7 +283,7 @@ class BaseAgent:
                                         )
                                     ):
                                         yield StreamEvent(
-                                            type="artifact_stream",
+                                            type=STREAM_EVENT_ARTIFACT_STREAM,
                                             data={
                                                 "filename": parsed.get("filename")
                                                 or parsed.get("title")
@@ -346,7 +301,6 @@ class BaseAgent:
                         tool_calls_in_iteration.extend(chunk.tool_calls)
 
                 if not tool_calls_in_iteration:
-                    # No tool calls → generation is complete
                     break
 
                 lc_messages.append(
@@ -358,56 +312,41 @@ class BaseAgent:
 
                 if iteration == 1 and has_files:
                     yield StreamEvent(
-                        type="phase_change", data={"phase": AgentPhase.EXECUTING.value}
+                        type=STREAM_EVENT_PHASE_CHANGE,
+                        data={"phase": AgentPhase.EXECUTING.value},
                     )
 
-                # ---- Sequential tool execution ----
                 for tc in tool_calls_in_iteration:
                     tool_name = tc.get("name", "")
                     tool_input = tc.get("args", {}) or {}
                     tool_call_id = tc.get("id", tool_name)
 
-                    if current_task:
-                        current_task.status = TaskStatus.RUNNING.value
-                        yield StreamEvent(
-                            type="task_started", data=current_task.to_dict()
-                        )
-
                     yield StreamEvent(
-                        type="reasoning",
+                        type=STREAM_EVENT_REASONING,
                         data={
                             "thought": f"Using tool: {tool_name}",
                             "tool_calls": [{"tool": tool_name, "input": tool_input}],
                         },
                     )
 
-                    # ---- Human-in-the-loop approval (blocking await) ----
+                    # --- Human-in-the-loop approval ---
                     if tool_name in APPROVAL_REQUIRED_TOOLS:
                         request_id = str(uuid.uuid4())
+                        description = (
+                            f"{tool_name}: {json.dumps(tool_input, default=str)[:200]}"
+                        )
                         yield StreamEvent(
-                            type="approval_request",
+                            type=STREAM_EVENT_APPROVAL_REQUEST,
                             data={
                                 "request_id": request_id,
                                 "tool_name": tool_name,
                                 "tool_input": tool_input,
-                                "description": f"The agent wants to run: {tool_name}",
+                                "description": description,
                             },
-                            requires_approval=True,
                         )
-
-                        try:
-                            from app.agents.approval_store import (
-                                create_approval_event,
-                                wait_for_approval,
-                            )
-
-                            create_approval_event(request_id)
-                            approved = await wait_for_approval(
-                                request_id, timeout=120.0
-                            )
-                        except Exception:
-                            approved = False  # Fail-safe: reject on error
-
+                        approved = await self._handle_approval(
+                            tool_name, tool_input, request_id=request_id
+                        )
                         if not approved:
                             lc_messages.append(
                                 ToolMessage(
@@ -415,113 +354,67 @@ class BaseAgent:
                                     tool_call_id=tool_call_id,
                                 )
                             )
-                            if current_task:
-                                current_task.status = TaskStatus.ERROR.value
-                                current_task.error = "Rejected by user"
-                                yield StreamEvent(
-                                    type="task_error", data=current_task.to_dict()
-                                )
-                                current_task = next(task_iter, None)
                             continue
 
+                    # --- Client-side tool delegation (Electron) ---
+                    if (
+                        tool_name in CLIENT_EXECUTABLE_TOOLS
+                        and self.client_tools_enabled
+                    ):
+                        if tool_name == "create_artifact":
+                            artifact_created = True
+                        async for ev in self._handle_client_tool(
+                            tool_name, tool_input, tool_call_id, lc_messages
+                        ):
+                            yield ev
+                        tools_called += 1
+                        continue
+
                     if tool_name == "create_artifact":
+                        artifact_created = True
                         yield StreamEvent(
-                            type="phase_change",
+                            type=STREAM_EVENT_PHASE_CHANGE,
                             data={"phase": AgentPhase.GENERATING.value},
                         )
 
-                    # ---- Execute tool ----
+                    # --- Execute server-side tool ---
                     tool = self.tool_map.get(tool_name)
                     if tool:
                         try:
-                            result = tool.invoke(tool_input)
-                            tool_output_str = (
-                                result
-                                if isinstance(result, str)
-                                else json.dumps(result)
-                            )
+                            result = execute_tool(tool, tool_input)
                             yield StreamEvent(
-                                type="tool_call",
+                                type=STREAM_EVENT_TOOL_CALL,
                                 data={
                                     "tool": tool_name,
                                     "input": tool_input,
-                                    "output": tool_output_str[:500],
+                                    "output": result.output[:500],
                                 },
                             )
-
-                            # Parse structured results and emit typed events
-                            parsed: Optional[Dict] = None
-                            if isinstance(result, dict):
-                                parsed = result
-                            elif isinstance(result, str) and result.strip().startswith(
-                                "{"
-                            ):
-                                try:
-                                    parsed = json.loads(result)
-                                except (json.JSONDecodeError, TypeError):
-                                    parsed = None
-
-                            if isinstance(parsed, dict):
-                                if parsed.get("todo"):
-                                    yield StreamEvent(type="todo", data=parsed["todo"])
-                                if parsed.get("todos") and isinstance(
-                                    parsed["todos"], list
-                                ):
-                                    for t in parsed["todos"]:
-                                        if isinstance(t, dict) and t.get("id"):
-                                            yield StreamEvent(type="todo", data=t)
-                                if parsed.get("artifact"):
-                                    artifact_data = parsed["artifact"]
-                                    # Propagate version if present at top level
-                                    if (
-                                        "version" in parsed
-                                        and "version" not in artifact_data
-                                    ):
-                                        artifact_data["version"] = parsed["version"]
-                                    yield StreamEvent(
-                                        type="artifact", data=artifact_data
-                                    )
-                                # Versioned file event for frontend artifact panel
-                                if parsed.get("version") and parsed.get("url"):
-                                    yield StreamEvent(
-                                        type="file_version",
-                                        data={
-                                            "filename": parsed.get("filename"),
-                                            "version": parsed.get("version"),
-                                            "url": parsed.get("url"),
-                                            "s3_key": parsed.get("s3_key"),
-                                        },
-                                    )
+                            for art in result.artifacts:
+                                yield StreamEvent(type=STREAM_EVENT_ARTIFACT, data=art)
+                            for todo in result.todos:
+                                yield StreamEvent(type=STREAM_EVENT_TODO, data=todo)
+                            for fv in result.file_versions:
+                                yield StreamEvent(
+                                    type=STREAM_EVENT_FILE_VERSION, data=fv
+                                )
 
                             lc_messages.append(
                                 ToolMessage(
-                                    content=tool_output_str,
+                                    content=result.output,
                                     tool_call_id=tool_call_id,
                                 )
                             )
-                            if current_task:
-                                current_task.status = TaskStatus.DONE.value
-                                yield StreamEvent(
-                                    type="task_completed", data=current_task.to_dict()
-                                )
-                                current_task = next(task_iter, None)
+                            tools_called += 1
 
                         except Exception as e:
-                            err_msg = f"Error: {str(e)}"
-                            yield StreamEvent(type="error", data={"message": err_msg})
-                            lc_messages.append(
-                                ToolMessage(
-                                    content=err_msg,
-                                    tool_call_id=tool_call_id,
-                                )
+                            err_msg = f"Error: {e}"
+                            yield StreamEvent(
+                                type=STREAM_EVENT_ERROR, data={"message": err_msg}
                             )
-                            if current_task:
-                                current_task.status = TaskStatus.ERROR.value
-                                current_task.error = str(e)
-                                yield StreamEvent(
-                                    type="task_error", data=current_task.to_dict()
-                                )
-                                current_task = next(task_iter, None)
+                            lc_messages.append(
+                                ToolMessage(content=err_msg, tool_call_id=tool_call_id)
+                            )
                     else:
                         lc_messages.append(
                             ToolMessage(
@@ -530,36 +423,127 @@ class BaseAgent:
                             )
                         )
 
-            # Mark any remaining pending tasks as done
-            while current_task:
-                if current_task.status == TaskStatus.PENDING.value:
-                    current_task.status = TaskStatus.DONE.value
-                    yield StreamEvent(
-                        type="task_completed", data=current_task.to_dict()
-                    )
-                current_task = next(task_iter, None)
+                    # Advance tasks proportionally. Use max_iterations as
+                    # the denominator so tasks spread across the full run,
+                    # not just the first few tool calls.
+                    if total_tasks > 0:
+                        expected_calls = max(
+                            total_tasks * 2, self.config.max_iterations
+                        )
+                        progress = tools_called / expected_calls
+                        target_task = min(
+                            int(progress * total_tasks),
+                            total_tasks - 1,
+                        )
+                        while task_idx <= target_task:
+                            ev = _advance_task()
+                            if ev:
+                                yield ev
+                            else:
+                                break
+                        ev = _start_task()
+                        if ev:
+                            yield ev
+
+            # Mark all remaining tasks as done (force=True prevents deadlock
+            # when _expects_artifacts was a false positive)
+            while task_idx < total_tasks:
+                ev = _advance_task(force=True)
+                if ev:
+                    yield ev
 
             yield StreamEvent(
-                type="phase_change", data={"phase": AgentPhase.DONE.value}
+                type=STREAM_EVENT_PHASE_CHANGE,
+                data={"phase": AgentPhase.DONE.value},
             )
             yield StreamEvent(
-                type="done",
-                data={"content": full_content, "refetch": ["artifacts", "todos"]},
+                type=STREAM_EVENT_DONE,
+                data={"content": full_content, "refetch": ["artifacts"]},
             )
 
         except Exception as e:
-            yield StreamEvent(type="error", data={"message": str(e)})
+            logger.exception("Agent streaming error")
+            yield StreamEvent(type=STREAM_EVENT_ERROR, data={"message": str(e)})
 
     # ------------------------------------------------------------------
-    # Approval helpers (kept for compatibility, superseded by approval_store)
+    # Approval flow
+    # ------------------------------------------------------------------
+
+    async def _handle_approval(
+        self,
+        tool_name: str,
+        tool_input: Dict,
+        request_id: str | None = None,
+    ) -> bool:
+        if request_id is None:
+            request_id = str(uuid.uuid4())
+        try:
+            create_approval_event(request_id)
+            return await wait_for_approval(request_id, timeout=120.0)
+        except Exception:
+            return False
+
+    # ------------------------------------------------------------------
+    # Client tool delegation
+    # ------------------------------------------------------------------
+
+    async def _handle_client_tool(
+        self,
+        tool_name: str,
+        tool_input: Dict,
+        tool_call_id: str,
+        lc_messages: list,
+    ) -> AsyncGenerator[StreamEvent, None]:
+        request_id = str(uuid.uuid4())
+        client_input = {**tool_input, "chat_id": self.chat_id}
+        yield StreamEvent(
+            type=STREAM_EVENT_CLIENT_TOOL_REQUEST,
+            data={
+                "request_id": request_id,
+                "tool_name": tool_name,
+                "tool_input": client_input,
+            },
+        )
+
+        try:
+            create_client_tool_event(request_id)
+            client_result = await wait_for_client_tool(request_id, timeout=60.0)
+        except Exception:
+            client_result = None
+
+        if client_result is not None:
+            tool_output_str = client_result
+            result = parse_client_result(tool_output_str)
+        else:
+            tool_output_str = json.dumps(
+                {"success": False, "error": "Client tool execution timed out"}
+            )
+            result = parse_client_result(tool_output_str)
+
+        yield StreamEvent(
+            type=STREAM_EVENT_TOOL_CALL,
+            data={
+                "tool": tool_name,
+                "input": tool_input,
+                "output": tool_output_str[:500],
+            },
+        )
+
+        for art in result.artifacts:
+            yield StreamEvent(type=STREAM_EVENT_ARTIFACT, data=art)
+        for todo in result.todos:
+            yield StreamEvent(type=STREAM_EVENT_TODO, data=todo)
+
+        lc_messages.append(
+            ToolMessage(content=tool_output_str, tool_call_id=tool_call_id)
+        )
+
+    # ------------------------------------------------------------------
+    # Approval helpers (kept for route compatibility)
     # ------------------------------------------------------------------
 
     def approve_tool_call(self, request_id: str) -> bool:
-        from app.agents.approval_store import resolve_approval
-
         return resolve_approval(request_id, approved=True)
 
     def reject_tool_call(self, request_id: str) -> bool:
-        from app.agents.approval_store import resolve_approval
-
         return resolve_approval(request_id, approved=False)

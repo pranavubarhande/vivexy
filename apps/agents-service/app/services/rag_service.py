@@ -16,7 +16,7 @@ from langgraph.graph import StateGraph
 from pinecone import Pinecone, ServerlessSpec
 from rank_bm25 import BM25Okapi
 
-from config import Config
+from configs import Config
 
 
 # ==========================================================
