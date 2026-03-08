@@ -114,6 +114,10 @@ npm run dev:agents     # Only Flask agents service (port 5000)
 # Build all
 npm run build
 
+# Testing
+npm run test           # Run frontend tests
+# For backend tests, navigate to apps/agents-service and run: poetry run pytest
+
 # Lint and format
 npm run lint
 npm run format

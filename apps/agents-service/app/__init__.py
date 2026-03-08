@@ -1,7 +1,10 @@
 import json
+import os
 
+import sentry_sdk
 from flask import Flask, g, request
 from flask_cors import CORS
+from sentry_sdk.integrations.flask import FlaskIntegration
 
 from app.models import db
 from app.routes.approval import bp as approval_bp
@@ -17,6 +20,15 @@ from configs import Config
 
 
 def create_app(config_object=None):
+    sentry_sdk.init(
+        dsn=os.environ.get(
+            "SENTRY_DSN", "https://examplePublicKey@o0.ingest.sentry.io/0"
+        ),
+        integrations=[FlaskIntegration()],
+        traces_sample_rate=1.0,
+        profiles_sample_rate=1.0,
+    )
+
     app = Flask(__name__)
     app.config.from_object(config_object or Config)
     CORS(app, supports_credentials=True, origins=app.config.get("CORS_ORIGINS", ["*"]))

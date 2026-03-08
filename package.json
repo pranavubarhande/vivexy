@@ -23,7 +23,8 @@
     "format": "turbo format",
     "format:check": "turbo format:check",
     "clean": "turbo clean",
-    "prepare": "husky"
+    "prepare": "husky",
+    "test": "turbo test"
   },
   "devDependencies": {
     "husky": "^9.1.7",
