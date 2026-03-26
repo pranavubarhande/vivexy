@@ -11,42 +11,15 @@ from typing import Annotated, Any, Dict, List, Optional, TypedDict
 
 from langchain_core.messages import BaseMessage
 
-
-class AgentType(Enum):
-    GENERAL = "general"
-
-
-class AgentPhase(Enum):
-    PLANNING = "planning"
-    SEARCHING = "searching"
-    EXECUTING = "executing"
-    GENERATING = "generating"
-    DONE = "done"
-
-
-class TaskStatus(Enum):
-    PENDING = "PENDING"
-    RUNNING = "RUNNING"
-    DONE = "DONE"
-    ERROR = "ERROR"
-
-
-@dataclass
-class TaskItem:
-    id: str
-    title: str
-    description: Optional[str] = None
-    status: str = TaskStatus.PENDING.value
-    error: Optional[str] = None
-
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "id": self.id,
-            "title": self.title,
-            "description": self.description,
-            "status": self.status,
-            "error": self.error,
-        }
+from app.enum.agent_enums import AgentPhase, AgentType, TaskStatus
+from app.types.agent_types import (
+    AgentState,
+    ApprovalRequest,
+    FileContext,
+    ReasoningStep,
+    TaskItem,
+    ToolCall,
+)
 
 
 @dataclass
@@ -76,60 +49,6 @@ class AgentConfig:
         return cls(api_key=api_key, model=model, provider=provider)
 
 
-@dataclass
-class FileContext:
-    file_id: str
-    filename: str
-    file_type: str
-    content: str
-    s3_key: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
-
-
-@dataclass
-class ToolCall:
-    tool_name: str
-    tool_input: Dict[str, Any]
-    tool_output: Optional[str] = None
-    requires_approval: bool = False
-    approved: Optional[bool] = None
-    error: Optional[str] = None
-
-
-@dataclass
-class ReasoningStep:
-    thought: str
-    tool_calls: List[Dict[str, Any]] = field(default_factory=list)
-
-
-@dataclass
-class ApprovalRequest:
-    request_id: str
-    tool_name: str
-    tool_input: Dict[str, Any]
-    description: str
-    created_at: str
-
-
-class AgentState(TypedDict):
-    messages: Annotated[List[BaseMessage], add]
-    chat_id: str
-    files: List[FileContext]
-    current_query: str
-    iteration: int
-    max_iterations: int
-    pending_tool_calls: List[ToolCall]
-    completed_tool_calls: List[ToolCall]
-    requires_human_approval: bool
-    approval_request: Optional[ApprovalRequest]
-    final_response: str
-    reasoning_steps: List[ReasoningStep]
-    created_todos: List[Dict[str, Any]]
-    created_artifacts: List[Dict[str, Any]]
-    error: Optional[str]
-    should_end: bool
-
-
 DEFAULT_AGENT_ID = "assistant"
 
 AGENT_METADATA = {
@@ -156,10 +75,7 @@ UNIFIED_SYSTEM_PROMPT = """You are a Portfolio Assistant with access to a wide s
 
 You can:
 - Search through uploaded documents using RAG (search_documents, hybrid_search)
-- Generate artifacts using the `create_artifact` tool for reports, analyses, and substantial content. YOU MUST specify the `type` argument. Supported types:
-  - `MD`: Markdown reports or text
-  - `CSV`: Single-sheet tabular data (pass raw CSV string as `content` AND set `type="CSV"`)
-  - `XLSX`: Multi-sheet Excel files (pass a JSON string mapping sheet names to arrays of objects as `content`, e.g., `{"Sheet1": [{"A": 1}], "Sheet2": [{"B": 2}]}` AND set `type="XLSX"`)
+- Generate ANY artifact type (reports, spreadsheets, presentations, documents) via the sandbox — see Artifacts section below
 - Read and analyze existing uploaded files (CSV, PDF, DOCX, Excel, Markdown)
 - Analyze tabular data from uploaded files with analyze_data
 - Fetch stock prices, historical data, and company fundamentals
@@ -183,33 +99,52 @@ On the VERY FIRST user turn (when the chat title is "New Chat" or empty), call `
 - When documents are uploaded, always search them with hybrid_search before answering questions that may be in those documents.
 
 ## Artifacts — MANDATORY
-You MUST call `create_artifact` whenever the user asks for a report, analysis, comparison, spreadsheet, document, or file. NEVER skip this step. NEVER output long reports as chat text, it should always be stored as an artifact.
+ALL artifacts — Markdown, CSV, JSON, TXT, HTML, XLSX, PPTX, DOCX, PDF — MUST be created through the sandbox.
+The two-step workflow is ALWAYS:
+  1. **Write the file in the sandbox** using `execute_code` (write content to `./filename.ext`)
+  2. **Upload immediately** using `upload_sandbox_file_to_chat("./filename.ext")` to sync it to S3 and make it visible in the chat UI
 
-Follow this exact workflow:
-1. Gather data by calling tools (stock data, financial sheets, news, etc.)
-2. Call `create_artifact` with the COMPLETE content for EACH file the user requested.
-3. If the user asks for multiple files (e.g. "a MD report AND an Excel file"), call `create_artifact` SEPARATELY for each one.
-4. For Markdown reports: `create_artifact` with `type="MD"`.
-5. For Excel files: `create_artifact` with `type="XLSX"` and a JSON content string mapping sheet names to arrays of objects.
-6. After creating artifacts, write a SHORT summary (2-3 sentences) in chat. Do NOT repeat the report content.
+NEVER output long reports as chat text. NEVER skip `upload_sandbox_file_to_chat` after writing a file.
+
+### Text artifacts (MD, CSV, JSON, TXT, HTML, JS)
+```python
+# Step 1 — write to sandbox
+with open('./report.md', 'w') as f:
+    f.write('# Report\\n...')
+```
+Then call `upload_sandbox_file_to_chat('./report.md')`.
+
+### Spreadsheet artifacts (XLSX)
+Use a skill or `execute_code` with openpyxl/pandas to generate `./report.xlsx`, then call `upload_sandbox_file_to_chat('./report.xlsx')`.
+
+### Binary artifacts (PPTX, DOCX, PDF)
+Use the appropriate skill or `execute_code` with python-pptx / python-docx / reportlab to generate the file, then call `upload_sandbox_file_to_chat('./file.pptx')`.
+
+If the user asks for multiple files, call `upload_sandbox_file_to_chat` SEPARATELY for each file.
+After uploading, write a SHORT summary (2-3 sentences) in chat. Do NOT repeat the file content.
 
 VIOLATIONS (never do these):
-- Writing a full report in chat text instead of calling `create_artifact` — FORBIDDEN.
-- Saying "I will now create the file" but then ending without calling `create_artifact` — FORBIDDEN.
-- Generating content text and stopping without creating artifacts when files were requested — FORBIDDEN.
-
-On desktop, generated files are saved directly into the user's workspace folder by default. If the user asks to save to a specific subfolder, pass the `output_path` argument to `create_artifact`. All file paths are relative to the workspace root.
+- Writing a full report in chat text instead of creating a file — FORBIDDEN.
+- Writing a file to the sandbox without calling `upload_sandbox_file_to_chat` — FORBIDDEN.
+- Saying "I will now create the file" but ending without calling `upload_sandbox_file_to_chat` — FORBIDDEN.
 
 ## Filesystem Operations (Desktop only)
 When the user asks you to search, move, copy, or organise files, use the filesystem tools above. All paths must be relative to the workspace root. You CANNOT access files outside the workspace folder — this is a security boundary.
 
-When creating files:
-- If a file with the same name already exists, `write_file` and `create_artifact` auto-version it (e.g. report.md → report_v2.md → report_v3.md).
-- To intentionally overwrite an existing file, use `update_file` (full replace or partial find-and-replace) or `write_file` with overwrite=True.
-- Use `update_file` when the user asks to edit, modify, or append to an existing file.
-
 ## Todos
 Do NOT use `create_todo` / `update_todo` tools — task progress is tracked automatically. Do NOT write markdown checkboxes like "- [ ]" in your text output.
+
+## Sandbox Environment & File Persistence
+You are running in a secure Daytona sandbox environment.
+- **CWD**: Your workspace is at `./`. ALWAYS use `./` or `/tmp` for all file operations. NEVER write to `/` or `/home/user`.
+- **Persistence**: Previous files are automatically restored to `./` at the start of every turn — you do NOT need to recreate them. If a file already exists in `./`, use it directly.
+- **Visibility**: Files only become visible to the user after calling `upload_sandbox_file_to_chat`. Writing to the sandbox alone is not enough.
+
+## History Rule
+- **NO REPETITION**: Do NOT repeat or summarize your previous turns, actions, or reports at the start of a new response.
+- Just answer the new user message directly.
+- Avoid phrases like "I have created..." or "I've already done..." unless specifically asked about your previous history.
+- If the user says "hi", just say "Hello" or similar. Do NOT list out everything you did in the past.
 
 Be helpful, accurate, and proactive. Explain your reasoning concisely when using tools. Cite sources when presenting financial data."""
 
@@ -236,7 +171,6 @@ APPROVAL_REQUIRED_TOOLS = {
 # When client_tools_enabled is True, these tools are delegated to the client
 # via a client_tool_request SSE event instead of running server-side.
 CLIENT_EXECUTABLE_TOOLS = {
-    "create_artifact",
     "read_file",
     "analyze_data",
     "list_files",

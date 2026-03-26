@@ -1,1 +1,3 @@
 app/file_to_process/
+.venv/
+.python-version

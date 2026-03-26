@@ -96,11 +96,9 @@ export function MultiSheetEditor({
 
   // Update Grid when Active Sheet Changes
   useEffect(() => {
-    if (!activeSheet || !sheets[activeSheet]) {
-      setColumns([]);
-      setRows([]);
-      return;
-    }
+    if (!activeSheet) return;
+    // sheets[activeSheet] may not exist yet if the parse effect hasn't committed — wait for it
+    if (!sheets[activeSheet]) return;
 
     const sheetRows = sheets[activeSheet];
     setRows(sheetRows);

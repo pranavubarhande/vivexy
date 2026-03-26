@@ -159,8 +159,13 @@ def get_set_chat_title_tool(chat_id: str) -> StructuredTool:
     The agent should call this ONCE on the first user turn to give the chat
     a meaningful title instead of 'New Chat'.
     """
+
+    async def async_set_title(**kwargs):
+        return set_chat_title_func(chat_id, **kwargs)
+
     return StructuredTool.from_function(
         func=lambda **kwargs: set_chat_title_func(chat_id, **kwargs),
+        coroutine=async_set_title,
         name="set_chat_title",
         description=(
             "Set a concise, descriptive title for this chat. "

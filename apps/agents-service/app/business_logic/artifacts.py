@@ -37,6 +37,21 @@ def resolve_artifact_content(artifact: Artifact) -> str:
         return ""
 
 
+def _get_artifact_url(artifact: Artifact) -> str | None:
+    """Generate a presigned download URL for an artifact that has an S3 key."""
+    metadata = artifact.artifact_metadata or {}
+    s3_key = metadata.get("s3_key")
+    if not s3_key:
+        return metadata.get("download_url") or metadata.get("url")
+    try:
+        return S3Service().get_presigned_url(s3_key)
+    except Exception as e:
+        logger.warning(
+            "Failed to generate presigned URL for artifact %s: %s", artifact.id, e
+        )
+        return metadata.get("download_url") or metadata.get("url")
+
+
 def get_chat_artifacts(chat_id: str, user_id: str) -> List[Dict[str, Any]]:
     """Get all artifacts for a chat."""
 
@@ -60,6 +75,7 @@ def get_chat_artifacts(chat_id: str, user_id: str) -> List[Dict[str, Any]]:
             "version": artifact.version,
             "seq": artifact.seq,
             "content": resolve_artifact_content(artifact),
+            "url": _get_artifact_url(artifact),
             "metadata": artifact.artifact_metadata,
             "createdAt": artifact.created_at.isoformat(),
         }
@@ -202,6 +218,7 @@ def create_artifact(chat_id: str, data: ArtifactCreate, user_id: str) -> Dict[st
         "version": artifact.version,
         "seq": artifact.seq,
         "content": resolve_artifact_content(artifact),
+        "url": _get_artifact_url(artifact),
         "metadata": artifact.artifact_metadata,
         "createdAt": artifact.created_at.isoformat(),
     }

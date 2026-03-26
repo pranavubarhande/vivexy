@@ -26,9 +26,9 @@ def create_llm(config: AgentConfig):
     )
 
     if config.provider == "google":
-        os.environ["GOOGLE_API_KEY"] = config.api_key
         return ChatGoogleGenerativeAI(
             model=config.model,
+            google_api_key=config.api_key,
             temperature=config.temperature,
             max_tokens=config.max_tokens,
             streaming=True,

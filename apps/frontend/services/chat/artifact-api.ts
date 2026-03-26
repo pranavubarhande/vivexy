@@ -64,4 +64,15 @@ export const artifactApi = {
     );
     return response.data;
   },
+
+  downloadArtifact: async (
+    chatId: string,
+    artifactId: string
+  ): Promise<ArrayBuffer> => {
+    const response = await axiosInstance.get<Blob>(
+      `/chat/${chatId}/artifacts/${artifactId}/download`,
+      { responseType: 'blob' }
+    );
+    return response.data.arrayBuffer();
+  },
 };

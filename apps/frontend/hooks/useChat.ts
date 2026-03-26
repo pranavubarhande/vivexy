@@ -7,6 +7,7 @@ import {
   Artifact,
   LLMModel,
 } from '@/services/chat.service';
+import { artifactApi } from '@/services/chat/artifact-api';
 import { platform } from '@/lib/platform';
 
 // ---------------------------------------------------------------------------
@@ -24,7 +25,7 @@ export const chatKeys = {
 // ---------------------------------------------------------------------------
 // Chat List
 // ---------------------------------------------------------------------------
-export function useChatHistory() {
+export const useChatHistory = () => {
   const qc = useQueryClient();
 
   const { data: chats = [], isLoading } = useQuery({
@@ -64,12 +65,12 @@ export function useChatHistory() {
       );
     },
   };
-}
+};
 
 // ---------------------------------------------------------------------------
 // Models
 // ---------------------------------------------------------------------------
-export function useModels() {
+export const useModels = () => {
   const { data: models = [], isLoading } = useQuery<LLMModel[]>({
     queryKey: chatKeys.models(),
     queryFn: () => chatService.getModels(),
@@ -77,12 +78,12 @@ export function useModels() {
   });
 
   return { models, isLoading };
-}
+};
 
 // ---------------------------------------------------------------------------
 // Single chat: messages, artifacts, todos
 // ---------------------------------------------------------------------------
-export function useChat(chatId?: string) {
+export const useChat = (chatId?: string) => {
   const qc = useQueryClient();
 
   // In Electron mode, artifacts and todos are local-only (stored via SSE
@@ -198,12 +199,12 @@ export function useChat(chatId?: string) {
 
     invalidateChatData,
   };
-}
+};
 
 // ---------------------------------------------------------------------------
 // File upload (used by file-upload.tsx)
 // ---------------------------------------------------------------------------
-export function useFileUpload(chatId?: string) {
+export const useFileUpload = (chatId?: string) => {
   const [isUploading, setIsUploading] = useState(false);
 
   const uploadFile = useCallback(
@@ -220,4 +221,32 @@ export function useFileUpload(chatId?: string) {
   );
 
   return { uploadFile, isUploading };
-}
+};
+
+// ---------------------------------------------------------------------------
+// XLSX artifact content — fetches binary from proxy, parses with SheetJS
+// ---------------------------------------------------------------------------
+const parseXlsxBuffer = async (buf: ArrayBuffer): Promise<string> => {
+  const XLSX = await import('xlsx');
+  const wb = XLSX.read(new Uint8Array(buf), { type: 'array' });
+  const result: Record<string, Record<string, unknown>[]> = {};
+  for (const name of wb.SheetNames) {
+    result[name] = XLSX.utils.sheet_to_json(wb.Sheets[name], { defval: '' });
+  }
+  return JSON.stringify(result);
+};
+
+export { parseXlsxBuffer };
+
+export const useXlsxContent = (chatId?: string, artifactId?: string) => {
+  return useQuery({
+    queryKey: ['xlsx-content', chatId, artifactId],
+    queryFn: async () => {
+      const buf = await artifactApi.downloadArtifact(chatId!, artifactId!);
+      return parseXlsxBuffer(buf);
+    },
+    enabled: !!chatId && !!artifactId,
+    staleTime: 5 * 60_000,
+    retry: 1,
+  });
+};

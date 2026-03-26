@@ -5,11 +5,40 @@ import remarkGfm from 'remark-gfm';
 import type { Artifact } from '@/services/chat.service';
 import { cn } from '@/utils/common';
 import dynamic from 'next/dynamic';
+import { useXlsxContent } from '@/hooks/useChat';
 
 const MultiSheetEditor = dynamic(
   () => import('./multi-sheet-editor').then((mod) => mod.MultiSheetEditor),
   { ssr: false }
 );
+
+const XlsxUrlViewer = ({
+  chatId,
+  artifactId,
+}: {
+  chatId: string;
+  artifactId: string;
+}) => {
+  const {
+    data: parsedJson,
+    isLoading,
+    isError,
+  } = useXlsxContent(chatId, artifactId);
+
+  if (isLoading)
+    return (
+      <div className="flex items-center justify-center h-full text-sm text-muted-foreground animate-pulse">
+        Loading spreadsheet...
+      </div>
+    );
+  if (isError || !parsedJson)
+    return (
+      <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+        Failed to load spreadsheet. Use the download button.
+      </div>
+    );
+  return <MultiSheetEditor jsonData={parsedJson} readonly={true} />;
+};
 
 const parseCSV = (content: string): string[][] => {
   const lines = content.trim().split(/\r?\n/);
@@ -164,23 +193,73 @@ export const ArtifactContent = ({ artifact }: { artifact: Artifact }) => {
         </div>
       );
     }
+    case 'DOCX':
+    case 'PPTX': {
+      if (artifact.url) {
+        const viewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(
+          artifact.url
+        )}&embedded=true`;
+        return (
+          <div className="w-full h-[500px] rounded-lg border border-border overflow-hidden bg-muted/30 relative">
+            <iframe
+              src={viewerUrl}
+              title={`${type} preview`}
+              className="w-full h-full border-0"
+            />
+            <div className="absolute bottom-4 right-4 group">
+              <a
+                href={artifact.url}
+                target="_blank"
+                rel="noreferrer"
+                className="bg-primary text-primary-foreground px-3 py-1.5 rounded-md text-xs font-medium shadow-lg hover:bg-primary/90 transition-all opacity-80 hover:opacity-100"
+              >
+                Open Original
+              </a>
+            </div>
+          </div>
+        );
+      }
+      return (
+        <div className="flex flex-col items-center justify-center py-10 px-4 text-center text-sm border border-border/50 rounded-lg bg-muted/20">
+          <div className="mb-3 p-3 rounded-full bg-muted/50">
+            <span className="text-2xl" role="img" aria-label="file icon">
+              {type === 'DOCX' ? '📘' : '📁'}
+            </span>
+          </div>
+          <p className="font-semibold text-foreground">
+            {type === 'DOCX' ? 'Word Document' : 'PowerPoint Presentation'}
+          </p>
+          <p className="mt-1 text-muted-foreground max-w-[240px]">
+            This is a binary file and cannot be previewed directly in the
+            browser without a public URL.
+          </p>
+          <p className="mt-3 text-xs text-primary font-medium">
+            Use the download button above to save and view.
+          </p>
+        </div>
+      );
+    }
     case 'PDF': {
       const isDataUrl =
         content.startsWith('data:application/pdf') ||
         (content.length > 100 &&
           /^[A-Za-z0-9+/=]+$/.test(content.slice(0, 200)));
-      const src = isDataUrl
-        ? content.startsWith('data:')
-          ? content
-          : `data:application/pdf;base64,${content}`
-        : null;
+
+      const src =
+        artifact.url ||
+        (isDataUrl
+          ? content.startsWith('data:')
+            ? content
+            : `data:application/pdf;base64,${content}`
+          : null);
+
       if (src) {
         return (
-          <div className="w-full min-h-[360px] rounded-lg border border-border overflow-hidden bg-muted/30">
+          <div className="w-full min-h-[500px] rounded-lg border border-border overflow-hidden bg-muted/30">
             <iframe
               src={src}
               title="PDF artifact"
-              className="w-full h-[360px] border-0"
+              className="w-full h-[500px] border-0"
             />
           </div>
         );
@@ -211,8 +290,17 @@ export const ArtifactContent = ({ artifact }: { artifact: Artifact }) => {
         // Not valid JSON
       }
 
-      // Content is ready when we have parseable JSON data OR a download link
-      const isReady = !!parsedJson || hasDownload;
+      // Always prefer SheetJS via proxy when possible — more robust than openpyxl JSON
+      if (artifact.chatId && artifact.id) {
+        return (
+          <div className="flex flex-col w-full relative h-[400px] border border-border/50 rounded-lg overflow-hidden my-2">
+            <XlsxUrlViewer chatId={artifact.chatId} artifactId={artifact.id} />
+          </div>
+        );
+      }
+
+      // Fallback for Electron / artifacts without proxy support
+      const isReady = !!parsedJson || hasDownload || !!artifact.url;
 
       return (
         <div className="flex flex-col w-full relative h-[400px] border border-border/50 rounded-lg overflow-hidden my-2">
@@ -265,11 +353,13 @@ export const ArtifactContent = ({ artifact }: { artifact: Artifact }) => {
               )}
             </div>
 
-            {hasDownload &&
+            {(hasDownload || artifact.url) &&
               (artifact.metadata?.download_url ||
-                artifact.metadata?.downloadUrl) && (
+                artifact.metadata?.downloadUrl ||
+                artifact.url) && (
                 <a
                   href={
+                    artifact.url ||
                     artifact.metadata.download_url ||
                     artifact.metadata.downloadUrl
                   }
@@ -302,7 +392,7 @@ export const ArtifactContent = ({ artifact }: { artifact: Artifact }) => {
               <MultiSheetEditor jsonData={parsedJson} readonly={true} />
             ) : (
               <pre className="h-full bg-muted/80 p-3 text-xs font-mono overflow-auto whitespace-pre-wrap wrap-break-word custom-scrollbar">
-                {content}
+                {content || 'Binary XLSX file. Use the download button above.'}
               </pre>
             )}
           </div>

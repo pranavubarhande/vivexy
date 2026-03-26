@@ -13,6 +13,7 @@ from flask import (
     after_this_request,
     current_app,
     jsonify,
+    make_response,
     request,
     send_file,
 )
@@ -42,6 +43,7 @@ from app.business_logic.chat import (
 )
 from app.business_logic.streaming import run_agent_stream
 from app.middlewares.auth import auth_middleware
+from app.models.chat import Artifact
 from app.schemas import ArtifactCreate, ChatCreate, MessageCreate
 from app.services.s3_service import S3Service
 
@@ -234,6 +236,49 @@ def export_artifact_endpoint(chat_id, artifact_id):
         return jsonify({"error": str(e)}), 404
     except Exception as e:
         logger.exception("export_artifact_endpoint error")
+        return jsonify({"error": str(e)}), 500
+
+
+@bp.route("/<chat_id>/artifacts/<artifact_id>/download", methods=["GET"])
+@auth_middleware
+def download_artifact_endpoint(chat_id, artifact_id):
+    """Proxy-download an artifact's raw file from S3, avoiding browser CORS restrictions."""
+    try:
+        artifact = Artifact.query.filter_by(id=artifact_id, chat_id=chat_id).first()
+        if not artifact:
+            return jsonify({"error": "Artifact not found"}), 404
+
+        metadata = artifact.artifact_metadata or {}
+        s3_key = metadata.get("s3_key")
+        if not s3_key:
+            return jsonify({"error": "No S3 key for this artifact"}), 404
+
+        s3 = S3Service()
+        raw = s3.get_file_content(s3_key)
+        if raw is None:
+            return jsonify({"error": "Failed to fetch file from S3"}), 502
+
+        ext = (artifact.filename or "").rsplit(".", 1)[-1].lower()
+        mime_map = {
+            "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            "pdf": "application/pdf",
+            "csv": "text/csv",
+            "json": "application/json",
+            "md": "text/markdown",
+            "html": "text/html",
+        }
+        mimetype = mime_map.get(ext, "application/octet-stream")
+
+        response = make_response(raw)
+        response.headers["Content-Type"] = mimetype
+        response.headers["Content-Disposition"] = (
+            f'inline; filename="{artifact.filename or artifact_id}"'
+        )
+        return response
+    except Exception as e:
+        logger.exception("download_artifact_endpoint error")
         return jsonify({"error": str(e)}), 500
 
 

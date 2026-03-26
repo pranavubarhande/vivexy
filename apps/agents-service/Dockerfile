@@ -2,21 +2,18 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install Poetry
-RUN pip install poetry
+# Install uv
+RUN pip install uv
 
-# Copy poetry files
-COPY pyproject.toml poetry.lock* ./
-
-# Configure poetry
-RUN poetry config virtualenvs.create false
+# Copy pyproject.toml
+COPY pyproject.toml ./
 
 # Install dependencies
-RUN poetry install --no-dev
+RUN uv sync --no-dev
 
 # Copy source code
 COPY . .
 
 EXPOSE 5000
 
-CMD ["python", "app.py"]
+CMD ["uv", "run", "python", "app.py"]

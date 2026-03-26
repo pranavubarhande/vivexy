@@ -12,6 +12,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { artifactApi } from '@/services/chat/artifact-api';
+import { parseXlsxBuffer } from '@/hooks/useChat';
 
 const MarkdownEditor = dynamic(
   () => import('./markdown-editor').then((mod) => mod.MarkdownEditor),
@@ -53,6 +55,9 @@ const TYPE_ICONS: Record<string, React.ReactNode> = {
   JSON: <FileJson size={13} />,
   CSV: <Table2 size={13} />,
   TXT: <File size={13} />,
+  DOCX: <File size={13} />,
+  PPTX: <File size={13} />,
+  PDF: <File size={13} />,
 };
 
 const TYPE_LABELS: Record<string, string> = {
@@ -65,6 +70,9 @@ const TYPE_LABELS: Record<string, string> = {
   JSON: 'JSON',
   CSV: 'CSV',
   TXT: 'Text',
+  DOCX: 'Word Document',
+  PPTX: 'PowerPoint',
+  PDF: 'PDF Document',
 };
 
 export function ArtifactsPanel({
@@ -134,6 +142,13 @@ export function ArtifactsPanel({
       onDownload(artifact);
       return;
     }
+
+    // If we have a direct S3 URL, use it
+    if (artifact.url) {
+      window.open(artifact.url, '_blank');
+      return;
+    }
+
     if (artifact.type === 'XLSX' && artifact.metadata?.download_url) {
       window.open(artifact.metadata.download_url, '_blank');
       return;
@@ -179,13 +194,37 @@ export function ArtifactsPanel({
     }
   };
 
-  const handleEditToggle = () => {
+  const handleEditToggle = async () => {
     if (isEditing) {
       setIsEditing(false);
-    } else if (selectedArtifact) {
-      setEditContent(selectedArtifact.content);
-      setIsEditing(true);
+      return;
     }
+    if (!selectedArtifact) return;
+
+    let content = selectedArtifact.content;
+
+    // For XLSX, ensure editContent is valid JSON — fetch + parse from proxy if needed
+    if (selectedArtifact.type?.toUpperCase() === 'XLSX') {
+      let isValidJson = false;
+      try {
+        isValidJson = !!content && !!JSON.parse(content);
+      } catch {}
+
+      if (!isValidJson && selectedArtifact.chatId && selectedArtifact.id) {
+        try {
+          const buf = await artifactApi.downloadArtifact(
+            selectedArtifact.chatId,
+            selectedArtifact.id
+          );
+          content = await parseXlsxBuffer(buf);
+        } catch (e) {
+          console.error('Failed to load XLSX content for editing', e);
+        }
+      }
+    }
+
+    setEditContent(content);
+    setIsEditing(true);
   };
 
   const handleSave = async () => {
@@ -299,14 +338,17 @@ export function ArtifactsPanel({
                 </>
               ) : (
                 <>
-                  {onSave && (
-                    <button
-                      onClick={handleEditToggle}
-                      className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground px-2.5 py-1.5 rounded-lg hover:bg-muted transition-colors"
-                    >
-                      Edit
-                    </button>
-                  )}
+                  {onSave &&
+                    !['PDF', 'DOCX', 'PPTX'].includes(
+                      selectedArtifact.type?.toUpperCase() || ''
+                    ) && (
+                      <button
+                        onClick={handleEditToggle}
+                        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground px-2.5 py-1.5 rounded-lg hover:bg-muted transition-colors"
+                      >
+                        Edit
+                      </button>
+                    )}
                   {selectedArtifact.type === 'MD' ? (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>

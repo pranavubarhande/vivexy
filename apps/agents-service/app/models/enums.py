@@ -56,3 +56,7 @@ class ArtifactType(enum.Enum):
     JSON = "JSON"
     CSV = "CSV"
     XLSX = "XLSX"
+    DOCX = "DOCX"
+    PPTX = "PPTX"
+    PDF = "PDF"
+    OTHER = "OTHER"

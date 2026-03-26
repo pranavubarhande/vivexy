@@ -42,13 +42,82 @@ python scripts/office/unpack.py presentation.pptx unpacked/
 
 ## Creating from Scratch
 
-**Read [pptxgenjs.md](pptxgenjs.md) for full details.**
-
 Use when no template or reference presentation is available.
+
+**CRITICAL INSTRUCTION - YOU ARE BANNED FROM USING PYTHON FOR THIS:**
+You MUST NOT use `python-pptx` or any Python library to generate PowerPoint files from scratch.
+You MUST call the `execute_code` tool and you MUST explicitly set the parameter `"language": "javascript"`.
+Write a Node.js script using the `pptxgenjs` library to generate the slides.
+
+Here is the EXACT boilerplate you MUST use (in Node.js / JavaScript) to generate beautiful slides and include stock images via LoremFlickr:
+
+```javascript
+const pptxgen = require('pptxgenjs');
+
+let pres = new pptxgen();
+pres.layout = 'LAYOUT_16x9';
+pres.author = 'Your Name';
+pres.title = 'Presentation Title';
+
+// CRITICAL: ALWAYS setup a Master Slide with a beautiful, modern design.
+pres.defineSlideMaster({
+  title: 'MASTER_SLIDE',
+  background: { color: '0F172A' }, // Deep Navy clean background
+  objects: [
+    { rect: { x: 0, y: 0, w: '10%', h: '100%', fill: { color: '38BDF8' } } }, // Vibrant blue accent bar on the left
+    {
+      rect: {
+        x: '10%',
+        y: '85%',
+        w: '90%',
+        h: '15%',
+        fill: { color: '1E293B' },
+      },
+    }, // Subtle dark footer
+  ],
+});
+
+let slide = pres.addSlide({ masterName: 'MASTER_SLIDE' });
+slide.addText('Beautiful Modern Slide', {
+  x: 1.5,
+  y: 0.5,
+  w: 8.0,
+  h: 1.0, // Keep w: 8.0 to prevent right-edge overflow
+  fontSize: 40,
+  color: 'FFFFFF',
+  bold: true,
+  fontFace: 'Helvetica',
+});
+slide.addText('Add your content here. Always limit text to prevent overflow.', {
+  x: 1.5,
+  y: 1.8,
+  w: 8.0,
+  h: 3.5, // Stop h:3.5 to prevent bottom-edge overflow
+  fontSize: 22,
+  color: 'E2E8F0',
+  fontFace: 'Helvetica',
+  align: 'left',
+  valign: 'top',
+});
+
+// ADDING A STOCK IMAGE BY KEYWORD
+slide.addImage({
+  x: 6.0,
+  y: 1.8,
+  w: 3.5,
+  h: 2.5,
+  // Use loremflickr to pull high quality stock imagery dynamically
+  path: 'https://loremflickr.com/800/600/business,finance',
+});
+
+pres.writeFile({ fileName: 'Presentation.pptx' });
+```
 
 ---
 
 ## Design Ideas
+
+**CRITICAL INSTRUCTION: You MUST NOT create plain white slides. You will automatically FAIL the task if you output a basic white slide with simple text. ALWAYS define a SlideMaster with a colored header/footer, background color, and use a professional color palette.**
 
 **Don't create boring slides.** Plain bullets on a white background won't impress anyone. Consider ideas from this list for each slide.
 
@@ -230,6 +299,6 @@ pdftoppm -jpeg -r 150 -f N -l N output.pdf slide-fixed
 
 - `pip install "markitdown[pptx]"` - text extraction
 - `pip install Pillow` - thumbnail grids
-- `npm install -g pptxgenjs` - creating from scratch
+- `npm install pptxgenjs` - creating from scratch
 - LibreOffice (`soffice`) - PDF conversion (auto-configured for sandboxed environments via `scripts/office/soffice.py`)
 - Poppler (`pdftoppm`) - PDF to images

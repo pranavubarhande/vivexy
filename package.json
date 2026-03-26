@@ -11,7 +11,7 @@
     "install:all": "npm install && npm run install:apps",
     "install:apps": "npm run install:frontend && npm run install:agents && npm run install:desktop",
     "install:frontend": "cd apps/frontend && npm install",
-    "install:agents": "cd apps/agents-service && poetry install",
+    "install:agents": "cd apps/agents-service && uv sync",
     "install:desktop": "cd apps/desktop && npm install",
     "dev": "turbo dev --parallel",
     "dev:frontend": "turbo dev --filter=portfolio-helper-frontend",
@@ -37,8 +37,8 @@
       "prettier --write"
     ],
     "apps/agents-service/**/*.{py}": [
-      "cd apps/agents-service && poetry run black",
-      "cd apps/agents-service && poetry run isort"
+      "cd apps/agents-service && uv run --extra dev black",
+      "cd apps/agents-service && uv run --extra dev isort"
     ]
   }
 }

@@ -65,6 +65,9 @@ const normalizeArtifact = (data: unknown): Artifact => {
     createdAt:
       typeof r.createdAt === 'string' ? r.createdAt : new Date().toISOString(),
     messageId: r.messageId != null ? String(r.messageId) : null,
+    chatId: r.chatId != null ? String(r.chatId) : undefined,
+    version: r.version != null ? Number(r.version) : undefined,
+    url: r.url != null ? String(r.url) : null,
     metadata: r.metadata,
   };
 };

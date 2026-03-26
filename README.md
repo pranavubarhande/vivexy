@@ -18,7 +18,7 @@ This monorepo contains:
 - **Database**: PostgreSQL with SQLAlchemy + Alembic migrations
 - **AI**: OpenAI, Anthropic, Google AI, Groq via LangChain
 - **Deployment**: Docker, Kubernetes
-- **Monorepo**: Turborepo (Node.js), Poetry (Python)
+- **Monorepo**: Turborepo (Node.js), uv (Python)
 
 ## Quick Start
 
@@ -27,15 +27,15 @@ This monorepo contains:
 - Node.js 20+
 - Python 3.11+ (preferably from python.org or Homebrew, not system Python)
 - Docker & Docker Compose
-- Poetry (for Python dependency management)
+- UV (for Python dependency management)
 
-#### Installing Poetry
+#### Installing uv
 
 **macOS (Recommended):**
 
 ```bash
 # Using Homebrew
-brew install poetry
+brew install uv
 ```
 
 ### Local Development
@@ -73,10 +73,10 @@ brew install poetry
    ```bash
    # Run Alembic migrations
    cd apps/agents-service
-   poetry run alembic upgrade head
+   uv run alembic upgrade head
 
    # Seed LLM models
-   poetry run python scripts/seed_llm_models.py
+   uv run python scripts/seed_llm_models.py
    cd ../..
 
    # Seed stock data
@@ -90,7 +90,7 @@ brew install poetry
    cd infra
    docker-compose up -d
 
-   # Or run locally (requires Poetry for Python)
+   # Or run locally (requires UV for Python)
    npm run dev  # Starts all services via Turborepo (Next.js + Flask)
    ```
 
@@ -116,7 +116,7 @@ npm run build
 
 # Testing
 npm run test           # Run frontend tests
-# For backend tests, navigate to apps/agents-service and run: poetry run pytest
+# For backend tests, navigate to apps/agents-service and run: uv run pytest
 
 # Lint and format
 npm run lint
@@ -134,13 +134,13 @@ npm run lint          # Run linting
 cd apps/agents-service
 
 # Activate virtual environment
-poetry shell
+uv venv && source .venv/bin/activate
 
 # Run the service
-python app.py
+uv run python app.py
 
 # Run tests
-poetry run pytest
+uv run pytest
 ```
 
 ### Alembic Migrations
@@ -151,16 +151,16 @@ The database schema is managed entirely via Alembic in `apps/agents-service`.
 cd apps/agents-service
 
 # Apply all pending migrations
-poetry run alembic upgrade head
+uv run alembic upgrade head
 
 # Auto-generate a new migration after changing models
-poetry run alembic revision --autogenerate -m "description_of_change"
+uv run alembic revision --autogenerate -m "description_of_change"
 
 # Check current migration version
-poetry run alembic current
+uv run alembic current
 
 # View migration history
-poetry run alembic history
+uv run alembic history
 ```
 
 ## Project Structure
@@ -267,7 +267,7 @@ For Python code in `apps/agents-service/`:
 
 ```bash
 cd apps/agents-service
-poetry run black .        # Format Python code
-poetry run isort .        # Sort imports
-poetry run flake8 .       # Lint Python code
+uv run black .        # Format Python code
+uv run isort .        # Sort imports
+uv run flake8 .       # Lint Python code
 ```

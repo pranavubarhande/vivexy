@@ -1,6 +1,6 @@
 """
 Agents Service - Entry point.
-Run with: poetry run python app.py
+Run with: uv run python app.py
 """
 
 import os

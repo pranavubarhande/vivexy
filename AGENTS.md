@@ -60,7 +60,7 @@ This document provides architectural context, codebase patterns, and constraints
 2. **Database & ORM**:
    - Always use SQLAlchemy models (defined in `app/models/`) and `db.session` for database interactions.
    - **MIGRATIONS**: All DB schema changes MUST be accompanied by an Alembic migration. Run:
-     `poetry run alembic revision --autogenerate -m "description"` to create one.
+     `uv run alembic revision --autogenerate -m "description"` to create one.
 
 3. **Config & Constants (agents-service)**:
    - **Config**: All env-derived settings live under `configs/` (Flask config in `configs/flask_config.py`, worker/broker in `configs/worker_config.py`). Import via `from configs import Config, REDIS_URL, CHAT_QUEUE`, etc.
@@ -79,19 +79,20 @@ This document provides architectural context, codebase patterns, and constraints
 
 ## 🛠️ Tooling & Standards
 
-- **Dependency Management**: Root runs `npm run install:all`. The Python backend explicitly relies on `poetry` for managing virtual environments and dependencies.
+- **Dependency Management**: Root runs `npm run install:all`. The Python backend explicitly relies on `uv` for managing virtual environments and dependencies.
 - **Formatting and Linting** (Strictly Enforced):
   - **JavaScript/TypeScript**: Run `npm run format` (Prettier) and `npm run lint` (ESLint).
   - **Python**: Must align with `black`, `isort`, and `flake8`.
     ```bash
     cd apps/agents-service
-    poetry run black .
-    poetry run isort .
-    poetry run flake8 .
+    uv run black .
+    uv run isort .
+    uv run flake8 .
     ```
   - But running `npm run format` in the root folder should format the code across the apps.
   - In agents-service, keep 1 line spacings between functions instead of 2 and keep all the imports at top of the file and not in between the file.
+  - Don't add too many comments, only add comments if really required for future references.
   - Use descriptive variable names like queryClient instead of qc.
 - **Execution**:
-  - Do not use global `pip`; always execute backend scripts with `poetry run python <script>`.
+  - Do not use global `pip`; always execute backend scripts with `uv run python <script>`.
   - Always check `package.json` for custom lifecycle scripts before running manual builds.

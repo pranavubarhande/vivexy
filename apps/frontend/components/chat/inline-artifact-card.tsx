@@ -24,6 +24,7 @@ const TYPE_ICONS: Record<string, string> = {
   PDF: '📕',
   DOCX: '📘',
   XLSX: '📗',
+  PPTX: '📁',
 };
 
 interface InlineArtifactCardProps {
@@ -37,7 +38,10 @@ export function InlineArtifactCard({
   onDownload,
   className,
 }: InlineArtifactCardProps) {
-  const [expanded, setExpanded] = useState(true);
+  const isBinary = ['PDF', 'DOCX', 'XLSX', 'PPTX'].includes(
+    artifact.type?.toUpperCase() ?? ''
+  );
+  const [expanded, setExpanded] = useState(!isBinary);
   const { exportArtifact, isExporting } = useChat(artifact.chatId);
 
   const handleExport = async (format: 'pdf' | 'docx') => {
@@ -68,6 +72,13 @@ export function InlineArtifactCard({
       onDownload(artifact);
       return;
     }
+
+    // If we have a direct S3 URL, use it
+    if (artifact.url) {
+      window.open(artifact.url, '_blank');
+      return;
+    }
+
     const extension = artifact.type.toLowerCase();
     const filename =
       artifact.filename || `artifact-${artifact.seq}.${extension}`;

@@ -6,20 +6,75 @@
 const pptxgen = require('pptxgenjs');
 
 let pres = new pptxgen();
-pres.layout = 'LAYOUT_16x9'; // or 'LAYOUT_16x10', 'LAYOUT_4x3', 'LAYOUT_WIDE'
+pres.layout = 'LAYOUT_16x9';
 pres.author = 'Your Name';
 pres.title = 'Presentation Title';
 
-let slide = pres.addSlide();
-slide.addText('Hello World!', {
-  x: 0.5,
+// CRITICAL: ALWAYS setup a Master Slide with a beautiful, modern design.
+// This is a premium Corporate Navy / Bright white design.
+pres.defineSlideMaster({
+  title: 'MASTER_SLIDE',
+  background: { color: '0F172A' }, // Deep Navy clean background
+  objects: [
+    { rect: { x: 0, y: 0, w: '10%', h: '100%', fill: { color: '38BDF8' } } }, // Vibrant blue accent bar on the left
+    {
+      rect: {
+        x: '10%',
+        y: '85%',
+        w: '90%',
+        h: '15%',
+        fill: { color: '1E293B' },
+      },
+    }, // Subtle dark footer
+  ],
+});
+
+let slide = pres.addSlide({ masterName: 'MASTER_SLIDE' });
+slide.addText('Beautiful Modern Slide', {
+  x: 1.5,
   y: 0.5,
-  fontSize: 36,
-  color: '363636',
+  w: 8.0,
+  h: 1.0, // Keep w: 8.0 to prevent right-edge overflow
+  fontSize: 40,
+  color: 'FFFFFF',
+  bold: true,
+  fontFace: 'Helvetica',
+});
+slide.addText(
+  'Add your content here. Always use clean fonts and good contrast.',
+  {
+    x: 1.5,
+    y: 1.8,
+    w: 8.0,
+    h: 3.5, // Stop h:3.5 to prevent bottom-edge overflow
+    fontSize: 22,
+    color: 'E2E8F0',
+    fontFace: 'Helvetica',
+    align: 'left',
+    valign: 'top',
+  }
+);
+
+// ADDING A STOCK IMAGE BY KEYWORD
+slide.addImage({
+  x: 6.0,
+  y: 1.8,
+  w: 3.5,
+  h: 2.5,
+  // Use loremflickr to pull high quality stock imagery dynamically
+  path: 'https://loremflickr.com/800/600/business,finance',
 });
 
 pres.writeFile({ fileName: 'Presentation.pptx' });
 ```
+
+**CRITICAL RULES FOR PPTX GENERATION:**
+
+1. **NEVER** create plain white slides with simple black text.
+2. **ALWAYS** use `defineSlideMaster` to set up a cohesive design with header/footer bars, a clean background color, and a high-contrast accent color.
+3. **USE COLORS AND FONTS**: Adopt a professional palette (e.g., strong navy background '0F172A', bright accent '38BDF8', and crisp white body text 'E2E8F0'). Always use `Helvetica`, `Arial`, or `Calibri`.
+4. **PREVENT OVERFLOW**: Never let text overflow! Limit text boxes to `w: 8.0` and `h: 3.5` on a 16x9 slide. If there are too many bullet points for a slide, split them into multiple slides.
+5. **USE DYNAMIC STOCK IMAGES**: You MUST use the `loremflickr.com` API to add engaging images to your slides. Ex: `https://loremflickr.com/800/600/money,market`. Place images carefully so they don't overlap text (e.g., place text `w: 4.5` and image at `x: 5.5, w: 4.0`).
 
 ## Layout Dimensions
 
@@ -315,7 +370,7 @@ slide.addImage({
 
 ### Icon Libraries
 
-Install: `npm install -g react-icons react react-dom sharp`
+Install: `npm install react-icons react react-dom sharp`
 
 Popular icon sets in react-icons:
 

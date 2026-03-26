@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 from datetime import datetime
@@ -5,7 +6,8 @@ from typing import Any, Dict, List, Optional
 
 from sqlalchemy.orm import joinedload
 
-from app.agents.config import FileContext
+from app.agents.agent_factory import create_langgraph_agent
+from app.agents.config import DEFAULT_AGENT_ID, FileContext
 from app.business_logic.artifacts import resolve_artifact_content
 from app.constants.stream_events import (
     STREAM_EVENT_CONTENT,
@@ -282,6 +284,7 @@ def create_message(
                     [msg.to_dict() for msg in conversation_messages],
                     model.provider,
                     model.model_id,
+                    user_id,
                 )
 
                 # Create AI response message with reasoning
@@ -361,6 +364,7 @@ def update_message(
                     [msg.to_dict() for msg in conversation_messages],
                     model.provider,
                     model.model_id,
+                    user_id,
                 )
 
                 # Create AI response message
@@ -402,16 +406,17 @@ def get_llm_models() -> List[LLMModelResponse]:
 
 
 def create_agent_response(
-    chat_id: str, messages: List[Dict[str, Any]], provider: str, model_id: str
+    chat_id: str,
+    messages: List[Dict[str, Any]],
+    provider: str,
+    model_id: str,
+    user_id: str,
 ) -> Dict[str, Any]:
     """Create an AI response using the unified agent."""
     try:
-        import asyncio
-
-        from ..agents.agent_factory import create_langgraph_agent
-        from ..agents.config import DEFAULT_AGENT_ID
-
-        agent = create_langgraph_agent(DEFAULT_AGENT_ID, provider, model_id, chat_id)
+        agent = create_langgraph_agent(
+            DEFAULT_AGENT_ID, provider, model_id, chat_id, user_id=user_id
+        )
         simple_messages = [
             {"role": msg["role"], "content": msg["content"]} for msg in messages
         ]
