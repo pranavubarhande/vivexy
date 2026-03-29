@@ -433,7 +433,9 @@ def _run_live_integration(print_events: bool) -> None:
             print(f"[test]   artifact filename={a.filename} type={a.type} seq={a.seq}")
 
         if not xlsx_artifacts:
-            print("[warning] No XLSX artifacts found — agent may not have produced Excel reports")
+            print(
+                "[warning] No XLSX artifacts found — agent may not have produced Excel reports"
+            )
         else:
             print(f"[test] PASS: {len(xlsx_artifacts)} XLSX artifact(s) produced")
 
@@ -441,17 +443,23 @@ def _run_live_integration(print_events: bool) -> None:
         print(f"[test] tools called (all sources): {sorted(all_tools_called)}")
 
         if not any("list_sandbox" in t for t in all_tools_called):
-            print("[warning] list_sandbox_files was not called — agent may not have discovered files")
+            print(
+                "[warning] list_sandbox_files was not called — agent may not have discovered files"
+            )
         else:
             print("[test] PASS: list_sandbox_files was called")
 
         if not any("execute" in t for t in all_tools_called):
-            print("[warning] execute_code was not called — agent did not use the sandbox")
+            print(
+                "[warning] execute_code was not called — agent did not use the sandbox"
+            )
         else:
             print("[test] PASS: execute_code was called")
 
         if not any("upload" in t for t in all_tools_called):
-            print("[warning] upload_sandbox_file_to_chat was not called — no files were uploaded")
+            print(
+                "[warning] upload_sandbox_file_to_chat was not called — no files were uploaded"
+            )
         else:
             print("[test] PASS: upload_sandbox_file_to_chat was called")
 

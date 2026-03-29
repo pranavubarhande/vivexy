@@ -44,7 +44,9 @@ global_checkpointer = MemorySaver()
 _SYNC_CHUNK_SIZE = 60_000  # base64 chars per chunk — safely below shell ARG_MAX
 
 
-def _write_bytes_to_sandbox(backend: DaytonaSandbox, content_bytes: bytes, dest_path: str):
+def _write_bytes_to_sandbox(
+    backend: DaytonaSandbox, content_bytes: bytes, dest_path: str
+):
     """Write binary content into the sandbox at dest_path.
 
     Uses a chunked Python-based approach so that files larger than ~45 KB
@@ -117,8 +119,12 @@ def sync_chat_artifacts_to_sandbox(chat_id: str, backend: DaytonaSandbox):
                 content_bytes = s3.get_file_content(s3_key)
                 if content_bytes:
                     safe_filename = filename.replace(" ", "_")
-                    _write_bytes_to_sandbox(backend, content_bytes, f"./{safe_filename}")
-                    logger.info(f"Restored {filename} ({len(content_bytes)} bytes) to sandbox")
+                    _write_bytes_to_sandbox(
+                        backend, content_bytes, f"./{safe_filename}"
+                    )
+                    logger.info(
+                        f"Restored {filename} ({len(content_bytes)} bytes) to sandbox"
+                    )
             except Exception as e:
                 logger.warning(f"Failed to restore {filename} to sandbox: {e}")
 
