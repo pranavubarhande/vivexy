@@ -154,6 +154,8 @@ def get_base_tools(chat_id: str) -> List[BaseTool]:
     import_list = [
         ("app.tools.chat.chat_tools", "get_set_chat_title_tool", [chat_id]),
         ("app.tools.files.file_tools", "get_file_read_tool", [chat_id]),
+        ("app.tools.web.search_tools", "get_web_tools", []),
+        ("app.tools.web.crawler_tools", "get_crawler_tools", []),
     ]
     for module_path, func_name, args in import_list:
         tools.extend(safe_import_tool(module_path, func_name, *args))

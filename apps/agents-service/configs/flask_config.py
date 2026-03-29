@@ -45,3 +45,6 @@ class Config:
     TOP_K_RETRIEVAL = 5
     BM25_K = 3
     PINECONE_INDEX_NAME = "rag-index"
+
+    # Web Search & Crawling
+    EXA_API_KEY = os.getenv("EXA_API_KEY")

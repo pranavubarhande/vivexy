@@ -8,10 +8,11 @@
     "packages/*"
   ],
   "scripts": {
-    "install:all": "npm install && npm run install:apps",
+    "install:all": "npm install && npm run install:apps && npm run setup:agents",
     "install:apps": "npm run install:frontend && npm run install:agents && npm run install:desktop",
     "install:frontend": "cd apps/frontend && npm install",
     "install:agents": "cd apps/agents-service && uv sync",
+    "setup:agents": "cd apps/agents-service && uv run playwright install chromium",
     "install:desktop": "cd apps/desktop && npm install",
     "dev": "turbo dev --parallel",
     "dev:frontend": "turbo dev --filter=portfolio-helper-frontend",
