@@ -206,7 +206,7 @@ def _get_history_context(
     agent: Any, chat_id: str, messages: List[Dict]
 ) -> Tuple[Dict, Dict, Set[str]]:
     """Detect checkpointer state and restore history from DB if empty (Amnesia Fix)."""
-    config = {"configurable": {"thread_id": chat_id}}
+    config = {"configurable": {"thread_id": chat_id}, "recursion_limit": 50}
     state_messages = []
     has_history = False
 
@@ -331,8 +331,14 @@ def _handle_tool_outcome(message: Any) -> Generator[str, None, None]:
         return
 
     try:
-        # 1. Check for artifact creation in JSON
-        data = json.loads(content) if isinstance(content, str) else {}
+        # 1. Try to parse JSON — plain-text tool outputs (execute_code, list_sandbox_files)
+        #    are not JSON; handle both so we never silently drop the event.
+        data: Any = {}
+        try:
+            data = json.loads(content) if isinstance(content, str) else {}
+        except (json.JSONDecodeError, ValueError):
+            data = {}
+
         if isinstance(data, dict) and data.get("artifact_id"):
             yield _sse(
                 {

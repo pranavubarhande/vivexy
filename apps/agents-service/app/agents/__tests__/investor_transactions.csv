@@ -1,0 +1,63 @@
+investor_id,transaction_type,transaction_date,stamp_duty_amount,amount,units,nav,equalisation_amount,created_by,created_at,,
+10001,Subscription,1/4/2023,"  28,498.58 ","  569,971,501.42 ","  569,971.50 ","  1,000.0000 ",  -   ,,,Class A,Rajan Mehra
+10005,Subscription,1/4/2023,  500.00 ,"  9,999,500.00 ","  9,999.50 ","  1,000.0000 ",  -   ,,,Class A,YAMIRA ESTATES LLP
+10002,Subscription,1/4/2023,"  4,999.75 ","  99,995,000.25 ","  99,995.00 ","  1,000.0000 ",  -   ,,,Class B,Aionios Alpha Investment Management Llp
+10004,Subscription,1/4/2023,"  10,999.45 ","  219,989,000.55 ","  219,989.00 ","  1,000.0000 ",  -   ,,,Class C1,Kuleen Jateen Tanna Huf
+9999,Subscription,1/4/2023,"  4,999.75 ","  99,995,000.00 ","  99,995.00 ","  1,000.0000 ",  -   ,,,Class C2,Kuleen Jateen Tanna Huf1
+9999,Redemption,1/5/2023,  -   ,,"  99,995.00 ","  1,003.3300 ",  -   ,,,Class C2,Kuleen Jateen Tanna Huf1
+10001,Subscription,1/5/2023,"  5,500.00 ","  109,994,500.31 ","  109,807.83 ","  1,001.7000 ","  -142,255.31 ",,,Class A,Rajan Mehra
+10009,Subscription,1/5/2023,"  1,100.00 ","  21,998,899.66 ","  21,961.57 ","  1,001.7000 ","  -28,451.06 ",,,Class A,Sheetal Chirag Talati
+10007,Subscription,1/5/2023,  625.00 ,"  12,499,374.88 ","  12,478.16 ","  1,001.7000 ","  -16,165.38 ",,,Class A,Abhinav Shiva Khanna
+10004,Subscription,1/5/2023,"  1,500.00 ","  29,998,500.07 ","  29,898.94 ","  1,003.3300 ",  -   ,,,Class C1,Kuleen Jateen Tanna Huf
+10006,Subscription,1/5/2023,  400.00 ,"  7,999,600.02 ","  7,973.05 ","  1,003.3300 ",  -   ,,,Class C1,Abhijit Mitra
+10008,Subscription,1/5/2023,"  5,000.00 ","  99,995,000.25 ","  99,663.12 ","  1,003.3300 ",  -   ,,,Class C2,Kuleen Jateen Tanna
+10009,Subscription,1/6/2023,"  1,000.00 ","  19,998,999.56 ","  19,274.45 ","  1,037.5913 ","  92,737.88 ",,,Class A,Sheetal Chirag Talati
+10004,Subscription,1/6/2023,"  1,750.00 ","  34,998,253.53 ","  33,620.92 ","  1,040.9666 ",  -   ,,,Class C1,Kuleen Jateen Tanna Huf
+10008,Subscription,1/6/2023,  250.00 ,"  4,999,743.71 ","  4,802.99 ","  1,040.9655 ",  -   ,,,Class C2,Kuleen Jateen Tanna
+10007,Subscription,1/7/2023,  250.00 ,"  4,999,750.52 ","  4,459.42 ","  1,121.1666 ","  93,874.39 ",,,Class A,Abhinav Shiva Khanna
+10011,Subscription,1/7/2023,"  2,500.00 ","  49,997,499.56 ","  44,594.18 ","  1,121.1666 ","  938,743.92 ",,,Class A,Electrolab (India) Pvt Limited
+10010,Subscription,1/7/2023,  500.00 ,"  9,999,500.02 ","  8,876.31 ","  1,126.5383 ",  -   ,,,Class C1,Pooja Hasmukh Tanna
+10012,Subscription,1/8/2023,  500.00 ,"  9,999,500.04 ","  8,220.53 ","  1,216.4065 ","  324,711.23 ",,,Class A,Ang Corporate Services Pvt Ltd
+10007,Subscription,1/9/2023,  375.00 ,"  7,499,625.02 ","  5,381.40 ","  1,393.6194 ","  403,512.30 ",,,Class A,Abhinav Shiva Khanna
+10015,Subscription,1/9/2023,  500.00 ,"  9,999,500.02 ","  7,175.20 ","  1,393.6194 ","  538,016.40 ",,,Class A,Madhu C Shah
+10013,Subscription,1/9/2023,  500.00 ,"  9,999,500.02 ","  7,175.20 ","  1,393.6194 ","  538,016.40 ",,,Class A,Ashika Capital Limited
+10014,Subscription,1/9/2023,  500.00 ,"  9,999,500.02 ","  7,175.20 ","  1,393.6194 ","  538,016.40 ",,,Class A,Amrita Mercantile Pvt Ltd
+10016,Subscription,1/9/2023,  500.00 ,"  9,999,500.02 ","  7,175.20 ","  1,393.6194 ","  538,016.40 ",,,Class A,Priyank Shah
+10001,Subscription,1/12/2023,"  1,250.00 ","  24,998,750.12 ","  17,657.89 ","  1,415.7268 ","  1,281,672.17 ",,,Class A,Rajan Mehra
+10007,Subscription,1/12/2023,  250.00 ,"  4,999,749.80 ","  3,531.58 ","  1,415.7268 ","  256,334.42 ",,,Class A,Abhinav Shiva Khanna
+10001,Subscription,1/2/2024,  750.00 ,"  14,999,250.64 ","  10,143.30 ","  1,478.7346 ","  818,321.41 ",,,Class A,Rajan Mehra
+10007,Subscription,1/2/2024,  250.00 ,"  4,999,749.42 ","  3,381.10 ","  1,478.7346 ","  272,773.78 ",,,Class A,Abhinav Shiva Khanna
+10011,Subscription,1/2/2024,"  2,500.00 ","  49,997,500.31 ","  33,811.00 ","  1,478.7346 ","  2,727,738.08 ",,,Class A,Electrolab (India) Pvt Limited
+10010,Subscription,1/2/2024,  10.00 ,"  199,990.00 ",  133.14 ,"  1,502.0737 ",  -   ,,,Class C1,Pooja Hasmukh Tanna
+10017,Subscription,1/3/2024,  500.00 ,"  9,999,500.00 ","  6,869.28 ","  1,455.6837 ","  505,324.02 ",,,Class A,Mustafa Bakir Mukadam
+10018,Subscription,1/3/2024,  523.92 ,"  10,477,794.17 ","  7,075.54 ","  1,480.8470 ",  -   ,,,Class C1,Smriti Mehra
+10019,Subscription,1/4/2024,  500.00 ,"  9,999,500.02 ","  7,771.20 ","  1,286.7382 ",  -834.21 ,,,Class A,Chaitanya Gadia
+10004,Subscription,1/4/2024,  750.00 ,"  14,999,250.03 ","  10,754.59 ","  1,394.6838 ",  -   ,,,Class C1,Kuleen Jateen Tanna Huf
+10006,Subscription,1/4/2024,  85.00 ,"  1,699,915.00 ","  1,218.85 ","  1,394.6838 ",  -   ,,,Class C1,Abhijit Mitra
+10005,Subscription,1/5/2024,  250.00 ,"  4,999,750.01 ","  3,485.45 ","  1,434.4652 ","  88,846.89 ",,,Class A,YAMIRA ESTATES LLP
+10020,Subscription,1/5/2024,  135.00 ,"  2,699,865.01 ","  1,733.88 ","  1,557.1204 ",  -   ,,,Class C1,Aabhash Poddar
+10021,Subscription,1/6/2024,  125.00 ,"  2,499,875.01 ","  1,586.38 ","  1,575.8344 ",  -   ,,,Class C1,Akshata Nirmal Telisara
+10022,Subscription,1/7/2024,  500.00 ,"  9,999,500.02 ","  6,383.48 ","  1,566.4657 ","  326,556.64 ",,,Class A,Saurin Devendra Shah
+10023,Subscription,1/7/2024,  500.00 ,"  9,999,500.02 ","  6,383.48 ","  1,566.4657 ","  326,556.64 ",,,Class A,Aashni Saurin Shah
+10018,Subscription,1/7/2024,  92.50 ,"  1,849,907.50 ","  1,084.58 ","  1,705.6482 ",  -   ,,,Class C1,Smriti Mehra
+10001,Subscription,1/8/2024,  500.00 ,"  9,999,500.02 ","  6,245.95 ","  1,600.9571 ","  359,085.85 ",,,Class A,Rajan Mehra
+10005,Subscription,1/8/2024,  250.00 ,"  4,999,750.01 ","  3,122.98 ","  1,600.9571 ",,,,Class A,YAMIRA ESTATES LLP
+10004,Subscription,1/8/2024,  250.00 ,"  4,999,750.01 ","  2,863.59 ","  1,745.9703 ",,,,Class C1,Kuleen Jateen Tanna Huf
+10024,Subscription,1/9/2024,  500.00 ,"  9,999,500.02 ","  6,245.89 ","  1,600.9715 ","  354,732.15 ",,,Class A,Sanjay Natverlal Shah
+10011,Subscription,1/10/2024,"  2,500.00 ","  49,997,500.19 ","  31,873.87 ","  1,568.6045 ","  1,578,927.24 ",,,Class A,Electrolab (India) Pvt Limited
+10026,Subscription,1/10/2024,  500.00 ,"  9,999,500.67 ","  6,374.78 ","  1,568.6045 ","  315,785.45 ",,,Class A,Hamida Akbar Currim
+10025,Subscription,1/10/2024,  500.00 ,"  9,999,500.69 ","  6,374.78 ","  1,568.6045 ","  315,785.45 ",,,Class A,Shahnaz Shamshudin Currim
+10027,Subscription,1/10/2024,  500.00 ,"  9,999,500.17 ","  5,827.24 ","  1,715.9919 ",,,,Class C1,Zameel Akbar Currim
+10001,Subscription,1/11/2024,"  2,000.00 ","  39,998,000.08 ","  26,515.58 ","  1,508.4717 ","  972,948.87 ",,,Class A,Rajan Mehra
+10028,Subscription,1/3/2025,"  2,500.00 ","  49,997,500.00 ","  40,197.44 ","  1,243.7980 ","  -763,473.55 ",,,Class A,Prerak Ventures Llp
+10004,Subscription,1/3/2025,  500.00 ,"  9,999,500.00 ","  7,291.88 ","  1,371.3208 ",,,,Class C1,Kuleen Jateen Tanna Huf
+10005,Redemption,31/3/2025,  -   ,"  -20,656,901.01 ","  16,607.92 ","  1,243.7981 ",,,,Class A,YAMIRA ESTATES LLP
+10016,Redemption,31/3/2025,  -   ,"  -9,493,603.35 ","  7,632.75 ","  1,243.7981 ",,,,Class A,Priyank Shah
+10010,Subscription,1/5/2025,  10.00 ,"  199,989.78 ",  131.32 ,"  1,522.9542 ",,,,Class C1,Pooja Hasmukh Tanna
+10021,Subscription,1/5/2025,  25.00 ,"  499,975.20 ",  328.29 ,"  1,522.9542 ",,,,Class C1,Akshata Nirmal Telisara
+10010,Subscription,1/6/2025,  85.00 ,"  1,699,914.69 ","  1,104.66 ","  1,538.8634 ",,,,Class C1,Pooja Hasmukh Tanna
+10029,Subscription,1/8/2025,  500.00 ,"  9,999,500.02 ","  6,256.01 ","  1,598.3836 ",,,,Class C1,Saumya Srivastav
+10001,Subscription,1/10/2025,"  2,500.00 ","  49,997,500.00 ","  35,918.24 ","  1,391.9806 ","  15,132.87 ",,,Class A,Rajan Mehra
+10024,Subscription,1/10/2025,  500.00 ,"  9,999,500.00 ","  7,183.65 ","  1,391.9806 ","  3,026.57 ",,,Class A,Sanjay Natverlal Shah
+10028,Subscription,1/10/2025,"  2,500.00 ","  49,997,500.00 ","  35,918.24 ","  1,391.9806 ","  15,132.87 ",,,Class A,Prerak Ventures Llp
+10021,Subscription,1/1/2026,  20.00 ,"  399,980.26 ",  250.989 ,"  1,593.617 ",,,,Class C1,Akshata Nirmal Telisara

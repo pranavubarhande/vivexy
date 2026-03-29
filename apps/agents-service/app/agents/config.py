@@ -139,6 +139,48 @@ You are running in a secure Daytona sandbox environment.
 - **CWD**: Your workspace is at `./`. ALWAYS use `./` or `/tmp` for all file operations. NEVER write to `/` or `/home/user`.
 - **Persistence**: Previous files are automatically restored to `./` at the start of every turn — you do NOT need to recreate them. If a file already exists in `./`, use it directly.
 - **Visibility**: Files only become visible to the user after calling `upload_sandbox_file_to_chat`. Writing to the sandbox alone is not enough.
+- **Discovering files**: Call `list_sandbox_files` at the start of any task involving uploaded files to see exactly what is available in `./` before processing.
+
+## Data Analysis & Multi-File Processing
+When the user asks you to compare, analyze, or generate reports from CSV or Excel files:
+1. Call `list_sandbox_files` first to see all available files in `./`
+2. Use `execute_code` with pandas to load and process files — do NOT use `read_file` for large analysis tasks (it truncates content)
+   - CSV: `pd.read_csv('./filename.csv')`
+   - Excel (specific sheet): `pd.read_excel('./filename.xlsx', sheet_name='Sheet Name')`
+   - Excel (all sheets): `pd.read_excel('./filename.xlsx', sheet_name=None)`
+3. Perform all data processing in `execute_code` — filtering, joining, comparison, root cause analysis
+4. Write output files in the sandbox, then call `upload_sandbox_file_to_chat` for each file
+
+### Multi-file comparison workflow
+```python
+import pandas as pd, glob
+
+# 1. Discover files
+import os; print(os.listdir('./'))
+
+# 2. Load CSV source
+df_csv = pd.read_csv('./source.csv')
+
+# 3. Load all Excel files matching a pattern
+excel_files = glob.glob('./*.xlsx')
+dfs = {f: pd.read_excel(f, sheet_name=None) for f in excel_files}
+
+# 4. Merge on date for comparison
+df_merged = df_csv.merge(df_excel, on='date', how='outer', suffixes=('_csv','_excel'))
+df_merged['difference'] = df_merged['value_csv'] - df_merged['value_excel']
+df_merged['within_threshold'] = df_merged['difference'].abs() <= 50
+```
+
+### Handling numeric columns with commas (e.g., "1,234.56")
+```python
+# Clean comma-formatted numbers before arithmetic
+for col in df.columns:
+    if df[col].dtype == object:
+        try:
+            df[col] = pd.to_numeric(df[col].astype(str).str.replace(',', '').str.strip(), errors='coerce')
+        except Exception:
+            pass
+```
 
 ## History Rule
 - **NO REPETITION**: Do NOT repeat or summarize your previous turns, actions, or reports at the start of a new response.

@@ -187,3 +187,20 @@ def get_execute_code_tool(backend: DaytonaSandbox) -> BaseTool:
             return f"Failed to execute code: {e}"
 
     return execute_code
+
+
+def get_list_sandbox_files_tool(backend: DaytonaSandbox) -> BaseTool:
+    @tool
+    def list_sandbox_files(path: str = "./") -> str:
+        """List files and directories in the sandbox workspace. Use this to discover which uploaded files (CSV, Excel, PDF, etc.) are available before processing them with execute_code. Returns file names, sizes, and types."""
+        try:
+            res = backend.execute(f"ls -lah {path} 2>&1")
+            output = getattr(res, "output", "").strip()
+            exit_code = getattr(res, "exit_code", -1)
+            if exit_code != 0:
+                return f"Error listing files: {output}"
+            return output if output else "No files found in workspace."
+        except Exception as e:
+            return f"Failed to list files: {e}"
+
+    return list_sandbox_files

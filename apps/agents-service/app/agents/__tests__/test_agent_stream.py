@@ -100,10 +100,11 @@ def _run_live_integration(print_events: bool) -> None:
     app: Flask = create_app(TestConfig)
     print("[test] flask app created")
 
-    pdf_path = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)),
-        "reliance_stock_analysis.pdf",
-    )
+    tests_dir = os.path.dirname(os.path.abspath(__file__))
+    csv_files = [
+        ("daily_pnl_rows.csv", "text/csv"),
+        ("investor_transactions.csv", "text/csv"),
+    ]
 
     # --- Create DB rows. ---
     with app.app_context():
@@ -140,28 +141,34 @@ def _run_live_integration(print_events: bool) -> None:
         chat_id = chat_resp.id
         print(f"[test] created chat_id={chat_id}")
 
-        # --- Upload attachments to real S3 (keys must include chat_id). ---
+        # --- Upload CSV attachments to real S3 (keys must include chat_id). ---
         s3 = S3Service()
-        print("[test] uploading attachments to S3...")
+        print("[test] uploading CSV attachments to S3...")
 
-        with open(pdf_path, "rb") as f_pdf:
-            pdf_size = os.path.getsize(pdf_path)
-            pdf_upload = s3.upload_file(
-                file=f_pdf,
-                chat_id=chat_id,
-                filename="reliance_stock_analysis.pdf",
-                content_type="application/pdf",
+        for csv_filename, mime_type in csv_files:
+            csv_path = os.path.join(tests_dir, csv_filename)
+            if not os.path.exists(csv_path):
+                print(f"[test] WARNING: {csv_path} not found, skipping")
+                continue
+            csv_size = os.path.getsize(csv_path)
+            with open(csv_path, "rb") as f_csv:
+                upload_res = s3.upload_file(
+                    file=f_csv,
+                    chat_id=chat_id,
+                    filename=csv_filename,
+                    content_type=mime_type,
+                )
+            db.session.add(
+                ChatAttachment(
+                    chat_id=chat_id,
+                    filename=csv_filename,
+                    s3_key=upload_res["s3_key"],
+                    mime_type=mime_type,
+                    size=csv_size,
+                )
             )
+            print(f"[test] uploaded {csv_filename}")
 
-        db.session.add(
-            ChatAttachment(
-                chat_id=chat_id,
-                filename="reliance_stock_analysis.pdf",
-                s3_key=pdf_upload["s3_key"],
-                mime_type="application/pdf",
-                size=pdf_size,
-            )
-        )
         db.session.commit()
         print("[test] attachments uploaded + ChatAttachment rows committed")
 
@@ -236,9 +243,25 @@ def _run_live_integration(print_events: bool) -> None:
         print(f"[test] built file_contexts count={len(file_contexts)}", flush=True)
 
         user_content = (
-            "Using the attached PDF, generate a comprehensive portfolio report as pptx with multiple slides."
-            "You MUST use the sandbox execute_code tool to create the report file in the workspace, "
-            "then you MUST call upload_sandbox_file_to_chat to sync it."
+            "I have uploaded two CSV files:\n"
+            "- daily_pnl_rows.csv — daily PnL rows with columns: date, "
+            "daily_pnl_excluding_mgmt_fees_and_setup_fees, equity_urgl, direct_expenses, "
+            "setup_fees, other_expenses, tax, management_fees_class_a, allocated_pnl_class_a, "
+            "daily_closing_nav_before_mgmt_fees_class_a, daily_closing_nav_class_a\n"
+            "- investor_transactions.csv — investor transactions with columns: "
+            "investor_id, transaction_type, transaction_date, units, nav\n\n"
+            "Please generate two Excel reports:\n\n"
+            "Report 1 — daily_pnl_report.xlsx (sheet: 'Daily PnL Summary'):\n"
+            "Columns: date | daily_pnl_excluding_mgmt_fees_and_setup_fees | "
+            "equity_urgl | direct_expenses | setup_fees | other_expenses | tax | "
+            "management_fees_class_a | daily_closing_nav_class_a\n"
+            "Sort by date ascending. Highlight rows where "
+            "daily_pnl_excluding_mgmt_fees_and_setup_fees is negative in red.\n\n"
+            "Report 2 — investor_summary.xlsx (sheet: 'Investor Summary'):\n"
+            "Aggregate investor_transactions.csv by transaction_date and transaction_type. "
+            "Columns: transaction_date | Subscriptions (total units) | Redemptions (total units) | Net Units\n\n"
+            "Use list_sandbox_files to confirm files are available, execute_code with pandas "
+            "and openpyxl to build the reports, then call upload_sandbox_file_to_chat for each file."
         )
 
         # Mimic `/chat/stream` behavior: save user message first, then run streaming.
@@ -361,13 +384,27 @@ def _run_live_integration(print_events: bool) -> None:
 
         events = [_parse_frame(f) for f in frames]
         events = [e for e in events if e is not None]
+
+        # Collect tool names from tool_call events (JSON tool responses).
         tool_calls = [
             e.get("data", {}).get("tool")
             for e in events
             if e.get("type") == STREAM_EVENT_TOOL_CALL
         ]
 
-        # Assert sandbox produced an artifact linked to the assistant message.
+        # Also collect tool names from reasoning events — more reliable because
+        # plain-text tool responses (execute_code, list_sandbox_files) may not
+        # always surface as tool_call events depending on the streaming pipeline.
+        reasoning_tool_calls = [
+            call.get("tool")
+            for e in events
+            if e.get("type") == STREAM_EVENT_REASONING
+            for call in (e.get("data", {}).get("tool_calls") or [])
+        ]
+
+        all_tools_called = set(t for t in tool_calls + reasoning_tool_calls if t)
+
+        # Assert sandbox produced an assistant message.
         assistant_msg = (
             Message.query.filter_by(chat_id=chat_id, role=MessageRole.ASSISTANT)
             .order_by(Message.created_at.desc())
@@ -375,45 +412,48 @@ def _run_live_integration(print_events: bool) -> None:
         )
         assert assistant_msg is not None, "Expected assistant message after stream"
 
-        pdf_artifacts = (
+        # Check XLSX artifacts — primary expected output.
+        xlsx_artifacts = (
             Artifact.query.filter_by(
                 chat_id=chat_id,
-                message_id=assistant_msg.id,
-                type=ArtifactType.PDF,
-            )
-            .order_by(Artifact.created_at.desc())
-            .all()
-        )
-        docx_artifacts = (
-            Artifact.query.filter_by(
-                chat_id=chat_id,
-                message_id=assistant_msg.id,
-                type=ArtifactType.DOCX,
-            )
-            .order_by(Artifact.created_at.desc())
-            .all()
-        )
-        pptx_artifacts = (
-            Artifact.query.filter_by(
-                chat_id=chat_id,
-                message_id=assistant_msg.id,
-                type=ArtifactType.PPTX,
+                type=ArtifactType.XLSX,
             )
             .order_by(Artifact.created_at.desc())
             .all()
         )
 
-        # In Daytona with deepagents, sandbox files are not automatically uploaded to S3.
-        # artifacts = pdf_artifacts + docx_artifacts + pptx_artifacts
-        # assert artifacts, "Expected at least one sandbox-generated PDF/DOCX/PPTX artifact"
-        # assert any(a.artifact_metadata for a in artifacts), "Expected artifact_metadata with S3 key"
+        all_artifacts = (
+            Artifact.query.filter_by(chat_id=chat_id)
+            .order_by(Artifact.created_at.desc())
+            .all()
+        )
 
-        # Helpful diagnostic: if execute_code didn't show up in stream tool_call events,
-        # the model might have generated via other tools.
-        if not any("execute" in t for t in tool_calls if t):
-            print(
-                "[warning] an execute tool call not observed in tool_call stream events "
-            )
+        print(f"[test] total artifacts={len(all_artifacts)}")
+        for a in all_artifacts:
+            print(f"[test]   artifact filename={a.filename} type={a.type} seq={a.seq}")
+
+        if not xlsx_artifacts:
+            print("[warning] No XLSX artifacts found — agent may not have produced Excel reports")
+        else:
+            print(f"[test] PASS: {len(xlsx_artifacts)} XLSX artifact(s) produced")
+
+        # Diagnostic: confirm key tools were called.
+        print(f"[test] tools called (all sources): {sorted(all_tools_called)}")
+
+        if not any("list_sandbox" in t for t in all_tools_called):
+            print("[warning] list_sandbox_files was not called — agent may not have discovered files")
+        else:
+            print("[test] PASS: list_sandbox_files was called")
+
+        if not any("execute" in t for t in all_tools_called):
+            print("[warning] execute_code was not called — agent did not use the sandbox")
+        else:
+            print("[test] PASS: execute_code was called")
+
+        if not any("upload" in t for t in all_tools_called):
+            print("[warning] upload_sandbox_file_to_chat was not called — no files were uploaded")
+        else:
+            print("[test] PASS: upload_sandbox_file_to_chat was called")
 
     # Best-effort cleanup of sqlite only (S3 artifacts kept for inspection).
     try:

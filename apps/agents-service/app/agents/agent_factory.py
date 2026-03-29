@@ -24,6 +24,7 @@ from app.models.chat import Artifact, ChatAttachment
 from app.services.s3_service import S3Service
 from app.tools.sandbox.daytona_tools import (
     get_execute_code_tool,
+    get_list_sandbox_files_tool,
     get_upload_sandbox_file_tool,
     install_sandbox_dependencies,
 )
@@ -38,6 +39,37 @@ SKILLS_DIR = Path(
 # TODO: MemorySaver is per-process. For production persistence across restarts,
 # a database-backed checkpointer should be used.
 global_checkpointer = MemorySaver()
+
+
+_SYNC_CHUNK_SIZE = 60_000  # base64 chars per chunk — safely below shell ARG_MAX
+
+
+def _write_bytes_to_sandbox(backend: DaytonaSandbox, content_bytes: bytes, dest_path: str):
+    """Write binary content into the sandbox at dest_path.
+
+    Uses a chunked Python-based approach so that files larger than ~45 KB
+    (where a single ``echo … | base64 -d`` would approach ARG_MAX limits)
+    are written reliably regardless of size.
+    """
+    b64_data = base64.b64encode(content_bytes).decode("utf-8")
+
+    if len(b64_data) <= _SYNC_CHUNK_SIZE:
+        # Small file: single command is fine
+        backend.execute(f"echo '{b64_data}' | base64 -d > {dest_path}")
+        return
+
+    # Large file: write in chunks via python3 to stay well under ARG_MAX
+    # First chunk — creates / truncates the destination file
+    first_chunk = b64_data[:_SYNC_CHUNK_SIZE]
+    backend.execute(
+        f"python3 -c \"import base64; open('{dest_path}', 'wb').write(base64.b64decode('{first_chunk}'))\""
+    )
+    # Remaining chunks — append
+    for offset in range(_SYNC_CHUNK_SIZE, len(b64_data), _SYNC_CHUNK_SIZE):
+        chunk = b64_data[offset : offset + _SYNC_CHUNK_SIZE]
+        backend.execute(
+            f"python3 -c \"import base64; open('{dest_path}', 'ab').write(base64.b64decode('{chunk}'))\""
+        )
 
 
 def sync_chat_artifacts_to_sandbox(chat_id: str, backend: DaytonaSandbox):
@@ -84,9 +116,9 @@ def sync_chat_artifacts_to_sandbox(chat_id: str, backend: DaytonaSandbox):
             try:
                 content_bytes = s3.get_file_content(s3_key)
                 if content_bytes:
-                    b64_data = base64.b64encode(content_bytes).decode("utf-8")
                     safe_filename = filename.replace(" ", "_")
-                    backend.execute(f"echo {b64_data} | base64 -d > ./{safe_filename}")
+                    _write_bytes_to_sandbox(backend, content_bytes, f"./{safe_filename}")
+                    logger.info(f"Restored {filename} ({len(content_bytes)} bytes) to sandbox")
             except Exception as e:
                 logger.warning(f"Failed to restore {filename} to sandbox: {e}")
 
@@ -238,6 +270,7 @@ def create_agent(
         # Register the upload and execute tools explicitly
         tools.append(get_upload_sandbox_file_tool(backend, chat_id))
         tools.append(get_execute_code_tool(backend))
+        tools.append(get_list_sandbox_files_tool(backend))
 
         # 4. Restore previous artifacts to the sandbox
         sync_chat_artifacts_to_sandbox(chat_id, backend)
