@@ -1,5 +1,10 @@
 from flask import Blueprint, jsonify, request
 
+from app.business_logic.api_keys import (
+    delete_user_api_key,
+    get_user_api_keys,
+    upsert_user_api_key,
+)
 from app.business_logic.users import (
     delete_user,
     get_user_profile,
@@ -80,6 +85,47 @@ def delete_account():
         user_id = request.user.id
         result = delete_user(user_id)
         return jsonify({"user": result})
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@bp.route("/me/api-keys", methods=["GET"])
+@auth_middleware
+def list_api_keys():
+    try:
+        user_id = request.user.id
+        keys = get_user_api_keys(user_id)
+        return jsonify(keys)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@bp.route("/me/api-keys/<provider>", methods=["PUT"])
+@auth_middleware
+def set_api_key(provider):
+    try:
+        user_id = request.user.id
+        data = request.get_json() or {}
+        api_key = data.get("api_key", "").strip()
+        if not api_key:
+            return jsonify({"error": "api_key is required"}), 400
+        result = upsert_user_api_key(user_id, provider, api_key)
+        return jsonify(result)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@bp.route("/me/api-keys/<provider>", methods=["DELETE"])
+@auth_middleware
+def remove_api_key(provider):
+    try:
+        user_id = request.user.id
+        delete_user_api_key(user_id, provider)
+        return jsonify({"success": True})
     except ValueError as e:
         return jsonify({"error": str(e)}), 404
     except Exception as e:

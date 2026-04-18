@@ -16,6 +16,7 @@ import { NotificationSettings } from '@/components/settings/notification-setting
 import { DangerZone } from '@/components/settings/danger-zone';
 import { McpSettings } from '@/components/settings/mcp-settings';
 import { SkillsSettings } from '@/components/settings/skills-settings';
+import { ApiKeysSettings } from '@/components/settings/api-keys-settings';
 
 const SettingsContent = () => {
   const [isDesktop] = useState(
@@ -30,6 +31,7 @@ const SettingsContent = () => {
         <TabsTrigger value="profile">Profile</TabsTrigger>
         <TabsTrigger value="password">Password</TabsTrigger>
         <TabsTrigger value="notifications">Notifications</TabsTrigger>
+        <TabsTrigger value="api-keys">API Keys</TabsTrigger>
         <TabsTrigger value="extensions">Extensions</TabsTrigger>
         <TabsTrigger value="danger">Danger Zone</TabsTrigger>
       </TabsList>
@@ -72,6 +74,21 @@ const SettingsContent = () => {
           </CardHeader>
           <CardContent>
             <NotificationSettings />
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      <TabsContent value="api-keys" className="space-y-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>API Keys</CardTitle>
+            <CardDescription>
+              Bring your own API keys for any supported provider. Your keys are
+              encrypted and take priority over server defaults.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ApiKeysSettings />
           </CardContent>
         </Card>
       </TabsContent>

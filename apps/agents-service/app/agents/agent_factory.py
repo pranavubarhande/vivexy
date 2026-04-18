@@ -327,11 +327,14 @@ def create_agent(
     user_id: Optional[str] = None,
     user_skills: Optional[List[Dict]] = None,
     mcp_tools: Optional[List[Dict]] = None,
+    user_api_keys: Optional[Dict[str, str]] = None,
 ):
     """
     Create the single unified LangGraph agent using deepagents.
     """
-    ag_config = AgentConfig.from_env(provider=provider, model=model_id)
+    ag_config = AgentConfig.from_env(
+        provider=provider, model=model_id, user_api_keys=user_api_keys
+    )
     user_skills = user_skills or []
     mcp_tools = mcp_tools or []
 
@@ -400,18 +403,35 @@ def create_agent(
     # 5. Agent Checkpointer
     checkpointer = global_checkpointer
 
-    if ag_config.api_key:
-        if ag_config.provider == "google":
-            os.environ["GOOGLE_API_KEY"] = ag_config.api_key
-        elif ag_config.provider == "openai":
-            os.environ["OPENAI_API_KEY"] = ag_config.api_key
+    _provider_env_map = {
+        "google": "GOOGLE_API_KEY",
+        "openai": "OPENAI_API_KEY",
+        "anthropic": "ANTHROPIC_API_KEY",
+        "groq": "GROQ_API_KEY",
+        "mistral": "MISTRAL_API_KEY",
+        "together": "TOGETHER_API_KEY",
+        "fireworks": "FIREWORKS_API_KEY",
+        "cohere": "COHERE_API_KEY",
+        "xai": "XAI_API_KEY",
+    }
+    if ag_config.api_key and ag_config.provider in _provider_env_map:
+        os.environ[_provider_env_map[ag_config.provider]] = ag_config.api_key
 
-    # Build complete model provider string required by deepagents (e.g. google_genai:gemini-2.5-flash)
-    provider_str = (
-        f"google_genai:{ag_config.model}"
-        if ag_config.provider == "google"
-        else f"openai:{ag_config.model}"
-    )
+    # LangChain init_chat_model provider identifiers — must use "provider:model" format
+    _provider_prefix = {
+        "google": "google_genai",
+        "openai": "openai",
+        "anthropic": "anthropic",
+        "groq": "groq",
+        "mistral": "mistralai",
+        "together": "together",
+        "fireworks": "fireworks",
+        "cohere": "cohere",
+        "xai": "xai",
+        "ollama": "ollama",
+    }
+    prefix = _provider_prefix.get(ag_config.provider, ag_config.provider)
+    provider_str = f"{prefix}:{ag_config.model}"
 
     # Generate system prompt
     final_prompt = UNIFIED_SYSTEM_PROMPT

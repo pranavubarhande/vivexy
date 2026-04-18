@@ -10,6 +10,11 @@ class LLMModelBase(BaseModel):
     model_id: str
     is_active: bool = True
     context_window: Optional[int] = None
+    max_output_tokens: Optional[int] = None
+    input_cost: Optional[float] = None
+    output_cost: Optional[float] = None
+    supports_vision: bool = False
+    supports_reasoning: bool = False
 
 
 class LLMModelResponse(LLMModelBase):
@@ -29,6 +34,11 @@ class LLMModelResponse(LLMModelBase):
             "modelId": data["model_id"],
             "isActive": data["is_active"],
             "contextWindow": data.get("context_window"),
+            "maxOutputTokens": data.get("max_output_tokens"),
+            "inputCost": data.get("input_cost"),
+            "outputCost": data.get("output_cost"),
+            "supportsVision": data.get("supports_vision", False),
+            "supportsReasoning": data.get("supports_reasoning", False),
             "createdAt": (
                 data["created_at"].isoformat() if data.get("created_at") else None
             ),

@@ -21,6 +21,19 @@ from app.types.agent_types import (
     ToolCall,
 )
 
+_PROVIDER_ENV_KEYS = {
+    "google": ["GOOGLE_AI_API_KEY", "GOOGLE_API_KEY"],
+    "openai": ["OPENAI_API_KEY"],
+    "anthropic": ["ANTHROPIC_API_KEY"],
+    "groq": ["GROQ_API_KEY"],
+    "mistral": ["MISTRAL_API_KEY"],
+    "together": ["TOGETHER_API_KEY"],
+    "fireworks": ["FIREWORKS_API_KEY"],
+    "cohere": ["COHERE_API_KEY"],
+    "xai": ["XAI_API_KEY"],
+    "ollama": [],
+}
+
 
 @dataclass
 class AgentConfig:
@@ -33,19 +46,23 @@ class AgentConfig:
     embedding_model: str = "all-MiniLM-L6-v2"
 
     @classmethod
-    def from_env(cls, provider: str = "google", model: str = "gemini-2.5-flash"):
-        if provider == "google":
-            api_key = os.getenv("GOOGLE_AI_API_KEY", "") or os.getenv(
-                "GOOGLE_API_KEY", ""
-            )
-        elif provider == "openai":
-            api_key = os.getenv("OPENAI_API_KEY", "")
-        elif provider == "anthropic":
-            api_key = os.getenv("ANTHROPIC_API_KEY", "")
-        elif provider == "groq":
-            api_key = os.getenv("GROQ_API_KEY", "")
-        else:
-            api_key = ""
+    def from_env(
+        cls,
+        provider: str = "google",
+        model: str = "gemini-2.5-flash",
+        user_api_keys: Optional[dict] = None,
+    ):
+        user_key = (user_api_keys or {}).get(provider, "")
+        if user_key:
+            return cls(api_key=user_key, model=model, provider=provider)
+
+        env_vars = _PROVIDER_ENV_KEYS.get(provider, [])
+        api_key = ""
+        for env_var in env_vars:
+            api_key = os.getenv(env_var, "")
+            if api_key:
+                break
+
         return cls(api_key=api_key, model=model, provider=provider)
 
 

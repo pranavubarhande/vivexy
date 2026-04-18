@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Dialog,
   DialogContent,
@@ -18,7 +19,12 @@ import {
   Cpu,
   ChevronDown,
   Check,
+  Search,
+  X,
   Zap,
+  Wind,
+  Flame,
+  Bot,
 } from 'lucide-react';
 
 interface ModelSelectorProps {
@@ -34,14 +40,70 @@ interface ModelSelectorProps {
   disabled?: boolean;
 }
 
-/** Map provider name → lucide icon */
-function ProviderIcon({ provider }: { provider: string }) {
-  const p = provider.toLowerCase();
-  if (p.includes('openai')) return <Sparkles size={13} className="shrink-0" />;
-  if (p.includes('anthropic')) return <Brain size={13} className="shrink-0" />;
-  if (p.includes('google') || p.includes('gemini'))
-    return <Gem size={13} className="shrink-0" />;
-  return <Cpu size={13} className="shrink-0" />;
+const PROVIDER_META: Record<
+  string,
+  { label: string; icon: React.ReactNode; color: string }
+> = {
+  openai: {
+    label: 'OpenAI',
+    icon: <Sparkles size={12} />,
+    color: 'text-emerald-500',
+  },
+  anthropic: {
+    label: 'Anthropic',
+    icon: <Brain size={12} />,
+    color: 'text-orange-400',
+  },
+  google: {
+    label: 'Google',
+    icon: <Gem size={12} />,
+    color: 'text-blue-400',
+  },
+  groq: {
+    label: 'Groq',
+    icon: <Zap size={12} />,
+    color: 'text-yellow-400',
+  },
+  mistral: {
+    label: 'Mistral',
+    icon: <Wind size={12} />,
+    color: 'text-violet-400',
+  },
+  together: {
+    label: 'Together AI',
+    icon: <Cpu size={12} />,
+    color: 'text-sky-400',
+  },
+  fireworks: {
+    label: 'Fireworks',
+    icon: <Flame size={12} />,
+    color: 'text-red-400',
+  },
+  cohere: {
+    label: 'Cohere',
+    icon: <Bot size={12} />,
+    color: 'text-teal-400',
+  },
+  xai: {
+    label: 'xAI',
+    icon: <Sparkles size={12} />,
+    color: 'text-slate-400',
+  },
+  ollama: {
+    label: 'Ollama',
+    icon: <Cpu size={12} />,
+    color: 'text-lime-700',
+  },
+};
+
+function getProviderMeta(provider: string) {
+  return (
+    PROVIDER_META[provider.toLowerCase()] ?? {
+      label: provider,
+      icon: <Cpu size={12} />,
+      color: 'text-muted-foreground',
+    }
+  );
 }
 
 function formatContext(ctx: number) {
@@ -58,8 +120,9 @@ export function ModelSelector({
   disabled,
 }: ModelSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const searchRef = useRef<HTMLInputElement>(null);
 
-  // Select first model by default
   useEffect(() => {
     if (!selectedModelId && models.length > 0) {
       const d = models[0];
@@ -67,101 +130,187 @@ export function ModelSelector({
     }
   }, [models, selectedModelId, onSelect]);
 
-  const selectedModel = models.find((m) => m.id === selectedModelId);
+  const handleOpenChange = (open: boolean) => {
+    setIsOpen(open);
+    if (open) {
+      setTimeout(() => {
+        setQuery('');
+        searchRef.current?.focus();
+      }, 0);
+    }
+  };
 
-  const groupedModels = models.reduce(
-    (acc, model) => {
-      if (!acc[model.provider]) acc[model.provider] = [];
-      acc[model.provider].push(model);
-      return acc;
-    },
-    {} as Record<string, LLMModel[]>
+  const selectedModel = models.find((m) => m.id === selectedModelId);
+  const selectedMeta = selectedModel
+    ? getProviderMeta(selectedModel.provider)
+    : null;
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return models;
+    return models.filter(
+      (m) =>
+        m.name.toLowerCase().includes(q) ||
+        m.provider.toLowerCase().includes(q) ||
+        m.modelId.toLowerCase().includes(q)
+    );
+  }, [models, query]);
+
+  const grouped = useMemo(
+    () =>
+      filtered.reduce(
+        (acc, model) => {
+          if (!acc[model.provider]) acc[model.provider] = [];
+          acc[model.provider].push(model);
+          return acc;
+        },
+        {} as Record<string, LLMModel[]>
+      ),
+    [filtered]
   );
 
+  const handleSelect = (model: LLMModel) => {
+    onSelect(model.id, model.provider, model.modelId, model.name);
+    setIsOpen(false);
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button
           variant="ghost"
           size="sm"
           disabled={disabled}
-          className="h-7 gap-1.5 px-2.5 text-[12px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted max-w-[180px]"
+          className="h-7 gap-1.5 px-2.5 text-[12px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted max-w-[200px]"
         >
-          {selectedModel ? (
-            <ProviderIcon provider={selectedModel.provider} />
+          {selectedMeta ? (
+            <span className={selectedMeta.color}>{selectedMeta.icon}</span>
           ) : (
             <Cpu size={13} />
           )}
           <span className="truncate">
-            {selectedModel ? selectedModel.name : 'Select Model'}
+            {selectedModel?.name ?? 'Select Model'}
           </span>
-          <ChevronDown size={12} className="opacity-50 shrink-0" />
+          <ChevronDown size={12} className="opacity-40 shrink-0" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-[90vw] sm:max-w-[440px]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Zap size={16} className="text-primary" />
+
+      <DialogContent className="max-w-[90vw] sm:max-w-[480px] p-0 gap-0 overflow-hidden">
+        <DialogHeader className="px-4 pt-4 pb-3 border-b border-border/50">
+          <DialogTitle className="text-sm font-semibold">
             Select Model
           </DialogTitle>
         </DialogHeader>
-        <div className="space-y-4 py-2 max-h-[60vh] overflow-y-auto no-scrollbar">
+
+        {/* Search */}
+        <div className="px-3 py-2.5 border-b border-border/50">
+          <div className="relative">
+            <Search
+              size={14}
+              className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+            />
+            <Input
+              ref={searchRef}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search models or providers…"
+              className="pl-8 pr-8 h-8 text-[13px] bg-muted/40 border-transparent focus-visible:border-primary/30 focus-visible:bg-background"
+            />
+            {query && (
+              <button
+                onClick={() => setQuery('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <X size={13} />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Model list */}
+        <div className="overflow-y-auto max-h-[55vh] py-2 px-2 no-scrollbar">
           {isLoading ? (
-            <div className="flex justify-center py-8">
-              <div className="animate-spin rounded-full h-7 w-7 border-b-2 border-primary" />
+            <div className="flex justify-center py-10">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
             </div>
+          ) : Object.keys(grouped).length === 0 ? (
+            <p className="text-center text-sm text-muted-foreground py-10">
+              No models match &ldquo;{query}&rdquo;
+            </p>
           ) : (
-            Object.entries(groupedModels).map(([provider, providerModels]) => (
-              <div key={provider}>
-                <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground mb-2 px-1 capitalize">
-                  <ProviderIcon provider={provider} />
-                  {provider}
-                </div>
-                <div className="grid gap-1.5">
-                  {providerModels.map((model) => {
-                    const isSelected = selectedModelId === model.id;
-                    return (
-                      <button
-                        key={model.id}
-                        onClick={() => {
-                          onSelect(
-                            model.id,
-                            model.provider,
-                            model.modelId,
-                            model.name
-                          );
-                          setIsOpen(false);
-                        }}
-                        className={cn(
-                          'flex items-center justify-between p-3 rounded-xl border text-sm transition-all text-left',
-                          isSelected
-                            ? 'border-primary/40 bg-primary/8 ring-1 ring-primary/20'
-                            : 'border-border/60 hover:border-primary/20 hover:bg-muted/60'
-                        )}
-                      >
-                        <div className="flex items-center gap-2">
-                          {isSelected && (
-                            <Check
-                              size={13}
-                              className="text-primary shrink-0"
-                            />
+            Object.entries(grouped).map(([provider, providerModels]) => {
+              const meta = getProviderMeta(provider);
+              return (
+                <div key={provider} className="mb-3 last:mb-0">
+                  {/* Provider header */}
+                  <div
+                    className={cn(
+                      'flex items-center gap-1.5 px-2 mb-1 text-[11px] font-semibold uppercase tracking-wider',
+                      meta.color
+                    )}
+                  >
+                    {meta.icon}
+                    {meta.label}
+                    <span className="ml-auto font-normal text-muted-foreground normal-case tracking-normal">
+                      {providerModels.length}
+                    </span>
+                  </div>
+
+                  {/* Models */}
+                  <div className="grid gap-0.5">
+                    {providerModels.map((model) => {
+                      const isSelected = selectedModelId === model.id;
+                      return (
+                        <button
+                          key={model.id}
+                          onClick={() => handleSelect(model)}
+                          className={cn(
+                            'flex items-center justify-between px-2.5 py-2 rounded-lg text-left transition-colors',
+                            isSelected
+                              ? 'bg-primary/10 text-foreground'
+                              : 'hover:bg-muted/70 text-foreground/80 hover:text-foreground'
                           )}
-                          {!isSelected && (
-                            <div className="w-3.5 h-3.5 shrink-0" />
-                          )}
-                          <span className="font-medium text-[13px]">
-                            {model.name}
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div
+                              className={cn(
+                                'w-3.5 h-3.5 shrink-0 flex items-center justify-center rounded-full',
+                                isSelected
+                                  ? 'bg-primary text-primary-foreground'
+                                  : ''
+                              )}
+                            >
+                              {isSelected && <Check size={9} strokeWidth={3} />}
+                            </div>
+                            <span className="text-[13px] font-medium truncate">
+                              {model.name}
+                            </span>
+                          </div>
+                          <span className="text-[11px] text-muted-foreground shrink-0 ml-2 tabular-nums">
+                            {formatContext(model.contextWindow)}
                           </span>
-                        </div>
-                        <span className="text-[11px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-                          {formatContext(model.contextWindow)} context
-                        </span>
-                      </button>
-                    );
-                  })}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            ))
+              );
+            })
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-4 py-2 border-t border-border/50 flex items-center justify-between">
+          <span className="text-[11px] text-muted-foreground">
+            {filtered.length} of {models.length} models
+          </span>
+          {selectedModel && (
+            <span className="text-[11px] text-muted-foreground">
+              Selected:{' '}
+              <span className="text-foreground font-medium">
+                {selectedModel.name}
+              </span>
+            </span>
           )}
         </div>
       </DialogContent>
