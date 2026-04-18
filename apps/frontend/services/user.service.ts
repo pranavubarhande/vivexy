@@ -1,7 +1,13 @@
 import axiosInstance from '@/services/axiosInstance.service';
 import { AuthUser } from '@/types/user';
 
-// User settings API calls
+export interface UserApiKey {
+  provider: string;
+  hasKey: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export const userService = {
   // Get user settings
   getUserSettings: async (): Promise<AuthUser> => {
@@ -38,5 +44,24 @@ export const userService = {
   // Delete account
   deleteAccount: async (): Promise<void> => {
     await axiosInstance.delete('/users/me');
+  },
+
+  // BYOK API key management
+  getApiKeys: async (): Promise<UserApiKey[]> => {
+    const response =
+      await axiosInstance.get<UserApiKey[]>('/users/me/api-keys');
+    return response.data;
+  },
+
+  setApiKey: async (provider: string, apiKey: string): Promise<UserApiKey> => {
+    const response = await axiosInstance.put<UserApiKey>(
+      `/users/me/api-keys/${provider}`,
+      { apiKey }
+    );
+    return response.data;
+  },
+
+  deleteApiKey: async (provider: string): Promise<void> => {
+    await axiosInstance.delete(`/users/me/api-keys/${provider}`);
   },
 };

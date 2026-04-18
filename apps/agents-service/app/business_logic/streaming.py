@@ -16,6 +16,7 @@ from app.agents.agent_factory import create_agent
 from app.agents.approval_store import create_approval_event, wait_for_approval
 from app.agents.client_tool_store import create_client_tool_event, wait_for_client_tool
 from app.agents.config import FileContext
+from app.business_logic.api_keys import get_decrypted_api_keys
 from app.business_logic.artifacts import link_artifacts_to_message
 from app.business_logic.chat import create_message
 from app.constants.stream_events import (
@@ -60,6 +61,12 @@ def run_agent_stream(
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
 
+        user_api_keys = {}
+        try:
+            user_api_keys = get_decrypted_api_keys(user_id) if user_id else {}
+        except Exception:
+            pass
+
         agent = create_agent(
             agent_id="assistant",
             provider=model_provider,
@@ -70,6 +77,7 @@ def run_agent_stream(
             user_id=user_id,
             user_skills=user_skills or [],
             mcp_tools=mcp_tools or [],
+            user_api_keys=user_api_keys,
         )
 
         full_content = ""
@@ -236,10 +244,32 @@ def run_agent_stream(
 
     except Exception as e:
         logger.exception("Streaming error")
-        yield _sse({"type": STREAM_EVENT_ERROR, "data": {"message": str(e)}})
+        yield _sse(
+            {"type": STREAM_EVENT_ERROR, "data": {"message": _friendly_error(e)}}
+        )
     finally:
         yield "data: [DONE]\n\n"
         app_context.pop()
+
+
+def _friendly_error(exc: Exception) -> str:
+    raw = str(exc)
+    if "does not support tools" in raw:
+        model = raw.split("/")[-1].split(" ")[0] if "/" in raw else "This model"
+        return f"Model '{model}' does not support tool calling. Please choose a model that supports tools (e.g. llama3.1:8b, mistral:7b)."
+    if "model" in raw.lower() and "not found" in raw.lower():
+        return f"Model not found in Ollama. Run `ollama pull <model>` to download it first. ({raw})"
+    if (
+        "api key" in raw.lower()
+        or "authentication" in raw.lower()
+        or "unauthorized" in raw.lower()
+    ):
+        return "Invalid or missing API key for this provider. Check your key in Settings → API Keys."
+    if "rate limit" in raw.lower() or "429" in raw:
+        return "Rate limit exceeded for this model. Please wait a moment and try again."
+    if "context length" in raw.lower() or "maximum context" in raw.lower():
+        return "The conversation is too long for this model's context window. Start a new chat."
+    return raw
 
 
 def _get_history_context(

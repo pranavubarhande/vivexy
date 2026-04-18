@@ -398,8 +398,16 @@ export const handleStreamEvent = (
       break;
     }
 
-    case STREAM_EVENT_ERROR:
-      console.error('Stream error event:', event.data);
+    case STREAM_EVENT_ERROR: {
+      const errorMessage =
+        (event.data as { message?: string })?.message ||
+        'An unexpected error occurred.';
+      console.error('Stream error event:', errorMessage);
+      updateStreaming({
+        content: `**Error:** ${errorMessage}`,
+        isStreaming: false,
+      });
       break;
+    }
   }
 };

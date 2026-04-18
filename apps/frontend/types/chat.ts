@@ -93,6 +93,11 @@ export interface LLMModel {
   provider: string;
   modelId: string;
   contextWindow: number;
+  maxOutputTokens: number | null;
+  inputCost: number | null;
+  outputCost: number | null;
+  supportsVision: boolean;
+  supportsReasoning: boolean;
 }
 
 export interface UserSkill {
