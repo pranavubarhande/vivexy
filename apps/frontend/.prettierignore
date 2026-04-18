@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+
+# Generated files
+.next/
+dist/
+build/
+
+# Environment files
+.env*
+
+# Logs
+*.log
+
+# Database
+*.db
+*.sqlite
+
+# Package manager files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Generated types (if any)
+*.d.ts

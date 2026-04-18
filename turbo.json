@@ -1,0 +1,36 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "globalDependencies": ["**/.env.*local"],
+  "ui": "tui",
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": [".next/**", "!.next/cache/**", "dist/**"]
+    },
+    "dev": {
+      "dependsOn": ["install"],
+      "cache": false,
+      "persistent": true
+    },
+    "install": {
+      "cache": false
+    },
+    "start": {
+      "dependsOn": ["build"],
+      "cache": false,
+      "persistent": true
+    },
+    "lint": {},
+    "format": {},
+    "format:check": {},
+    "seed-stocks": {},
+    "test-stock-agent": {},
+    "clean": {
+      "cache": false
+    },
+    "test": {
+      "dependsOn": ["^test"],
+      "cache": false
+    }
+  }
+}

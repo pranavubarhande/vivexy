@@ -1,0 +1,12 @@
+{
+  "name": "agents-service",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "uv run python app.py",
+    "install": "uv sync",
+    "format": "uv run --extra dev black . && uv run --extra dev isort .",
+    "lint": "uv run --extra dev flake8 .",
+    "test": "uv run --extra dev pytest"
+  }
+}

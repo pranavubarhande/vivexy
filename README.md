@@ -1,344 +1,273 @@
-# 🚀 SaaS Template - Next.js + Prisma + Tailwind + shadcn/ui
+# Portfolio Helper Monorepo
 
-A modern, full-stack SaaS (Software as a Service) template built with Next.js 16, Prisma, PostgreSQL, Tailwind CSS, and shadcn/ui components. This template includes authentication, team management, subscription billing with Stripe, and a beautiful, responsive dashboard.
+A scalable SaaS application for AI agentic workflows, built as a polyglot monorepo.
 
-![Next.js](https://img.shields.io/badge/Next.js-16.0.0-black) ![Prisma](https://img.shields.io/badge/Prisma-6.18.0-blue) ![Tailwind](https://img.shields.io/badge/Tailwind-4.0-blue) ![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue) ![Stripe](https://img.shields.io/badge/Stripe-19.1.0-purple)
+## Architecture
 
-## ✨ Features
+This monorepo contains:
 
-### 🔐 Authentication & Authorization
+- **Frontend**: Next.js application (apps/frontend)
+- **Backend Services**: Flask-based AI agents service (apps/agents-service)
+- **Shared Packages**: Common TypeScript/Python utilities (packages/)
+- **Infrastructure**: Docker, deployment configs (infra/)
 
-- **JWT-based authentication** with secure token management
-- **Role-based access control** (User, Admin, Super Admin)
-- **Password hashing** with bcrypt
-- **Session management** with NextAuth.js
+## Tech Stack
 
-### 👥 Team Management
+- **Frontend**: Next.js 16, TypeScript, Tailwind CSS
+- **Backend**: Flask (Python), LangChain, PostgreSQL
+- **Database**: PostgreSQL with SQLAlchemy + Alembic migrations
+- **AI**: OpenAI, Anthropic, Google AI, Groq via LangChain
+- **Deployment**: Docker, Kubernetes
+- **Monorepo**: Turborepo (Node.js), uv (Python)
 
-- **Multi-team support** with role-based permissions (Owner, Admin, Member)
-- **Team invitations** via email with token-based verification
-- **Member management** with role assignment
-- **Team creation and deletion** with proper access controls
+## Quick Start
 
-### 💳 Subscription & Billing
+### Prerequisites
 
-- **Stripe integration** for payment processing
-- **Multiple subscription plans** (Free, Pro, Enterprise)
-- **Invoice management** with PDF generation
-- **Webhook handling** for payment events
-- **Subscription lifecycle management**
+- Node.js 20+
+- Python 3.11+ (preferably from python.org or Homebrew, not system Python)
+- Docker & Docker Compose
+- UV (for Python dependency management)
 
-### 🎨 Modern UI/UX
+#### Installing uv
 
-- **shadcn/ui components** for consistent design
-- **Tailwind CSS** for styling with custom theme
-- **Dark/Light mode** support with next-themes
-- **Responsive design** for all screen sizes
-- **Beautiful dashboard** with charts and analytics
+**macOS (Recommended):**
 
-### 🛠️ Developer Experience
-
-- **TypeScript** for type safety
-- **ESLint & Prettier** for code quality
-- **React Query** for data fetching and caching
-- **React Hook Form** with Zod validation
-- **Hot reload** in development
-
-## 📋 Prerequisites
-
-Before you begin, ensure you have the following installed:
-
-- **Node.js** 18.0 or later
-- **npm** or **yarn** or **pnpm** or **bun**
-- **PostgreSQL** 12.0 or later
-- **Git** for version control
-
-## 🚀 Installation
-
-1. **Clone the repository**
-
-   ```bash
-   git clone https://github.com/your-username/saas-template-nextjs-prisma-tailwind-shadcn.git
-   cd saas-template-nextjs-prisma-tailwind-shadcn
-   ```
-
-2. **Install dependencies**
-
-   ```bash
-   npm install
-   # or
-   yarn install
-   # or
-   pnpm install
-   # or
-   bun install
-   ```
-
-3. **Set up environment variables**
-
-   Copy the example environment file and configure it:
-
-   ```bash
-   cp .env.example .env
-   ```
-
-   Update the `.env` file with your configuration:
-
-   ```env
-   # Database
-   DATABASE_URL="postgresql://username:password@localhost:5432/saas_template?schema=public"
-
-   # Next.js
-   NEXT_PUBLIC_APP_URL="http://localhost:3000"
-   NEXTAUTH_URL="http://localhost:3000"
-   NEXTAUTH_SECRET="your-nextauth-secret-key"
-
-   # JWT Authentication
-   JWT_SECRET="your-super-secret-jwt-key-change-in-production"
-   JWT_EXPIRES_IN="7d"
-
-   # Stripe Configuration
-   STRIPE_SECRET_KEY="sk_test_your_stripe_secret_key"
-   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY="pk_test_your_stripe_publishable_key"
-   STRIPE_WEBHOOK_SECRET="whsec_your_webhook_secret"
-
-   # Email Configuration (optional)
-   SMTP_HOST=""
-   SMTP_PORT=""
-   SMTP_USER=""
-   SMTP_PASS=""
-
-   # Development
-   NODE_ENV="development"
-   ```
-
-4. **Set up the database**
-
-   Make sure PostgreSQL is running, then run:
-
-   ```bash
-   npx prisma generate
-   npx prisma db push
-   ```
-
-   This will create the database tables based on your Prisma schema.
-
-5. **Seed the database (optional)**
-
-   If you want sample data, you can create a seed script in `prisma/seed.ts` and run:
-
-   ```bash
-   npx prisma db seed
-   ```
-
-## 🏃‍♂️ Development
-
-1. **Start the development server**
-
-   ```bash
-   npm run dev
-   # or
-   yarn dev
-   # or
-   pnpm dev
-   # or
-   bun dev
-   ```
-
-2. **Open your browser**
-
-   Navigate to [http://localhost:3000](http://localhost:3000) to see the application.
-
-3. **Additional development commands**
-
-   ```bash
-   # Build for production
-   npm run build
-
-   # Start production server
-   npm run start
-
-   # Lint code
-   npm run lint
-
-   # Format code
-   npm run format
-
-   # Check formatting
-   npm run format:check
-   ```
-
-## 📁 Project Structure
-
-```markdown
-├── app/ # Next.js App Router
-│ ├── (auth)/ # Authentication pages
-│ ├── (dashboard)/ # Protected dashboard pages
-│ ├── api/ # API routes
-│ └── globals.css # Global styles
-├── components/ # React components
-│ ├── ui/ # shadcn/ui components
-│ ├── auth/ # Authentication components
-│ ├── dashboard/ # Dashboard components
-│ └── shared/ # Shared components
-├── hooks/ # Custom React hooks
-├── lib/ # Utility libraries
-│ ├── middleware.ts # Next.js middleware
-│ ├── prisma.ts # Prisma client
-│ └── utils.ts # Helper functions
-├── services/ # API service functions
-├── types/ # TypeScript type definitions
-└── prisma/ # Database schema and migrations
-└── schema.prisma # Prisma schema
+```bash
+# Using Homebrew
+brew install uv
 ```
 
-## 🔧 Configuration
+### Local Development
 
-### Database Configuration
-
-The project uses Prisma with PostgreSQL. Update the `DATABASE_URL` in your `.env` file to match your database setup.
-
-### Authentication Configuration
-
-- **JWT_SECRET**: Generate a secure random string for JWT signing
-- **NEXTAUTH_SECRET**: Generate a secure random string for NextAuth
-
-### Stripe Configuration
-
-Follow these steps to enable pricing and billing with Stripe. You can use either Payment Links or Price IDs. If a plan has a Payment Link configured, the app opens it directly; otherwise it falls back to creating a Checkout Session with the Price ID.
-
-1. Create a [Stripe account](https://stripe.com) and switch to Test Mode.
-2. In Stripe Dashboard, get your API keys and set envs:
-
-   ```env
-   STRIPE_SECRET_KEY="sk_test_..."
-   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY="pk_test_..."
-   STRIPE_WEBHOOK_SECRET="whsec_..."  # filled after step 6
-
-   # Optional: plan display prices shown in UI
-   NEXT_PUBLIC_PRO_PRICE_USD="29"
-   NEXT_PUBLIC_ENTERPRISE_PRICE_USD="99"
-
-   # EITHER: use Payment Links (copy from Stripe Dashboard)
-   NEXT_PUBLIC_STRIPE_PAYMENT_LINK_PRO="https://buy.stripe.com/test_..."
-   NEXT_PUBLIC_STRIPE_PAYMENT_LINK_ENTERPRISE="https://buy.stripe.com/test_..."
-
-   # OR: use recurring Price IDs (Products → Prices)
-   NEXT_PUBLIC_STRIPE_PRICE_ID_PRO="price_..."
-   NEXT_PUBLIC_STRIPE_PRICE_ID_ENTERPRISE="price_..."
-   ```
-
-3. If using Price IDs, ensure each Product Price is set to "recurring" (monthly) to create subscriptions.
-4. Ensure `NEXT_PUBLIC_APP_URL` is set (e.g., `http://localhost:3000`).
-5. Start the app and open the Billing page. Choosing a plan will either open a Payment Link or create a Checkout Session.
-6. Set up webhooks (required for invoices and subscription updates):
+1. **Clone and setup**:
 
    ```bash
-   # Install Stripe CLI and run:
-   stripe listen --forward-to localhost:3000/api/stripe/webhook
+   git clone https://github.com/pranavubarhande/portfolio-helper-fe.git
+   cd portfolio-helper-fe
    ```
 
-   Copy the `Signing secret` from the CLI output and set it as `STRIPE_WEBHOOK_SECRET` in `.env`.
+2. **Install dependencies**:
 
-7. Test the flow using Stripe test cards (e.g., `4242 4242 4242 4242`).
+   ```bash
+   # Install all dependencies (root + all apps)
+   npm run install:all
 
-#### How the app uses your Stripe config
+   # Or install individually:
+   npm install                    # Root Turborepo
+   npm run install:frontend       # Frontend Node.js deps
+   npm run install:agents         # Agents Python deps
+   ```
 
-- UI plan config: `config/billing.ts` reads the envs above to display plans and determine Payment Link vs Checkout.
-- Checkout (Price IDs): `POST /api/stripe/checkout` creates a Checkout Session and redirects to Stripe.
-- Webhooks: `POST /api/stripe/webhook` verifies signature, logs the full event, and updates `subscriptions` and `invoices`.
-- Logs: Stripe events are persisted to the database table `stripe_event_logs`.
+3. **Environment setup**:
 
-If an invoice cannot be mapped to a user by email, you can optionally set `STRIPE_FALLBACK_USER_ID` in `.env` to attribute records.
+   ```bash
+   # Copy environment files
+   cp .env.example .env
+   cp apps/frontend/.env.example apps/frontend/.env.local
+   cp apps/agents-service/.env.example apps/agents-service/.env
+   ```
 
-### Email Configuration (Optional)
+4. **Database setup**:
 
-Configure SMTP settings in `.env` if you want to send invitation emails and hook it to auth flow. Currently its not being used:
+   ```bash
+   # Run Alembic migrations
+   cd apps/agents-service
+   uv run alembic upgrade head
 
-- **SMTP_HOST**: Your SMTP server hostname
-- **SMTP_PORT**: SMTP server port (usually 587)
-- **SMTP_USER**: SMTP username
-- **SMTP_PASS**: SMTP password
+   # Seed LLM models
+   uv run python scripts/seed_llm_models.py
+   cd ../..
 
-## 🌟 Key Features Explained
+   # Seed stock data
+   npm run seed-stocks
+   ```
 
-### Authentication Flow
+5. **Start services**:
 
-1. Users register/login through the auth pages
-2. JWT tokens are generated and stored in cookies
-3. Protected routes check for valid authentication
-4. Role-based permissions control access to features
+   ```bash
+   # Using Docker Compose (recommended for full isolation)
+   cd infra
+   docker-compose up -d
 
-### Team Management
+   # Or run locally (requires UV for Python)
+   npm run dev  # Starts all services via Turborepo (Next.js + Flask)
+   ```
 
-1. Users can create and own multiple teams
-2. Team owners can invite members via email
-3. Role-based permissions (Owner, Admin, Member)
-4. Members can be assigned different roles with appropriate permissions
+6. **Access the application**:
+   - Frontend: http://localhost:3000
+   - Agents API: http://localhost:5000
 
-### Subscription Management
+### Development Commands
 
-1. Multiple subscription plans with different features
-2. Stripe integration for secure payment processing
-3. Invoice generation and management
-4. Webhook handling for subscription events
+```bash
+# Install all dependencies
+npm run install:all
 
-## 🚀 Deployment
+# Run all services (interleaved output with prefixes)
+npm run dev
 
-### Vercel (Recommended)
+# Run individual services (separate terminals for cleaner output)
+npm run dev:frontend   # Only Next.js frontend (port 3000)
+npm run dev:agents     # Only Flask agents service (port 5000)
 
-1. Push your code to GitHub
-2. Connect your repository to [Vercel](https://vercel.com)
-3. Add environment variables in Vercel dashboard
-4. Deploy automatically on every push
+# Build all
+npm run build
 
-### Other Platforms
+# Testing
+npm run test           # Run frontend tests
+# For backend tests, navigate to apps/agents-service and run: uv run pytest
 
-This project can be deployed on any platform that supports Node.js:
+# Lint and format
+npm run lint
+npm run format
 
-- **Railway**
-- **Render**
-- **DigitalOcean App Platform**
-- **AWS**
-- **Google Cloud**
+# Code Quality
+npm run format        # Format code across all apps
+npm run format:check  # Check formatting
+npm run lint          # Run linting
+```
 
-### Environment Variables for Production
+### Python Service Development
 
-Make sure to update these environment variables for production:
+```bash
+cd apps/agents-service
 
-- Set `NODE_ENV=production`
-- Use production database URL
-- Use production Stripe keys
-- Generate new JWT and NextAuth secrets
-- Set proper `NEXT_PUBLIC_APP_URL`
+# Activate virtual environment
+uv venv && source .venv/bin/activate
 
-## 🤝 Contributing
+# Run the service
+uv run python app.py
 
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Commit your changes: `git commit -m 'Add amazing feature'`
-4. Push to the branch: `git push origin feature/amazing-feature`
-5. Open a Pull Request
+# Run tests
+uv run pytest
+```
 
-### Development Guidelines
+### Alembic Migrations
 
-- Follow the existing code style and conventions
-- Write tests for new features
-- Update documentation as needed
-- Use conventional commits
+The database schema is managed entirely via Alembic in `apps/agents-service`.
 
-## 📝 License
+```bash
+cd apps/agents-service
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+# Apply all pending migrations
+uv run alembic upgrade head
 
-## 🆘 Support
+# Auto-generate a new migration after changing models
+uv run alembic revision --autogenerate -m "description_of_change"
 
-If you need help or have questions:
+# Check current migration version
+uv run alembic current
 
-1. Check the [Issues](https://github.com/pranavubarhande/saas-template-nextjs-prisma-tailwind-shadcn/issues) page
-2. Create a new issue with detailed information
-3. Join our Discord community (if available)
+# View migration history
+uv run alembic history
+```
 
----
+## Project Structure
 
-**Happy coding!** 🎉
+```
+portfolio-helper-fe/
+├── apps/                         # Applications
+│   ├── frontend/                 # Next.js UI
+│   │   ├── components/           # React components
+│   │   ├── services/             # API service clients
+│   │   └── scripts/              # Utility scripts
+│   └── agents-service/           # Flask AI service
+│       ├── app/                  # Flask application
+│       │   ├── agents/           # AI agent implementations
+│       │   ├── business_logic/   # Business logic layer
+│       │   ├── models/           # SQLAlchemy models
+│       │   ├── routes/           # API routes
+│       │   ├── schemas/          # Pydantic schemas
+│       │   ├── services/         # External services
+│       │   ├── tools/            # LangChain tools
+│       │   └── utils/            # Utilities
+│       ├── alembic/              # Database migrations
+│       │   └── versions/         # Migration scripts
+│       └── scripts/              # Seed scripts (seed_llm_models.py)
+├── packages/                     # Shared packages
+│   └── shared-types/             # TypeScript types
+├── infra/                        # Infrastructure
+│   └── docker-compose.yml
+├── .gitignore
+├── package.json                  # Root monorepo config
+├── turbo.json                    # Turborepo config
+└── README.md
+```
+
+## Environment Variables
+
+### Root .env
+
+```
+DATABASE_URL=postgresql://user:password@localhost:5432/portfolio_helper
+```
+
+### Frontend .env.local
+
+```
+NEXT_PUBLIC_API_URL=http://localhost:5000
+DATABASE_URL=postgresql://user:password@localhost:5432/portfolio_helper
+```
+
+### Agents Service .env
+
+```
+DATABASE_URL=postgresql://user:password@localhost:5432/portfolio_helper
+OPENAI_API_KEY=your_key
+ANTHROPIC_API_KEY=your_key
+GOOGLE_AI_API_KEY=your_key
+GROQ_API_KEY=your_key
+REDIS_URL=redis://localhost:6379
+```
+
+## Deployment
+
+### Docker
+
+```bash
+# Build and run
+cd infra
+docker-compose up --build
+```
+
+### Production
+
+1. Set production environment variables
+2. Use Kubernetes manifests in `infra/k8s/`
+3. Configure load balancer and secrets
+
+## Code Quality & Formatting
+
+This monorepo uses automated code formatting and pre-commit hooks to maintain consistent code quality.
+
+### Pre-commit Hooks
+
+Pre-commit hooks are automatically set up with Husky and run on every commit:
+
+- **JavaScript/TypeScript**: Prettier formatting
+- **Python**: Black (code formatting) and isort (import sorting)
+
+### Manual Formatting
+
+```bash
+# Format all code
+npm run format
+
+# Check formatting without changes
+npm run format:check
+
+# Run linting
+npm run lint
+```
+
+### Python Formatting
+
+For Python code in `apps/agents-service/`:
+
+```bash
+cd apps/agents-service
+uv run black .        # Format Python code
+uv run isort .        # Sort imports
+uv run flake8 .       # Lint Python code
+```
