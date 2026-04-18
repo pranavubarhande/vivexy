@@ -26,6 +26,7 @@ from app.schemas.chat import (
 )
 from app.schemas.job import JobBase, JobCreate, JobResponse
 from app.schemas.llm import LLMModelBase, LLMModelResponse
+from app.schemas.skill import UserSkillCreate, UserSkillResponse, UserSkillUpdate
 from app.schemas.stock import StockBase, StockResponse
 from app.schemas.stream import ApprovalRequest, StreamEvent, ToolCallEvent
 from app.schemas.team import (

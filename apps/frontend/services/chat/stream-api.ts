@@ -1,6 +1,38 @@
 import { camelToSnake } from '@/lib/caseConverters';
 import { platform } from '@/lib/platform';
-import { StreamMessageParams, SSEEvent } from '@/types/chat';
+import {
+  StreamMessageParams,
+  SSEEvent,
+  UserSkill,
+  McpToolSpec,
+} from '@/types/chat';
+
+/** Load enabled user skills and available MCP tools from the Electron bridge */
+async function loadDesktopExtensions(): Promise<{
+  userSkills: UserSkill[];
+  mcpTools: McpToolSpec[];
+}> {
+  const api = typeof window !== 'undefined' ? window.electronAPI : undefined;
+  if (!api) return { userSkills: [], mcpTools: [] };
+
+  const [skillList, mcpToolList] = await Promise.all([
+    api.getSkills().catch(() => []),
+    api.getMcpTools().catch(() => []),
+  ]);
+
+  const userSkills: UserSkill[] = skillList
+    .filter((s) => s.enabled)
+    .map((s) => ({
+      name: s.name,
+      description: s.description,
+      content: s.content,
+      ...(s.files && Object.keys(s.files).length > 0 ? { files: s.files } : {}),
+    }));
+
+  const mcpTools: McpToolSpec[] = mcpToolList as McpToolSpec[];
+
+  return { userSkills, mcpTools };
+}
 
 export const streamApi = {
   async *streamMessage(
@@ -18,6 +50,12 @@ export const streamApi = {
       if (platform.isDesktop) {
         authHeader['X-Client-Tools'] = 'true';
       }
+    }
+
+    // On desktop, attach user skills and live MCP tool definitions
+    if (platform.isDesktop && !params.userSkills && !params.mcpTools) {
+      const { userSkills, mcpTools } = await loadDesktopExtensions();
+      params = { ...params, userSkills, mcpTools };
     }
 
     const { files, ...jsonParams } = params;

@@ -8,6 +8,45 @@
  * instead of checking window.electronAPI directly.
  */
 
+export type SkillPlatform = 'desktop' | 'web' | 'both';
+export type McpTransport = 'stdio' | 'http';
+
+export interface McpServerConfig {
+  command: string;
+  args?: string[];
+  env?: Record<string, string>;
+  /** For HTTP/SSE MCP servers — used instead of command/args */
+  url?: string;
+  transport: McpTransport;
+  enabled: boolean;
+  description?: string;
+}
+
+/**
+ * A skill is stored as a folder on disk: ~/.portfolio-helper-skills/{name}/
+ *   SKILL.md  — main entry file (instructions + frontmatter)
+ *   *.md      — optional supporting reference files
+ */
+export interface SkillConfig {
+  id: string;
+  name: string;
+  description: string;
+  /** Content of SKILL.md — the main instruction file */
+  content: string;
+  /** Additional files in the skill folder: { filename → content } */
+  files?: Record<string, string>;
+  enabled: boolean;
+  /**
+   * Where this skill is available:
+   *   desktop — local disk only, never synced to backend
+   *   web     — backend DB only, no local copy
+   *   both    — synced to backend and cached locally (default)
+   */
+  platform: SkillPlatform;
+  /** Absolute path to the skill folder on disk (desktop only) */
+  folderPath?: string;
+}
+
 interface ElectronAPI {
   /** Execute a tool in the Electron main process via IPC */
   executeTool: (
@@ -47,6 +86,60 @@ interface ElectronAPI {
 
   /** List files in the workspace root */
   listWorkspaceFiles: () => Promise<string>;
+
+  /** Get all MCP server configurations */
+  getMcpConfig: () => Promise<Record<string, McpServerConfig>>;
+
+  /** Save MCP server configurations */
+  saveMcpConfig: (servers: Record<string, McpServerConfig>) => Promise<void>;
+
+  /** Get all skills */
+  getSkills: () => Promise<SkillConfig[]>;
+
+  /** Save (upsert) a single skill */
+  saveSkill: (skill: SkillConfig) => Promise<void>;
+
+  /** Delete a skill by id */
+  deleteSkill: (skillId: string) => Promise<void>;
+
+  /** Read a single file from a skill folder (returns content or null) */
+  readSkillFile: (
+    skillName: string,
+    filename: string
+  ) => Promise<string | null>;
+
+  /** Write a single file inside a skill folder */
+  writeSkillFile: (
+    skillName: string,
+    filename: string,
+    content: string
+  ) => Promise<void>;
+
+  /** Delete a supporting file from a skill folder (cannot delete SKILL.md) */
+  deleteSkillFile: (skillName: string, filename: string) => Promise<void>;
+
+  /** Get extensions directory paths */
+  getExtensionsPaths: () => Promise<{ skillsDir: string; configDir: string }>;
+
+  /** Start (or restart) all enabled MCP servers from saved config */
+  startMcpServers: () => Promise<{ success: boolean; error?: string }>;
+
+  /** Get tool definitions from all currently running MCP servers */
+  getMcpTools: () => Promise<McpToolDefinition[]>;
+
+  /** Execute an MCP tool call on the specified server */
+  callMcpTool: (
+    serverName: string,
+    toolName: string,
+    toolInput: Record<string, unknown>
+  ) => Promise<string>;
+}
+
+export interface McpToolDefinition {
+  serverName: string;
+  name: string;
+  description: string;
+  inputSchema: Record<string, unknown>;
 }
 
 declare global {

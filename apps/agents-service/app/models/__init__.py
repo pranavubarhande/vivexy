@@ -12,6 +12,7 @@ from app.models.enums import (
 )
 from app.models.job import Job, JobStock
 from app.models.llm import LLMModel
+from app.models.skill import UserSkill
 from app.models.stock import Stock, StockDataBlob, StockNews
 from app.models.subscription import Invoice, StripeEventLog, Subscription
 from app.models.team import Team, TeamInvite, TeamMember

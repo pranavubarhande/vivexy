@@ -208,7 +208,7 @@ export default function LandingPage() {
               <ThemeToggle />
               {isAuthenticated ? (
                 <Button asChild>
-                  <a href="/dashboard">Dashboard</a>
+                  <a href="/chat">Dashboard</a>
                 </Button>
               ) : (
                 <div className="flex items-center space-x-2">
@@ -332,7 +332,7 @@ export default function LandingPage() {
             >
               {isAuthenticated ? (
                 <Button size="lg" asChild className="text-lg px-8 py-6">
-                  <a href="/dashboard">
+                  <a href="/chat">
                     Go to Dashboard <ArrowRight className="ml-2 w-5 h-5" />
                   </a>
                 </Button>
@@ -620,7 +620,7 @@ export default function LandingPage() {
                 asChild
                 className="text-lg px-8 py-6"
               >
-                <a href="/dashboard">
+                <a href="/chat">
                   Go to Dashboard <ArrowRight className="ml-2 w-5 h-5" />
                 </a>
               </Button>

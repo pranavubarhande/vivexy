@@ -16,6 +16,8 @@ import * as os from 'os';
 import * as path from 'path';
 
 const CONFIG_PATH = path.join(os.homedir(), '.portfolio-helper-config.json');
+export const SKILLS_DIR = path.join(os.homedir(), '.portfolio-helper-skills');
+export const CONFIG_DIR = os.homedir();
 
 let _cachedRoot: string | null = null;
 
@@ -295,4 +297,231 @@ export const appendManifest = (
     if (root) {
         associateChatWithWorkspace(chatId, root);
     }
+};
+
+// ── MCP & Skills config ──────────────────────────────────────────────
+
+export interface McpServerConfig {
+    command: string;
+    args?: string[];
+    env?: Record<string, string>;
+    enabled: boolean;
+    description?: string;
+}
+
+/**
+ * A skill is stored as a folder: SKILLS_DIR/{name}/
+ *   SKILL.md  — main entry file (instructions)
+ *   *.md      — optional supporting reference files
+ */
+export interface SkillConfig {
+    id: string;
+    name: string;
+    description: string;
+    /** Content of SKILL.md — the main instruction file */
+    content: string;
+    /** Additional files in the skill folder: { filename → content } */
+    files?: Record<string, string>;
+    enabled: boolean;
+    /** Absolute path to the skill folder on disk */
+    folderPath?: string;
+}
+
+/** Metadata persisted in config (no content — read from disk on demand) */
+interface SkillMeta {
+    id: string;
+    name: string;
+    enabled: boolean;
+}
+
+/** Get MCP servers from config */
+export const getMcpServers = (): Record<string, McpServerConfig> => {
+    const config = readConfig();
+    return (config.mcpServers as Record<string, McpServerConfig>) || {};
+};
+
+/** Save MCP servers to config */
+export const saveMcpServers = (
+    servers: Record<string, McpServerConfig>
+): void => {
+    const config = readConfig();
+    config.mcpServers = servers;
+    writeConfig(config);
+};
+
+/** Read a skill folder and return a SkillConfig (without id/enabled — caller merges). */
+const readSkillFolder = (
+    folderPath: string
+): Omit<SkillConfig, 'id' | 'enabled'> | null => {
+    const mainFile = path.join(folderPath, 'SKILL.md');
+    if (!fs.existsSync(mainFile)) return null;
+
+    const raw = fs.readFileSync(mainFile, 'utf-8');
+
+    // Parse YAML frontmatter
+    let name = path.basename(folderPath);
+    let description = '';
+    let body = raw;
+
+    const fmMatch = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
+    if (fmMatch) {
+        const fm = fmMatch[1];
+        body = fmMatch[2];
+        const nameMatch = fm.match(/^name:\s*(.+)$/m);
+        const descMatch = fm.match(/^description:\s*(.+)$/m);
+        if (nameMatch) name = nameMatch[1].trim();
+        if (descMatch) description = descMatch[1].trim();
+    }
+
+    // Collect additional .md files (not SKILL.md)
+    const files: Record<string, string> = {};
+    try {
+        for (const entry of fs.readdirSync(folderPath, {
+            withFileTypes: true,
+        })) {
+            if (
+                entry.isFile() &&
+                entry.name !== 'SKILL.md' &&
+                entry.name.endsWith('.md')
+            ) {
+                files[entry.name] = fs.readFileSync(
+                    path.join(folderPath, entry.name),
+                    'utf-8'
+                );
+            }
+        }
+    } catch {
+        /* ignore */
+    }
+
+    return { name, description, content: body.trim(), files, folderPath };
+};
+
+/**
+ * Get all installed skills by scanning SKILLS_DIR for subdirectories.
+ * Merges with config metadata (id, enabled).
+ */
+export const getSkills = (): SkillConfig[] => {
+    fs.mkdirSync(SKILLS_DIR, { recursive: true });
+
+    const config = readConfig();
+    const metas = (config.skills as SkillMeta[]) || [];
+    const metaMap = new Map(metas.map((m) => [m.name, m]));
+
+    const skills: SkillConfig[] = [];
+    try {
+        for (const entry of fs.readdirSync(SKILLS_DIR, {
+            withFileTypes: true,
+        })) {
+            if (!entry.isDirectory()) continue;
+            const folderPath = path.join(SKILLS_DIR, entry.name);
+            const parsed = readSkillFolder(folderPath);
+            if (!parsed) continue;
+
+            const meta = metaMap.get(parsed.name);
+            skills.push({
+                id: meta?.id ?? parsed.name,
+                enabled: meta?.enabled ?? true,
+                ...parsed,
+            });
+        }
+    } catch {
+        /* ignore */
+    }
+
+    return skills;
+};
+
+/**
+ * Save (upsert) a skill to disk and persist metadata in config.
+ * Creates SKILLS_DIR/{name}/SKILL.md and any extra files.
+ */
+export const saveSkill = (skill: SkillConfig): void => {
+    const skillFolder = path.join(SKILLS_DIR, skill.name);
+    fs.mkdirSync(skillFolder, { recursive: true });
+
+    // Write SKILL.md with frontmatter
+    const skillMd = `---\nname: ${skill.name}\ndescription: ${skill.description}\n---\n\n${skill.content}`;
+    fs.writeFileSync(path.join(skillFolder, 'SKILL.md'), skillMd, 'utf-8');
+
+    // Write any additional files
+    if (skill.files) {
+        for (const [filename, content] of Object.entries(skill.files)) {
+            if (filename === 'SKILL.md') continue;
+            fs.writeFileSync(
+                path.join(skillFolder, filename),
+                content,
+                'utf-8'
+            );
+        }
+    }
+
+    // Update config metadata
+    const config = readConfig();
+    const metas = (config.skills as SkillMeta[]) || [];
+    const idx = metas.findIndex(
+        (m) => m.id === skill.id || m.name === skill.name
+    );
+    const meta: SkillMeta = {
+        id: skill.id,
+        name: skill.name,
+        enabled: skill.enabled,
+    };
+    if (idx >= 0) {
+        metas[idx] = meta;
+    } else {
+        metas.push(meta);
+    }
+    config.skills = metas;
+    writeConfig(config);
+};
+
+/** Delete a skill by id: removes its folder and config metadata. */
+export const deleteSkill = (skillId: string): void => {
+    const config = readConfig();
+    const metas = (config.skills as SkillMeta[]) || [];
+    const meta = metas.find((m) => m.id === skillId);
+    if (meta) {
+        const skillFolder = path.join(SKILLS_DIR, meta.name);
+        if (fs.existsSync(skillFolder)) {
+            fs.rmSync(skillFolder, { recursive: true, force: true });
+        }
+    }
+    config.skills = metas.filter((m) => m.id !== skillId);
+    writeConfig(config);
+};
+
+/**
+ * Read a single skill file from a skill folder (for inline editing in the UI).
+ * Returns the file content or null if not found.
+ */
+export const readSkillFile = (
+    skillName: string,
+    filename: string
+): string | null => {
+    const filePath = path.join(SKILLS_DIR, skillName, filename);
+    if (!fs.existsSync(filePath)) return null;
+    return fs.readFileSync(filePath, 'utf-8');
+};
+
+/**
+ * Write a single file inside an existing skill folder.
+ */
+export const writeSkillFile = (
+    skillName: string,
+    filename: string,
+    content: string
+): void => {
+    const skillFolder = path.join(SKILLS_DIR, skillName);
+    fs.mkdirSync(skillFolder, { recursive: true });
+    fs.writeFileSync(path.join(skillFolder, filename), content, 'utf-8');
+};
+
+/**
+ * Delete a supporting file from a skill folder (cannot delete SKILL.md).
+ */
+export const deleteSkillFile = (skillName: string, filename: string): void => {
+    if (filename === 'SKILL.md') return;
+    const filePath = path.join(SKILLS_DIR, skillName, filename);
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
 };

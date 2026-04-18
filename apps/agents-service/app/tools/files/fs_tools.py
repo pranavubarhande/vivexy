@@ -1,15 +1,33 @@
 """
 Filesystem tools for the desktop agent.
 
-These are LangChain tool definitions only — when client_tools_enabled is True,
-execution is delegated to the Electron desktop client via IPC. The server never
-runs these tools directly; they exist so the LLM knows the schema.
+When client_tools_enabled is True, each tool uses langgraph's interrupt()
+to pause graph execution and emit a client_tool_request SSE event. The Electron
+desktop client executes the tool via IPC and POSTs the result back, after which
+the graph resumes with the result.
 """
 
+import uuid
 from typing import Optional
 
 from langchain_core.tools import tool
+from langgraph.types import interrupt
 from pydantic import BaseModel, Field
+
+
+def _client_interrupt(tool_name: str, tool_input: dict) -> str:
+    """Pause the LangGraph and delegate this tool call to the desktop client."""
+    result = interrupt(
+        {
+            "type": "client_tool_request",
+            "request_id": str(uuid.uuid4()),
+            "tool_name": tool_name,
+            "tool_input": tool_input,
+        }
+    )
+    if result is None:
+        return '{"error": "No result received from desktop client"}'
+    return result if isinstance(result, str) else str(result)
 
 
 class ListFilesInput(BaseModel):
@@ -109,7 +127,10 @@ def list_files_tool(
     pattern: str = "",
 ) -> str:
     """List files and directories in the user's workspace. Use to explore the project structure."""
-    return '{"error": "This tool is only available on the desktop client"}'
+    return _client_interrupt(
+        "list_files",
+        {"directory": directory, "recursive": recursive, "pattern": pattern},
+    )
 
 
 @tool("grep_files", args_schema=GrepFilesInput)
@@ -121,31 +142,44 @@ def grep_files_tool(
     max_results: int = 50,
 ) -> str:
     """Search for text patterns across files in the workspace. Like grep/ripgrep."""
-    return '{"error": "This tool is only available on the desktop client"}'
+    return _client_interrupt(
+        "grep_files",
+        {
+            "pattern": pattern,
+            "directory": directory,
+            "file_pattern": file_pattern,
+            "case_sensitive": case_sensitive,
+            "max_results": max_results,
+        },
+    )
 
 
 @tool("move_file", args_schema=MoveFileInput)
 def move_file_tool(source: str, destination: str) -> str:
     """Move or rename a file or directory within the workspace."""
-    return '{"error": "This tool is only available on the desktop client"}'
+    return _client_interrupt(
+        "move_file", {"source": source, "destination": destination}
+    )
 
 
 @tool("copy_file", args_schema=CopyFileInput)
 def copy_file_tool(source: str, destination: str) -> str:
     """Copy a file or directory within the workspace."""
-    return '{"error": "This tool is only available on the desktop client"}'
+    return _client_interrupt(
+        "copy_file", {"source": source, "destination": destination}
+    )
 
 
 @tool("delete_file", args_schema=DeleteFileInput)
 def delete_file_tool(filepath: str) -> str:
     """Delete a file or directory from the workspace. Requires user approval."""
-    return '{"error": "This tool is only available on the desktop client"}'
+    return _client_interrupt("delete_file", {"filepath": filepath})
 
 
 @tool("create_directory", args_schema=CreateDirectoryInput)
 def create_directory_tool(directory: str) -> str:
     """Create a new directory within the workspace."""
-    return '{"error": "This tool is only available on the desktop client"}'
+    return _client_interrupt("create_directory", {"directory": directory})
 
 
 @tool("write_file", args_schema=WriteFileInput)
@@ -156,7 +190,15 @@ def write_file_tool(
     overwrite: bool = False,
 ) -> str:
     """Write text content to a new file. If the file already exists and overwrite is False, auto-versions it (e.g. report_v2.md)."""
-    return '{"error": "This tool is only available on the desktop client"}'
+    return _client_interrupt(
+        "write_file",
+        {
+            "filepath": filepath,
+            "content": content,
+            "create_dirs": create_dirs,
+            "overwrite": overwrite,
+        },
+    )
 
 
 @tool("update_file", args_schema=UpdateFileInput)
@@ -169,7 +211,17 @@ def update_file_tool(
     prepend: Optional[str] = None,
 ) -> str:
     """Update an existing file: replace full content, find-and-replace a substring, or append/prepend text."""
-    return '{"error": "This tool is only available on the desktop client"}'
+    return _client_interrupt(
+        "update_file",
+        {
+            "filepath": filepath,
+            "content": content,
+            "find": find,
+            "replace": replace,
+            "append": append,
+            "prepend": prepend,
+        },
+    )
 
 
 def get_fs_tools():

@@ -95,6 +95,21 @@ export interface LLMModel {
   contextWindow: number;
 }
 
+export interface UserSkill {
+  name: string;
+  description: string;
+  content: string;
+  /** Supporting reference files in the skill folder: { filename → content } */
+  files?: Record<string, string>;
+}
+
+export interface McpToolSpec {
+  serverName: string;
+  name: string;
+  description: string;
+  inputSchema: Record<string, unknown>;
+}
+
 export interface StreamMessageParams {
   chatId: string;
   messages: Array<{ role: 'user' | 'assistant'; content: string }>;
@@ -105,6 +120,10 @@ export interface StreamMessageParams {
   modelName: string;
   fileIds?: string[];
   files?: File[];
+  /** Enabled user-defined skills (desktop only) */
+  userSkills?: UserSkill[];
+  /** Available MCP tool definitions from running servers (desktop only) */
+  mcpTools?: McpToolSpec[];
 }
 
 export type SSEEvent =

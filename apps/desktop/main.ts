@@ -22,8 +22,26 @@ import {
     assertWithinWorkspace,
     loadManifest,
     associateChatWithWorkspace,
+    getMcpServers,
+    saveMcpServers,
+    getSkills,
+    saveSkill,
+    deleteSkill,
+    readSkillFile,
+    writeSkillFile,
+    deleteSkillFile,
+    SKILLS_DIR,
+    CONFIG_DIR,
+    type McpServerConfig,
+    type SkillConfig,
 } from '@/tools/paths';
 import { toolRegistry } from '@/tools';
+import {
+    startMcpServers,
+    stopAllMcpServers,
+    getAvailableMcpTools,
+    callMcpTool,
+} from '@/tools/mcp-manager';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -67,6 +85,13 @@ ipcMain.handle(
                 success: false,
                 error: 'No workspace selected. Please select a project folder first.',
             });
+        }
+
+        // MCP tools are namespaced as "mcp__{serverName}__{toolName}"
+        const mcpMatch = toolName.match(/^mcp__(.+?)__(.+)$/);
+        if (mcpMatch) {
+            const [, serverName, mcpToolName] = mcpMatch;
+            return callMcpTool(serverName, mcpToolName, toolInput);
         }
 
         const executor = toolRegistry[toolName];
@@ -297,12 +322,139 @@ ipcMain.handle('list-workspace-files', async (): Promise<string> => {
     }
 });
 
+// ── MCP & Skills IPC ──────────────────────────────────────────────────
+
+/** Get all MCP server configurations */
+ipcMain.handle('get-mcp-config', (): Record<string, McpServerConfig> => {
+    return getMcpServers();
+});
+
+/** Save MCP server configurations */
+ipcMain.handle(
+    'save-mcp-config',
+    (
+        _event: Electron.IpcMainInvokeEvent,
+        servers: Record<string, McpServerConfig>
+    ): void => {
+        saveMcpServers(servers);
+    }
+);
+
+/** Get all skills */
+ipcMain.handle('get-skills', (): SkillConfig[] => {
+    return getSkills();
+});
+
+/** Save (upsert) a single skill */
+ipcMain.handle(
+    'save-skill',
+    (_event: Electron.IpcMainInvokeEvent, skill: SkillConfig): void => {
+        saveSkill(skill);
+    }
+);
+
+/** Delete a skill by id */
+ipcMain.handle(
+    'delete-skill',
+    (_event: Electron.IpcMainInvokeEvent, skillId: string): void => {
+        deleteSkill(skillId);
+    }
+);
+
+/** Read a single file from a skill folder */
+ipcMain.handle(
+    'read-skill-file',
+    (
+        _event: Electron.IpcMainInvokeEvent,
+        skillName: string,
+        filename: string
+    ): string | null => {
+        return readSkillFile(skillName, filename);
+    }
+);
+
+/** Write a single file inside a skill folder */
+ipcMain.handle(
+    'write-skill-file',
+    (
+        _event: Electron.IpcMainInvokeEvent,
+        skillName: string,
+        filename: string,
+        content: string
+    ): void => {
+        writeSkillFile(skillName, filename, content);
+    }
+);
+
+/** Delete a supporting file from a skill folder */
+ipcMain.handle(
+    'delete-skill-file',
+    (
+        _event: Electron.IpcMainInvokeEvent,
+        skillName: string,
+        filename: string
+    ): void => {
+        deleteSkillFile(skillName, filename);
+    }
+);
+
+/** Return the skills directory path and config directory path */
+ipcMain.handle(
+    'get-extensions-paths',
+    (): { skillsDir: string; configDir: string } => {
+        return { skillsDir: SKILLS_DIR, configDir: CONFIG_DIR };
+    }
+);
+
+/** Start/restart MCP servers from current saved config */
+ipcMain.handle(
+    'start-mcp-servers',
+    async (): Promise<{ success: boolean; error?: string }> => {
+        try {
+            const servers = getMcpServers();
+            await startMcpServers(servers);
+            return { success: true };
+        } catch (err) {
+            return {
+                success: false,
+                error: err instanceof Error ? err.message : String(err),
+            };
+        }
+    }
+);
+
+/** Get all available MCP tool definitions from currently running servers */
+ipcMain.handle('get-mcp-tools', (): unknown[] => {
+    return getAvailableMcpTools();
+});
+
+/** Execute an MCP tool call on the specified server */
+ipcMain.handle(
+    'call-mcp-tool',
+    async (
+        _event: Electron.IpcMainInvokeEvent,
+        serverName: string,
+        toolName: string,
+        toolInput: Record<string, unknown>
+    ): Promise<string> => {
+        return callMcpTool(serverName, toolName, toolInput);
+    }
+);
+
 // ── App Lifecycle ─────────────────────────────────────────────────────
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
     const root = getWorkspaceRoot();
     if (root) {
         ensureDataDirs();
+    }
+
+    // Auto-start any enabled MCP servers from saved config
+    const savedServers = getMcpServers();
+    if (Object.keys(savedServers).length > 0) {
+        startMcpServers(savedServers).catch((err) =>
+            console.error('[MCP] Auto-start failed:', err)
+        );
     }
 
     createWindow();
@@ -312,6 +464,10 @@ app.whenReady().then(() => {
             createWindow();
         }
     });
+});
+
+app.on('before-quit', async () => {
+    await stopAllMcpServers();
 });
 
 app.on('window-all-closed', () => {

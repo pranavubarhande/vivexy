@@ -14,12 +14,14 @@ from langgraph.types import Command, Overwrite
 
 from app.agents.agent_factory import create_agent
 from app.agents.approval_store import create_approval_event, wait_for_approval
+from app.agents.client_tool_store import create_client_tool_event, wait_for_client_tool
 from app.agents.config import FileContext
 from app.business_logic.artifacts import link_artifacts_to_message
 from app.business_logic.chat import create_message
 from app.constants.stream_events import (
     STREAM_EVENT_APPROVAL_REQUEST,
     STREAM_EVENT_ARTIFACT,
+    STREAM_EVENT_CLIENT_TOOL_REQUEST,
     STREAM_EVENT_CONTENT,
     STREAM_EVENT_DONE,
     STREAM_EVENT_ERROR,
@@ -45,6 +47,8 @@ def run_agent_stream(
     client_tools_enabled: bool,
     saved_user_message: Dict[str, Any],
     app_context,
+    user_skills: Optional[List[Dict[str, Any]]] = None,
+    mcp_tools: Optional[List[Dict[str, Any]]] = None,
 ) -> Generator[str, None, None]:
     """
     Generator that drives the agent and yields SSE-formatted strings.
@@ -64,6 +68,8 @@ def run_agent_stream(
             files=file_contexts,
             client_tools_enabled=client_tools_enabled,
             user_id=user_id,
+            user_skills=user_skills or [],
+            mcp_tools=mcp_tools or [],
         )
 
         full_content = ""
@@ -136,32 +142,66 @@ def run_agent_stream(
                 if not interrupt_data:
                     break
 
-                # 4. Handle Human-in-the-loop (Interruptions)
-                actions = interrupt_data.get("action_requests", [])
-                if not actions:
-                    break
-
-                request_id = str(uuid.uuid4())
-                yield _sse(
-                    {
-                        "type": STREAM_EVENT_APPROVAL_REQUEST,
-                        "requires_approval": True,
-                        "data": {
-                            "request_id": request_id,
-                            "tool_name": actions[0]["name"],
-                            "tool_input": actions[0]["args"],
-                            "description": f"{actions[0]['name']}: {json.dumps(actions[0]['args'])[:150]}",
-                        },
-                    }
+                # 4. Handle interruptions — client tool delegation OR approval
+                interrupt_type = (
+                    interrupt_data.get("type")
+                    if isinstance(interrupt_data, dict)
+                    else None
                 )
 
-                create_approval_event(request_id)
-                approved = loop.run_until_complete(
-                    wait_for_approval(request_id, timeout=120.0)
-                )
-                inputs = Command(
-                    resume=[{"type": "approve"} if approved else {"type": "reject"}]
-                )
+                if interrupt_type == "client_tool_request":
+                    # ── Delegate to desktop client via SSE and wait for result ──
+                    request_id = interrupt_data.get("request_id", str(uuid.uuid4()))
+                    tool_name = interrupt_data.get("tool_name", "unknown_tool")
+                    tool_input = interrupt_data.get("tool_input", {})
+
+                    yield _sse(
+                        {
+                            "type": STREAM_EVENT_CLIENT_TOOL_REQUEST,
+                            "data": {
+                                "request_id": request_id,
+                                "tool_name": tool_name,
+                                "tool_input": tool_input,
+                            },
+                        }
+                    )
+
+                    create_client_tool_event(request_id)
+                    tool_result = loop.run_until_complete(
+                        wait_for_client_tool(request_id, timeout=60.0)
+                    )
+                    inputs = Command(
+                        resume=tool_result
+                        or json.dumps({"error": "Tool execution timed out"})
+                    )
+
+                else:
+                    # ── Approval / HITL interrupt (existing flow) ──
+                    actions = interrupt_data.get("action_requests", [])
+                    if not actions:
+                        break
+
+                    request_id = str(uuid.uuid4())
+                    yield _sse(
+                        {
+                            "type": STREAM_EVENT_APPROVAL_REQUEST,
+                            "requires_approval": True,
+                            "data": {
+                                "request_id": request_id,
+                                "tool_name": actions[0]["name"],
+                                "tool_input": actions[0]["args"],
+                                "description": f"{actions[0]['name']}: {json.dumps(actions[0]['args'])[:150]}",
+                            },
+                        }
+                    )
+
+                    create_approval_event(request_id)
+                    approved = loop.run_until_complete(
+                        wait_for_approval(request_id, timeout=120.0)
+                    )
+                    inputs = Command(
+                        resume=[{"type": "approve"} if approved else {"type": "reject"}]
+                    )
 
         finally:
             loop.close()

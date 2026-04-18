@@ -221,6 +221,102 @@ def get_composio_tools(chat_id: str, user_id: Optional[str] = None) -> List[Base
         return []
 
 
+def build_user_skills_context(user_skills: List[Dict]) -> str:
+    """Compile user-defined skills into a system prompt section.
+
+    Each skill may include:
+    - content: SKILL.md body (main instructions)
+    - files: dict of {filename → content} for supporting reference files
+    """
+    if not user_skills:
+        return ""
+    parts = []
+    for skill in user_skills:
+        name = skill.get("name", "unnamed")
+        description = skill.get("description", "")
+        content = skill.get("content", "")
+        supporting_files: Dict[str, str] = skill.get("files") or {}
+
+        header = f"### User Skill: /{name}"
+        if description:
+            header += f"\n**Description**: {description}"
+
+        skill_body = f"{header}\n\n{content}"
+
+        # Append any supporting reference files as sub-sections
+        if supporting_files:
+            file_sections = []
+            for filename, file_content in supporting_files.items():
+                file_sections.append(f"#### Reference: {filename}\n\n{file_content}")
+            skill_body += "\n\n" + "\n\n".join(file_sections)
+
+        parts.append(skill_body)
+
+    return (
+        "## USER-DEFINED SKILLS\n\n"
+        "The following skills have been installed by the user. "
+        "When the user invokes /{skill-name} or asks you to use a skill, apply its instructions:\n\n"
+        + "\n\n---\n\n".join(parts)
+    )
+
+
+def build_mcp_stub_tools(mcp_tools: List[Dict]) -> List[BaseTool]:
+    """
+    Create LangChain stub tools for each MCP tool definition.
+    Tools are named 'mcp__{serverName}__{toolName}' so the Electron client
+    can route the call back to the correct MCP server.
+    Each stub uses langgraph interrupt() to delegate execution to the desktop client.
+    """
+    import uuid
+    from typing import Any
+
+    from langgraph.types import interrupt
+    from pydantic import create_model
+
+    stubs: List[BaseTool] = []
+    for mcp_tool in mcp_tools:
+        server_name = mcp_tool.get("serverName", "unknown")
+        tool_name = mcp_tool.get("name", "")
+        description = mcp_tool.get("description", f"MCP tool from server {server_name}")
+        input_schema = mcp_tool.get("inputSchema", {})
+
+        if not tool_name:
+            continue
+
+        namespaced = f"mcp__{server_name}__{tool_name}"
+
+        # Build a minimal Pydantic model from the JSON schema properties
+        properties = (
+            input_schema.get("properties", {}) if isinstance(input_schema, dict) else {}
+        )
+        field_definitions: Dict[str, Any] = {
+            k: (Optional[str], None) for k in properties
+        }
+        DynamicInput = create_model(f"{namespaced}_input", **field_definitions)
+
+        # Capture namespaced name in closure
+        _namespaced = namespaced
+
+        @tool(_namespaced, args_schema=DynamicInput)
+        def _stub(**kwargs) -> str:
+            result = interrupt(
+                {
+                    "type": "client_tool_request",
+                    "request_id": str(uuid.uuid4()),
+                    "tool_name": _namespaced,
+                    "tool_input": kwargs,
+                }
+            )
+            if result is None:
+                return '{"error": "No result received from desktop client"}'
+            return result if isinstance(result, str) else str(result)
+
+        _stub.description = description  # type: ignore[attr-defined]
+        stubs.append(_stub)
+
+    return stubs
+
+
 def create_agent(
     agent_id: str,
     provider: str,
@@ -229,11 +325,15 @@ def create_agent(
     files: Optional[List[FileContext]] = None,
     client_tools_enabled: bool = False,
     user_id: Optional[str] = None,
+    user_skills: Optional[List[Dict]] = None,
+    mcp_tools: Optional[List[Dict]] = None,
 ):
     """
     Create the single unified LangGraph agent using deepagents.
     """
     ag_config = AgentConfig.from_env(provider=provider, model=model_id)
+    user_skills = user_skills or []
+    mcp_tools = mcp_tools or []
 
     # 1. Base tools for the main agent
     tools = get_base_tools(chat_id)
@@ -247,6 +347,16 @@ def create_agent(
             if t.name not in existing_names:
                 tools.append(t)
                 existing_names.add(t.name)
+
+    # Register MCP tools as client-delegated stubs (desktop only)
+    if mcp_tools and client_tools_enabled:
+        mcp_stubs = build_mcp_stub_tools(mcp_tools)
+        existing_names = set(t.name for t in tools)
+        for t in mcp_stubs:
+            if t.name not in existing_names:
+                tools.append(t)
+                existing_names.add(t.name)
+        logger.info("Registered %d MCP stub tool(s) from desktop", len(mcp_stubs))
 
     # 2. Subagents configuration
     finance_subagent = {
@@ -305,6 +415,20 @@ def create_agent(
 
     # Generate system prompt
     final_prompt = UNIFIED_SYSTEM_PROMPT
+
+    # Append user-defined skills context
+    skills_ctx = build_user_skills_context(user_skills)
+    if skills_ctx:
+        final_prompt += f"\n\n{skills_ctx}"
+
+    # Note available MCP tools in the system prompt
+    if mcp_tools and client_tools_enabled:
+        mcp_names = [f"mcp__{t.get('serverName')}_{t.get('name')}" for t in mcp_tools]
+        final_prompt += (
+            f"\n\n## Available MCP Tools (Desktop)\nThe following MCP tools are available "
+            f"and will be executed on the desktop client: {', '.join(mcp_names)}"
+        )
+
     if files:
         parts = []
         for f in files:

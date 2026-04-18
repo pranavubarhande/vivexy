@@ -70,7 +70,7 @@ export function RegisterForm() {
         password: data.password,
       });
       toast.success('Account created successfully!');
-      router.push('/dashboard');
+      router.push('/chat');
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : 'Registration failed'

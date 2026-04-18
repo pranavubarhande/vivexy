@@ -30,3 +30,4 @@ class User(db.Model):
     invoices = db.relationship("Invoice", backref="user", lazy=True)
     jobs = db.relationship("Job", backref="user", lazy=True)
     chats = db.relationship("Chat", backref="user", lazy=True)
+    skills = db.relationship("UserSkill", backref="user", lazy=True)

@@ -53,7 +53,7 @@ export function LoginForm() {
     try {
       await loginMutation.mutateAsync(data);
       toast.success('Welcome back!');
-      router.push('/dashboard');
+      router.push('/chat');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Login failed');
     }

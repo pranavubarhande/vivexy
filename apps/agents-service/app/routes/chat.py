@@ -422,6 +422,8 @@ def stream_chat():
         client_tools_enabled = (
             request.headers.get("X-Client-Tools", "").lower() == "true"
         )
+        user_skills = data.get("user_skills", [])
+        mcp_tools = data.get("mcp_tools", [])
 
         try:
             if not client_tools_enabled:
@@ -478,6 +480,8 @@ def stream_chat():
                 client_tools_enabled=client_tools_enabled,
                 saved_user_message=saved_user_message,
                 app_context=current_app.app_context(),
+                user_skills=user_skills,
+                mcp_tools=mcp_tools,
             ),
             mimetype="text/event-stream",
             headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},

@@ -93,6 +93,7 @@ This document provides architectural context, codebase patterns, and constraints
   - In agents-service, keep 1 line spacings between functions instead of 2 and keep all the imports at top of the file and not in between the file.
   - Don't add too many comments, only add comments if really required for future references.
   - Use descriptive variable names like queryClient instead of qc.
+  - Use ES6 arrow functions instead of function declarations.
 - **Execution**:
   - Do not use global `pip`; always execute backend scripts with `uv run python <script>`.
   - Always check `package.json` for custom lifecycle scripts before running manual builds.

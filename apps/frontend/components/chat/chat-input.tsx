@@ -9,10 +9,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Plus, Paperclip, Blocks } from 'lucide-react';
+import { Plus, Paperclip, Blocks, Settings } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { ROUTES } from '@/constants/routes';
 import { FileUpload, UploadedFile } from './file-upload';
+import { CommandPalette } from './command-palette';
+import { useCommandPalette } from '@/hooks/useCommandPalette';
 
 interface ChatInputProps {
   onSend: (message: string, files?: UploadedFile[], rawFiles?: File[]) => void;
@@ -24,28 +26,31 @@ interface ChatInputProps {
   className?: string;
 }
 
-export function ChatInput({
+export const ChatInput = ({
   onSend,
   onFilesChange,
   chatId,
-  placeholder = 'Type a message...',
+  placeholder = 'Type a message... (/ for skills, @ for files)',
   disabled = false,
   showFileUpload = true,
   className,
-}: ChatInputProps) {
+}: ChatInputProps) => {
   const [message, setMessage] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [showUploader, setShowUploader] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+
+  const { palette, selectItem, moveSelection, close, handleTextChange } =
+    useCommandPalette(textareaRef);
 
   const handleSubmit = useCallback(() => {
     const trimmedMessage = message.trim();
     if (!trimmedMessage && uploadedFiles.length === 0 && files.length === 0)
       return;
 
-    // Pass uploaded files and raw files that haven't been uploaded yet
     const unuploadedFiles = files.filter(
       (f) => !uploadedFiles.some((u) => u.filename === f.name)
     );
@@ -58,30 +63,76 @@ export function ChatInput({
     setFiles([]);
     setUploadedFiles([]);
     setShowUploader(false);
+    close();
 
-    // Reset textarea height
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
     }
-  }, [message, uploadedFiles, files, onSend]);
+  }, [message, uploadedFiles, files, onSend, close]);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLTextAreaElement>) => {
+      // Command palette navigation takes priority
+      if (palette.open) {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          moveSelection(1);
+          return;
+        }
+        if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          moveSelection(-1);
+          return;
+        }
+        if (e.key === 'Enter' || e.key === 'Tab') {
+          e.preventDefault();
+          const item = palette.filteredItems[palette.selectedIndex];
+          if (item) selectItem(item);
+          return;
+        }
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          close();
+          return;
+        }
+      }
+
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         handleSubmit();
       }
     },
-    [handleSubmit]
+    [palette, moveSelection, selectItem, close, handleSubmit]
   );
 
-  const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setMessage(e.target.value);
-    // Auto-resize textarea
-    const textarea = e.target;
-    textarea.style.height = 'auto';
-    textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
-  };
+  const handleTextareaChange = useCallback(
+    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      const value = e.target.value;
+      setMessage(value);
+
+      // Detect / and @ triggers
+      const cursor = e.target.selectionStart ?? value.length;
+      handleTextChange(value, cursor);
+
+      // Auto-resize
+      const textarea = e.target;
+      textarea.style.height = 'auto';
+      textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
+    },
+    [handleTextChange]
+  );
+
+  // When message is updated externally (via selectItem's native setter dispatch),
+  // we sync state by listening to the input event
+  const handleNativeInput = useCallback(
+    (e: React.FormEvent<HTMLTextAreaElement>) => {
+      const ta = e.currentTarget;
+      setMessage(ta.value);
+      ta.style.height = 'auto';
+      ta.style.height = `${Math.min(ta.scrollHeight, 200)}px`;
+    },
+    []
+  );
 
   const handleFilesSelected = useCallback(
     (newFiles: File[]) => {
@@ -120,14 +171,22 @@ export function ChatInput({
         </div>
       )}
 
-      {/* Input area – centered row: + menu, textarea, Send */}
+      {/* Input area */}
       <div
+        ref={containerRef}
         className={cn(
-          'flex items-center gap-2 p-2 bg-background',
+          'relative flex items-center gap-2 p-2 bg-background',
           className ? 'rounded-2xl' : 'border rounded-lg shadow-sm'
         )}
       >
-        {/* Plus menu: Add files option */}
+        {/* Command palette popup — rendered inside the relative container */}
+        <CommandPalette
+          palette={palette}
+          onSelect={selectItem}
+          anchorRef={containerRef}
+        />
+
+        {/* Plus menu */}
         {showFileUpload && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -162,6 +221,15 @@ export function ChatInput({
                 <Blocks className="h-4 w-4" />
                 Connect Integrations
               </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={() =>
+                  router.push(`${ROUTES.settings}?tab=extensions`)
+                }
+                className="gap-2"
+              >
+                <Settings className="h-4 w-4" />
+                Extensions & Skills
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         )}
@@ -171,6 +239,7 @@ export function ChatInput({
           ref={textareaRef}
           value={message}
           onChange={handleTextareaChange}
+          onInput={handleNativeInput}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           disabled={disabled}
@@ -213,4 +282,4 @@ export function ChatInput({
       )}
     </div>
   );
-}
+};

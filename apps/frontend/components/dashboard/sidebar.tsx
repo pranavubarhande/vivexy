@@ -42,9 +42,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   const mainItems = [
     {
-      label: 'Dashboard',
-      href: ROUTES.dashboard,
-      icon: LayoutDashboard,
+      label: 'Chat',
+      href: ROUTES.chat(),
+      icon: MessageSquare,
     },
     {
       label: 'Teams',
@@ -55,11 +55,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       label: 'Billing',
       href: ROUTES.billing,
       icon: CreditCard,
-    },
-    {
-      label: 'Chat',
-      href: ROUTES.chat(),
-      icon: MessageSquare,
     },
     {
       label: 'Integrations',
