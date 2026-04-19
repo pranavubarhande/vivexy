@@ -3,25 +3,30 @@ import { authService } from '@/services/auth.service';
 
 // Register mutation
 export const useRegister = () => {
+  const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: authService.register,
     onSuccess: (data) => {
       if (data.token) {
         localStorage.setItem('token', data.token);
       }
+      queryClient.invalidateQueries({ queryKey: ['currentUser'] });
     },
   });
 };
 
 // Login mutation
 export const useLogin = () => {
+  const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: authService.login,
     onSuccess: (data) => {
-      console.log(data);
       if (data.token) {
         localStorage.setItem('token', data.token);
       }
+      queryClient.invalidateQueries({ queryKey: ['currentUser'] });
     },
   });
 };

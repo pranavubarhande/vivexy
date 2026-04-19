@@ -1,1 +1,1 @@
-export const APP_NAME = 'Neuro';
+export const APP_NAME = 'Agentis';
