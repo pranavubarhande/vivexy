@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Geist, Geist_Mono, Inter } from 'next/font/google';
+import { Geist, Geist_Mono, Inter, Fraunces } from 'next/font/google';
 import './globals.css';
 import { ThemeProvider } from '@/components/shared/theme-provider';
 import { AuthProvider } from '@/components/shared/auth-provider';
@@ -10,6 +10,12 @@ import { AppShell } from '@/components/shared/app-shell';
 const inter = Inter({
   variable: '--font-inter',
   subsets: ['latin'],
+});
+
+const fraunces = Fraunces({
+  variable: '--font-fraunces',
+  subsets: ['latin'],
+  axes: ['opsz', 'WONK'],
 });
 
 const geistSans = Geist({
@@ -23,9 +29,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'SaaS Template',
+  title: 'Agentis — AI Workspaces for Professional Teams',
   description:
-    'A comprehensive SaaS template with authentication, teams, and billing',
+    'Build intelligent AI workspaces for Legal, Financial, and Compliance teams. White-label template for agencies and direct deployment for firms.',
 };
 
 export default function RootLayout({
@@ -34,15 +40,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning className="overflow-hidden">
+    <html lang="en" suppressHydrationWarning>
       <body
-        className={`${inter.variable} ${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${inter.variable} ${fraunces.variable} ${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
-          enableSystem
+          defaultTheme="skin"
+          enableSystem={false}
           disableTransitionOnChange
+          themes={['skin', 'dark', 'ocean', 'midnight', 'stone']}
         >
           <Providers>
             <AuthProvider>
