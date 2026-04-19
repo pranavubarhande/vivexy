@@ -11,7 +11,15 @@ export const ROUTES = {
 } as const;
 
 // Publicly accessible informational pages (no auth required, even if logged in)
-export const PUBLIC_ROUTES: string[] = ['/'];
+export const PUBLIC_ROUTES: string[] = [
+  '/',
+  '/contact',
+  '/pricing',
+  '/privacy',
+  '/terms',
+  '/security',
+  '/support',
+];
 
 // Auth-only entry pages. If the user is already logged in, redirect away from these.
 export const AUTH_ROUTES: string[] = ['/login', '/register'];

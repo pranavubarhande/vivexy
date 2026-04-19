@@ -17,6 +17,7 @@ import { DangerZone } from '@/components/settings/danger-zone';
 import { McpSettings } from '@/components/settings/mcp-settings';
 import { SkillsSettings } from '@/components/settings/skills-settings';
 import { ApiKeysSettings } from '@/components/settings/api-keys-settings';
+import { ThemeSettings } from '@/components/settings/theme-settings';
 
 const SettingsContent = () => {
   const [isDesktop] = useState(
@@ -33,6 +34,7 @@ const SettingsContent = () => {
         <TabsTrigger value="notifications">Notifications</TabsTrigger>
         <TabsTrigger value="api-keys">API Keys</TabsTrigger>
         <TabsTrigger value="extensions">Extensions</TabsTrigger>
+        <TabsTrigger value="appearance">Appearance</TabsTrigger>
         <TabsTrigger value="danger">Danger Zone</TabsTrigger>
       </TabsList>
 
@@ -135,6 +137,22 @@ const SettingsContent = () => {
             </Card>
           </TabsContent>
         </Tabs>
+      </TabsContent>
+
+      <TabsContent value="appearance" className="space-y-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Appearance</CardTitle>
+            <CardDescription>
+              Customize the look and feel of your workspace. Theme changes apply
+              instantly across all pages including the sidebar, navigation, and
+              chat interface.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ThemeSettings />
+          </CardContent>
+        </Card>
       </TabsContent>
 
       <TabsContent value="danger" className="space-y-4">
