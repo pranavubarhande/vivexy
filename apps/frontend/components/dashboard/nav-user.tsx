@@ -30,13 +30,26 @@ import {
 } from '@/components/ui/sidebar';
 import { useAuthSafe } from '@/components/shared/auth-provider';
 import { ThemeToggle } from '@/components/shared/theme-toggle';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export function NavUser() {
   const { isMobile } = useSidebar();
-  const { user, logout } = useAuthSafe();
+  const { user, logout, isLoading } = useAuthSafe();
 
-  if (!user) {
-    return null;
+  if (isLoading || !user) {
+    return (
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <SidebarMenuButton size="lg" disabled>
+            <Skeleton className="h-8 w-8 rounded-lg shrink-0 bg-muted-foreground/20" />
+            <div className="grid flex-1 gap-1.5">
+              <Skeleton className="h-3 w-24 bg-muted-foreground/20" />
+              <Skeleton className="h-3 w-32 bg-muted-foreground/20" />
+            </div>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      </SidebarMenu>
+    );
   }
 
   return (

@@ -201,7 +201,7 @@ export const ChatInput = ({
       <div
         ref={containerRef}
         className={cn(
-          'relative flex items-end gap-2 p-2 bg-background',
+          'relative flex items-center gap-2 p-2 bg-background',
           className ? 'rounded-2xl' : 'border rounded-lg shadow-sm'
         )}
       >
@@ -289,7 +289,7 @@ export const ChatInput = ({
           }
           variant="ghost"
           size="sm"
-          className="h-9 w-9 p-0 shrink-0 rounded-full text-muted-foreground hover:text-foreground self-end"
+          className="h-9 w-9 p-0 shrink-0 rounded-full text-muted-foreground hover:text-foreground"
         >
           {isGenerating ? (
             <Square className="h-4 w-4 fill-current" />

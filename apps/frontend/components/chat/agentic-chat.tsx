@@ -196,8 +196,14 @@ export const AgenticChat = ({ config, initialChatId }: AgenticChatProps) => {
     removeChatFromCache,
   } = useChatHistory();
 
-  const { messages, artifacts, chatDetail, revertToMessage, createArtifact } =
-    useChat(chatId || undefined);
+  const {
+    messages,
+    artifacts,
+    chatDetail,
+    revertToMessage,
+    createArtifact,
+    isLoadingMessages,
+  } = useChat(chatId || undefined);
 
   // ---- Workspace ----
   const { refreshWorkspaceInfo, workspacePath } = useWorkspace();
@@ -378,7 +384,7 @@ export const AgenticChat = ({ config, initialChatId }: AgenticChatProps) => {
   };
 
   // ---- Derived ----
-  const isEmpty = displayMessages.length === 0;
+  const isEmpty = displayMessages.length === 0 && !isLoadingMessages;
   const [fillValue, setFillValue] = useState<string | undefined>();
 
   const handleSaveArtifact = async (
@@ -486,6 +492,7 @@ export const AgenticChat = ({ config, initialChatId }: AgenticChatProps) => {
                 <ChatMessageList
                   messages={displayMessages}
                   showReasoning={config.showReasoning !== false}
+                  isLoading={isLoadingMessages}
                   onRevert={handleRevert}
                 />
               </div>
