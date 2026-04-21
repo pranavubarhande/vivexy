@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { APP_NAME } from '@/constants/project';
 import {
   X,
   Check,
@@ -1219,7 +1220,7 @@ function MiniChat({ compact = false }: { compact?: boolean }) {
         <span
           className={`font-semibold text-foreground ${compact ? 'text-[8px]' : 'text-[10px]'}`}
         >
-          Agentis
+          {APP_NAME}
         </span>
       </div>
       <div
@@ -1331,7 +1332,7 @@ function MultiPlatformDemo() {
                       <div className="w-2.5 h-2.5 rounded-full bg-green-400" />
                     </div>
                     <span className="text-[9px] text-muted-foreground mx-auto">
-                      Agentis
+                      {APP_NAME}
                     </span>
                   </div>
                   <div className="flex h-40">

@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
+import { APP_NAME } from '@/constants/project';
 
-export const metadata = { title: 'Privacy Policy — Agentis' };
+export const metadata = { title: `Privacy Policy — ${APP_NAME}` };
 
 export default function PrivacyPage() {
   return (

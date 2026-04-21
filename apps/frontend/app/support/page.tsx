@@ -7,8 +7,9 @@ import {
   MessageSquare,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { APP_NAME } from '@/constants/project';
 
-export const metadata = { title: 'Support — Agentis' };
+export const metadata = { title: `Support — ${APP_NAME}` };
 
 const TOPICS = [
   'Setting up my workspace',

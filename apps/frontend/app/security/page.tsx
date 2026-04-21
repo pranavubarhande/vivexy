@@ -1,13 +1,14 @@
 import Link from 'next/link';
 import { ArrowLeft, Shield, Lock, Server, Eye } from 'lucide-react';
+import { APP_NAME } from '@/constants/project';
 
-export const metadata = { title: 'Security — Agentis' };
+export const metadata = { title: `Security — ${APP_NAME}` };
 
 const PRACTICES = [
   {
     icon: Server,
     title: 'Your infrastructure',
-    body: 'Agentis deploys on infrastructure you control, your VPS, your cloud account, your private network. We never have access to your servers or data at rest.',
+    body: `${APP_NAME} deploys on infrastructure you control, your VPS, your cloud account, your private network. We never have access to your servers or data at rest.`,
   },
   {
     icon: Lock,
@@ -17,7 +18,7 @@ const PRACTICES = [
   {
     icon: Eye,
     title: 'No data exfiltration',
-    body: 'Agent conversations, uploaded documents, and memory stores remain on your infrastructure. Agentis does not transmit your business data to any external service without your explicit configuration.',
+    body: `Agent conversations, uploaded documents, and memory stores remain on your infrastructure. ${APP_NAME} does not transmit your business data to any external service without your explicit configuration.`,
   },
   {
     icon: Shield,
@@ -43,8 +44,8 @@ export default function SecurityPage() {
           Security
         </h1>
         <p className="text-muted-foreground mb-10 text-lg leading-relaxed">
-          Security is structural, not bolted on. Agentis is built so your data
-          never leaves your control.
+          Security is structural, not bolted on. {APP_NAME} is built so your
+          data never leaves your control.
         </p>
 
         <div className="space-y-6 mb-12">

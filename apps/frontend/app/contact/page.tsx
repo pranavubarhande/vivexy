@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Send, Check, Bot } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { APP_NAME } from '@/constants/project';
 
 const INTERESTS = [
   { value: 'legal-ai', label: 'Legal AI Workspace' },
@@ -47,7 +48,7 @@ function ContactForm() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           access_key: process.env.NEXT_PUBLIC_WEB3FORMS_KEY,
-          subject: `[Agentis] ${INTERESTS.find((i) => i.value === form.interest)?.label ?? form.interest}`,
+          subject: `[${APP_NAME}] ${INTERESTS.find((i) => i.value === form.interest)?.label ?? form.interest}`,
           from_name: form.name,
           name: form.name,
           email: form.email,
@@ -201,7 +202,7 @@ export default function ContactPage() {
             <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
               <Bot className="w-4.5 h-4.5 text-primary-foreground" />
             </div>
-            <span className="font-serif text-lg font-light">Agentis</span>
+            <span className="font-serif text-lg font-light">{APP_NAME}</span>
           </div>
           <h1 className="font-serif text-4xl sm:text-5xl font-light tracking-tight mb-3 mt-6">
             Let&apos;s talk

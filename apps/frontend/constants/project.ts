@@ -1,1 +1,1 @@
-export const APP_NAME = 'Agentis';
+export const APP_NAME = 'Vivexy';

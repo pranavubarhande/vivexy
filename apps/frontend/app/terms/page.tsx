@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
+import { APP_NAME } from '@/constants/project';
 
-export const metadata = { title: 'Terms of Service — Agentis' };
+export const metadata = { title: `Terms of Service — ${APP_NAME}` };
 
 export default function TermsPage() {
   return (
@@ -27,7 +28,7 @@ export default function TermsPage() {
           <section>
             <h2 className="font-semibold text-base mb-2">1. Acceptance</h2>
             <p className="text-muted-foreground leading-relaxed">
-              By using Agentis or engaging our services, you agree to these
+              By using {APP_NAME} or engaging our services, you agree to these
               terms. If you are entering into these terms on behalf of a company
               or other legal entity, you represent that you have the authority
               to bind that entity.
@@ -36,9 +37,10 @@ export default function TermsPage() {
           <section>
             <h2 className="font-semibold text-base mb-2">2. Services</h2>
             <p className="text-muted-foreground leading-relaxed">
-              Agentis provides AI workspace software and implementation services
-              for professional teams. The scope, deliverables, and timelines for
-              any engagement are agreed in writing before work begins.
+              {APP_NAME} provides AI workspace software and implementation
+              services for professional teams. The scope, deliverables, and
+              timelines for any engagement are agreed in writing before work
+              begins.
             </p>
           </section>
           <section>
@@ -46,7 +48,7 @@ export default function TermsPage() {
               3. Use restrictions
             </h2>
             <p className="text-muted-foreground leading-relaxed">
-              You may not use Agentis to process unlawful content,
+              You may not use {APP_NAME} to process unlawful content,
               reverse-engineer the platform, or resell access without a written
               agency or white-label agreement. You are responsible for all
               activity that occurs under your account.
@@ -58,10 +60,10 @@ export default function TermsPage() {
             </h2>
             <p className="text-muted-foreground leading-relaxed">
               You retain full ownership of the data and documents you process
-              through Agentis. We retain ownership of the platform, templates,
-              and underlying software. Custom builds delivered under an
-              enterprise engagement are licensed to you under the terms of that
-              agreement.
+              through {APP_NAME}. We retain ownership of the platform,
+              templates, and underlying software. Custom builds delivered under
+              an enterprise engagement are licensed to you under the terms of
+              that agreement.
             </p>
           </section>
           <section>
@@ -69,7 +71,7 @@ export default function TermsPage() {
               5. Limitation of liability
             </h2>
             <p className="text-muted-foreground leading-relaxed">
-              To the maximum extent permitted by law, Agentis shall not be
+              To the maximum extent permitted by law, {APP_NAME} shall not be
               liable for indirect, incidental, or consequential damages. Our
               total liability for any claim shall not exceed the fees paid in
               the three months preceding the claim.

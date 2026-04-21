@@ -26,6 +26,7 @@ import { Badge } from '@/components/ui/badge';
 import { useState } from 'react';
 import { useAuthSafe } from '@/components/shared/auth-provider';
 import { TemplateShowcase } from '@/components/landing/feature-demos';
+import { APP_NAME } from '@/constants/project';
 
 /* ─── animation presets ─────────────────────────────────────────────── */
 const fadeUp = {
@@ -442,7 +443,7 @@ export default function LandingPage() {
                 <Bot className="w-4 h-4 text-primary-foreground" />
               </div>
               <span className="font-serif text-xl font-light tracking-tight">
-                Agentis
+                {APP_NAME}
               </span>
             </Link>
 
@@ -942,7 +943,9 @@ export default function LandingPage() {
                 <div className="w-7 h-7 rounded-md bg-primary flex items-center justify-center">
                   <Bot className="w-4 h-4 text-primary-foreground" />
                 </div>
-                <span className="font-serif text-xl font-light">Agentis</span>
+                <span className="font-serif text-xl font-light">
+                  {APP_NAME}
+                </span>
               </div>
               <p className="text-sm text-muted-foreground max-w-xs">
                 AI workspaces built around the way professional teams actually
@@ -999,7 +1002,9 @@ export default function LandingPage() {
 
           {/* Bottom bar */}
           <div className="pt-6 border-t border-border flex flex-col sm:flex-row justify-between items-center gap-4 text-xs text-muted-foreground">
-            <span>© 2025 Agentis. All rights reserved.</span>
+            <span>
+              © {new Date().getFullYear()} {APP_NAME}. All rights reserved.
+            </span>
             <span>Built for Legal, Financial &amp; Compliance teams.</span>
           </div>
         </div>
