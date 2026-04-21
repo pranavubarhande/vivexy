@@ -1,12 +1,15 @@
 """
 Chat API and SSE stream.
-Two-way communication: REST for CRUD, POST /chat/stream for agent streaming.
+Two-way communication: REST for CRUD, POST /chat/start for agent streaming via Redis pub/sub.
 """
 
 import json
 import logging
 import os
+import threading
+import uuid as uuid_lib
 
+import redis as redis_lib
 from flask import (
     Blueprint,
     Response,
@@ -41,11 +44,23 @@ from app.business_logic.chat import (
     update_chat,
     update_message,
 )
-from app.business_logic.streaming import run_agent_stream
+from app.business_logic.streaming import run_agent_stream_to_redis
+from app.constants.redis_keys import REDIS_KEY_STREAM_TOKEN, REDIS_STREAM_CHAT
 from app.middlewares.auth import auth_middleware
 from app.models.chat import Artifact
 from app.schemas import ArtifactCreate, ChatCreate, MessageCreate
 from app.services.s3_service import S3Service
+from configs import REDIS_URL
+
+
+def _get_redis():
+    try:
+        r = redis_lib.from_url(REDIS_URL, decode_responses=True)
+        r.ping()
+        return r
+    except Exception:
+        return None
+
 
 logger = logging.getLogger(__name__)
 
@@ -366,10 +381,10 @@ def upload_attachment(chat_id):
         return jsonify({"error": str(e)}), 500
 
 
-@bp.route("/stream", methods=["POST"])
+@bp.route("/start", methods=["POST"])
 @auth_middleware
-def stream_chat():
-    """SSE stream: agent runs and emits events for the client."""
+def start_chat_stream():
+    """Start agent in a background thread; return stream_id for EventSource subscription."""
     try:
         user = request.user
         user_id = user.id
@@ -394,7 +409,6 @@ def stream_chat():
 
         get_user_chat(chat_id, user_id)
 
-        # Process new inline file uploads
         if is_multipart:
             files_to_upload = request.files.getlist("files")
             if files_to_upload:
@@ -436,8 +450,6 @@ def stream_chat():
             return jsonify({"error": "messages are required"}), 400
 
         local_filenames = data.get("local_filenames", [])
-
-        # TODO: We might have to limit files context here.
         if client_tools_enabled and local_filenames:
             filenames_str = ", ".join(local_filenames)
             messages.append(
@@ -468,8 +480,20 @@ def stream_chat():
             user_id,
         )
 
-        return Response(
-            run_agent_stream(
+        r = _get_redis()
+        if not r:
+            return jsonify({"error": "Redis unavailable"}), 503
+
+        stream_id = str(uuid_lib.uuid4())
+        r.setex(REDIS_KEY_STREAM_TOKEN.format(stream_id=stream_id), 120, user_id)
+        stream_key = REDIS_STREAM_CHAT.format(stream_id=stream_id)
+        app_ctx = current_app.app_context()
+
+        def _run():
+            run_agent_stream_to_redis(
+                stream_id=stream_id,
+                r=r,
+                stream_key=stream_key,
                 chat_id=chat_id,
                 user_id=user_id,
                 messages=messages,
@@ -479,18 +503,61 @@ def stream_chat():
                 file_contexts=file_contexts,
                 client_tools_enabled=client_tools_enabled,
                 saved_user_message=saved_user_message,
-                app_context=current_app.app_context(),
+                app_context=app_ctx,
                 user_skills=user_skills,
                 mcp_tools=mcp_tools,
-            ),
-            mimetype="text/event-stream",
-            headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
-        )
+            )
+
+        threading.Thread(target=_run, daemon=True).start()
+        return jsonify({"stream_id": stream_id})
+
     except ValueError as e:
         return jsonify({"error": str(e)}), 404
     except Exception as e:
-        logger.exception("stream_chat error")
+        logger.exception("start_chat_stream error")
         return jsonify({"error": str(e)}), 500
+
+
+@bp.route("/events/<stream_id>", methods=["GET"])
+def chat_events(stream_id):
+    """SSE relay: reads from Redis stream and sends events to the client."""
+    r = _get_redis()
+    if not r:
+        return jsonify({"error": "Redis unavailable"}), 503
+
+    if not r.exists(REDIS_KEY_STREAM_TOKEN.format(stream_id=stream_id)):
+        return jsonify({"error": "Invalid or expired stream"}), 404
+
+    stream_key = REDIS_STREAM_CHAT.format(stream_id=stream_id)
+
+    def generate():
+        last_id = "0"
+        try:
+            while True:
+                entries = r.xread({stream_key: last_id}, block=3000, count=100)
+                if not entries:
+                    if not r.exists(stream_key):
+                        break
+                    continue
+                for _, msgs in entries:
+                    for msg_id, fields in msgs:
+                        last_id = msg_id
+                        payload = fields.get("payload", "")
+                        if payload == "__done__":
+                            return
+                        yield f"data: {payload}\n\n"
+        except GeneratorExit:
+            pass
+
+    return Response(
+        generate(),
+        mimetype="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @bp.route("/<chat_id>/tool-result", methods=["POST"])

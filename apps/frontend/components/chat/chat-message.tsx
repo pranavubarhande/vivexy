@@ -2,7 +2,7 @@
 
 import { cn } from '@/utils/common';
 import { MessageStream } from './message-stream';
-import { ReasoningDisplay } from './reasoning-display';
+import { ReasoningDisplay, StepItem } from './reasoning-display';
 import { InlineArtifactCard } from './inline-artifact-card';
 import { InlineTodoList } from './inline-todo-list';
 import React from 'react';
@@ -33,7 +33,7 @@ interface UserMessageProps {
 export function UserMessage({ message, onRevert }: UserMessageProps) {
   return (
     <div className="space-y-2 items-end flex flex-col max-w-[85%]">
-      <div className="rounded-2xl px-4 py-3 shadow-sm bg-[#f0eee6] dark:bg-muted text-foreground border border-border/50">
+      <div className="rounded-2xl px-4 py-3 shadow-sm bg-muted text-foreground border border-border/40">
         <MessageStream
           content={message.content}
           role={message.role}
@@ -103,20 +103,52 @@ export function AssistantMessage({
         </span>
       </div>
       <div className="w-full">
-        {showReasoning && message.reasoning && message.reasoning.length > 0 && (
-          <ReasoningDisplay
-            steps={message.reasoning}
-            defaultCollapsed={!message.isStreaming}
-          />
-        )}
         {message.todos && message.todos.length > 0 && (
           <InlineTodoList todos={message.todos} />
         )}
-        <MessageStream
-          content={message.content}
-          role={message.role}
-          isStreaming={message.isStreaming}
-        />
+        {showReasoning && message.timeline && message.timeline.length > 0 ? (
+          // Interleaved: render steps and content chunks in arrival order
+          <>
+            {message.timeline.map((item, i) => {
+              if (item.type === 'step') {
+                return (
+                  <StepItem
+                    key={i}
+                    step={item.step}
+                    isStreaming={message.isStreaming}
+                  />
+                );
+              }
+              return (
+                <MessageStream
+                  key={i}
+                  content={item.text}
+                  role={message.role}
+                  isStreaming={
+                    message.isStreaming && i === message.timeline!.length - 1
+                  }
+                />
+              );
+            })}
+          </>
+        ) : (
+          // Fallback: legacy layout (saved messages without timeline)
+          <>
+            {showReasoning &&
+              message.reasoning &&
+              message.reasoning.length > 0 && (
+                <ReasoningDisplay
+                  steps={message.reasoning}
+                  defaultCollapsed={!message.isStreaming}
+                />
+              )}
+            <MessageStream
+              content={message.content}
+              role={message.role}
+              isStreaming={message.isStreaming}
+            />
+          </>
+        )}
         {message.artifacts && message.artifacts.length > 0 && (
           <div className="mt-3 space-y-3">
             {message.artifacts.map((art: Artifact) => (

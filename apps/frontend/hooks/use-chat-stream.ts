@@ -1,23 +1,25 @@
 import { useRef, useState, useCallback } from 'react';
 import {
   chatService,
+  streamMessage,
   type Message,
+  type ReasoningStep,
   type StreamMessageParams,
+  type TimelineItem,
 } from '@/services/chat.service';
+import { platform } from '@/lib/platform';
 import { UploadedFile } from '@/components/chat/file-upload';
 import { ApprovalRequest } from '@/components/chat/approval-dialog';
 import { useQueryCacheUpdater } from '@/hooks/use-query-cache-updater';
 import { chatKeys } from '@/hooks/useChat';
-import {
-  handleStreamEvent,
-  type ReasoningStep,
-} from '@/hooks/use-stream-event-handler';
+import { handleStreamEvent } from '@/hooks/use-stream-event-handler';
 import { toast } from 'sonner';
 
 interface StreamDeps {
   messages: Message[];
   refetchHistory: () => void;
   onStreamEnd?: () => void;
+  setStreamingMessages: (msgs: Message[]) => void;
 }
 
 export interface SendMessageParams {
@@ -35,7 +37,7 @@ export interface SendMessageParams {
 }
 
 export const useChatStream = (deps: StreamDeps) => {
-  const { refetchHistory, onStreamEnd } = deps;
+  const { refetchHistory, onStreamEnd, setStreamingMessages } = deps;
   const cache = useQueryCacheUpdater();
 
   const [isStreaming, setIsStreaming] = useState(false);
@@ -43,14 +45,10 @@ export const useChatStream = (deps: StreamDeps) => {
   const [approvalRequest, setApprovalRequest] =
     useState<ApprovalRequest | null>(null);
 
-  // Local React state for the messages currently being streamed.
-  // This bypasses TanStack Query's setTimeout(0) notification scheduler
-  // so that every content chunk triggers an immediate re-render.
-  const [streamingMessages, setStreamingMessages] = useState<Message[]>([]);
-
   const abortControllerRef = useRef<AbortController | null>(null);
   const isCreatingChatRef = useRef(false);
   const isStreamingRef = useRef(false);
+  const serverUserMsgIdRef = useRef<string | undefined>(undefined);
 
   const handleApprove = useCallback(
     async (chatId: string | null, requestId: string) => {
@@ -89,6 +87,9 @@ export const useChatStream = (deps: StreamDeps) => {
   const messagesRef = useRef<Message[]>(deps.messages);
   messagesRef.current = deps.messages;
 
+  const setStreamingMessagesRef = useRef(setStreamingMessages);
+  setStreamingMessagesRef.current = setStreamingMessages;
+
   const sendMessage = useCallback(
     async (params: SendMessageParams) => {
       const {
@@ -116,8 +117,6 @@ export const useChatStream = (deps: StreamDeps) => {
           isCreatingChatRef.current = true;
           const newChat = await createChat({ agentId: selectedAgentId });
           currentChatId = newChat.id;
-          // Pre-seed TQ cache with empty messages so useQuery doesn't
-          // fire a server fetch that could race with the stream.
           cache.qc.setQueryData(chatKeys.messages(currentChatId), []);
           onChatCreated(currentChatId);
         } catch (err) {
@@ -131,7 +130,6 @@ export const useChatStream = (deps: StreamDeps) => {
       const allFileIds: string[] = files?.map((f) => f.id) ?? [];
       let finalRawFiles = rawFiles;
 
-      const { platform } = await import('@/lib/platform');
       if (platform.isDesktop && rawFiles && rawFiles.length > 0) {
         try {
           for (const file of rawFiles) {
@@ -161,20 +159,28 @@ export const useChatStream = (deps: StreamDeps) => {
         content: '',
         isStreaming: true,
         reasoning: [],
+        timeline: [],
         createdAt: new Date().toISOString(),
       };
 
-      // Mutable refs so the event handler can update them; we spread from
-      // these in setStreamingMessages to push immediate re-renders.
       const userMsgRef = { current: { ...userMsg } };
       const assistantRef = { current: { ...assistantMsg } };
 
+      const push = () => {
+        setStreamingMessagesRef.current([
+          { ...userMsgRef.current },
+          { ...assistantRef.current },
+        ]);
+      };
+
       isStreamingRef.current = true;
-      setStreamingMessages([
-        { ...userMsgRef.current },
-        { ...assistantRef.current },
-      ]);
       setIsStreaming(true);
+      push();
+
+      const updateStreaming = (patch: Partial<Message>) => {
+        Object.assign(assistantRef.current, patch);
+        push();
+      };
 
       const currentMessages = messagesRef.current;
       const streamParams: StreamMessageParams & { local_filenames?: string[] } =
@@ -200,35 +206,37 @@ export const useChatStream = (deps: StreamDeps) => {
               : undefined,
         };
 
-      const accumulator = { content: '', reasoning: [] as ReasoningStep[] };
-
-      const updateStreaming = (patch: Partial<Message>) => {
-        Object.assign(assistantRef.current, patch);
-        setStreamingMessages([
-          { ...userMsgRef.current },
-          { ...assistantRef.current },
-        ]);
+      const accumulator = {
+        content: '',
+        reasoning: [] as ReasoningStep[],
+        timeline: [] as TimelineItem[],
       };
 
       try {
         abortControllerRef.current = new AbortController();
 
-        for await (const event of chatService.streamMessage(
+        const eventHandlerDeps = {
+          targetChatId,
+          assistantMsg: assistantRef.current,
+          cache,
+          accumulator,
+          setApprovalRequest,
+          setIsWaitingApproval,
+          refetchHistory,
+          userMsgId: userMsg.id,
+          onUserMessageIdReceived: (id: string) => {
+            serverUserMsgIdRef.current = id;
+          },
+          updateStreaming,
+        };
+
+        await streamMessage(
           streamParams,
+          (event) => {
+            handleStreamEvent(event, eventHandlerDeps);
+          },
           abortControllerRef.current.signal
-        )) {
-          handleStreamEvent(event, {
-            targetChatId,
-            assistantMsg: assistantRef.current,
-            cache,
-            accumulator,
-            setApprovalRequest,
-            setIsWaitingApproval,
-            refetchHistory,
-            userMsgId: userMsg.id,
-            updateStreaming,
-          });
-        }
+        );
       } catch (error) {
         if ((error as Error).name === 'AbortError') {
           console.log('Stream aborted by user');
@@ -240,27 +248,19 @@ export const useChatStream = (deps: StreamDeps) => {
           });
         }
       } finally {
-        // Persist final state into TQ cache so it survives after streaming ends.
-        // The done event may have assigned server IDs; apply them.
-        const serverUserMsgId = (
-          assistantRef.current as Record<string, unknown>
-        ).__userMessageId as string | undefined;
-        if (serverUserMsgId) {
-          userMsgRef.current.id = serverUserMsgId;
+        if (serverUserMsgIdRef.current) {
+          userMsgRef.current.id = serverUserMsgIdRef.current;
+          serverUserMsgIdRef.current = undefined;
         }
-        const { __userMessageId: _, ...cleanAssistant } =
-          assistantRef.current as Message & { __userMessageId?: string };
+
         cache.appendMessage(targetChatId, { ...userMsgRef.current });
         cache.appendMessage(targetChatId, {
-          ...cleanAssistant,
+          ...assistantRef.current,
           isStreaming: false,
         });
 
-        // Delay clearing streaming state so TQ's setTimeout(0) notification
-        // has time to propagate the cache update to observers. Without this,
-        // there would be a brief flicker where messages disappear.
         setTimeout(() => {
-          setStreamingMessages([]);
+          setStreamingMessagesRef.current([]);
           setIsStreaming(false);
         }, 50);
         abortControllerRef.current = null;
@@ -288,7 +288,6 @@ export const useChatStream = (deps: StreamDeps) => {
     approvalRequest,
     isCreatingChatRef,
     isStreamingRef,
-    streamingMessages,
     sendMessage,
     stopStreaming,
     handleApprove,

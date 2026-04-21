@@ -12,16 +12,20 @@ export type {
   InlineTodo,
   Todo,
   LLMModel,
+  ReasoningStep,
   StreamMessageParams,
   SSEEvent,
+  TimelineItem,
 } from '@/types/chat';
 
 import { chatApi } from '@/services/chat/chat-api';
 import { artifactApi } from './chat/artifact-api';
-import { streamApi } from '@/services/chat/stream-api';
+import { streamMessage } from '@/services/chat/stream-api';
 import { attachmentApi } from '@/services/chat/attachment-api';
 import { modelApi } from '@/services/chat/model-api';
 import { approvalApi } from '@/services/chat/approval-api';
+
+export { streamMessage };
 
 export const chatService = {
   // Chat CRUD
@@ -48,7 +52,4 @@ export const chatService = {
   approveAction: approvalApi.approveAction,
   rejectAction: approvalApi.rejectAction,
   postToolResult: approvalApi.postToolResult,
-
-  // Streaming
-  streamMessage: streamApi.streamMessage.bind(streamApi),
 };

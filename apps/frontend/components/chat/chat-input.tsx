@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback, KeyboardEvent } from 'react';
+import { useState, useRef, useCallback, useEffect, KeyboardEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/utils/common';
 import {
@@ -9,7 +9,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Plus, Paperclip, Blocks, Settings } from 'lucide-react';
+import {
+  Plus,
+  Paperclip,
+  Blocks,
+  Settings,
+  SendHorizontal,
+} from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { ROUTES } from '@/constants/routes';
 import { FileUpload, UploadedFile } from './file-upload';
@@ -24,6 +30,7 @@ interface ChatInputProps {
   disabled?: boolean;
   showFileUpload?: boolean;
   className?: string;
+  fillValue?: string;
 }
 
 export const ChatInput = ({
@@ -34,6 +41,7 @@ export const ChatInput = ({
   disabled = false,
   showFileUpload = true,
   className,
+  fillValue,
 }: ChatInputProps) => {
   const [message, setMessage] = useState('');
   const [files, setFiles] = useState<File[]>([]);
@@ -42,6 +50,19 @@ export const ChatInput = ({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+
+  useEffect(() => {
+    if (!fillValue) return;
+    setTimeout(() => {
+      setMessage(fillValue);
+      const ta = textareaRef.current;
+      if (!ta) return;
+      ta.style.height = 'auto';
+      ta.style.height = `${Math.min(ta.scrollHeight, 200)}px`;
+      ta.focus();
+      ta.setSelectionRange(fillValue.length, fillValue.length);
+    }, 0);
+  }, [fillValue]);
 
   const { palette, selectItem, moveSelection, close, handleTextChange } =
     useCommandPalette(textareaRef);
@@ -175,7 +196,7 @@ export const ChatInput = ({
       <div
         ref={containerRef}
         className={cn(
-          'relative flex items-center gap-2 p-2 bg-background',
+          'relative flex items-end gap-2 p-2 bg-background',
           className ? 'rounded-2xl' : 'border rounded-lg shadow-sm'
         )}
       >
@@ -260,10 +281,11 @@ export const ChatInput = ({
               uploadedFiles.length === 0 &&
               files.length === 0)
           }
+          variant="ghost"
           size="sm"
-          className="h-9 px-4 shrink-0"
+          className="h-9 w-9 p-0 shrink-0 rounded-full text-muted-foreground hover:text-foreground self-end"
         >
-          Send
+          <SendHorizontal className="h-4 w-4" />
         </Button>
       </div>
 

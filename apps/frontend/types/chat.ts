@@ -50,12 +50,16 @@ export interface InlineTodo {
     | 'ERROR';
 }
 
+export type TimelineItem =
+  | { type: 'step'; step: ReasoningStep }
+  | { type: 'content'; text: string };
+
 export interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  reasoning?: any[];
+  reasoning?: ReasoningStep[];
+  timeline?: TimelineItem[];
   artifacts?: Artifact[];
   todos?: InlineTodo[];
   createdAt: string;
@@ -98,6 +102,15 @@ export interface LLMModel {
   outputCost: number | null;
   supportsVision: boolean;
   supportsReasoning: boolean;
+}
+
+export interface ReasoningStep {
+  thought: string;
+  toolCalls?: Array<{
+    tool: string;
+    input: Record<string, unknown>;
+    output: string;
+  }>;
 }
 
 export interface UserSkill {

@@ -13,3 +13,9 @@ REDIS_CHANNEL_CLIENT_TOOL = "client_tool_channel:{request_id}"
 
 # SSE stream (worker -> web)
 REDIS_CHANNEL_CHAT_STREAM = "chat:stream:{chat_id}"
+
+# Redis stream for pub/sub SSE relay
+REDIS_KEY_STREAM_TOKEN = (
+    "stream_token:{stream_id}"  # TTL 120s — one-time EventSource auth
+)
+REDIS_STREAM_CHAT = "chat:xstream:{stream_id}"  # Redis stream key for event payloads

@@ -54,9 +54,6 @@ export function AgentSelector({
           disabled={disabled}
           className="h-7 gap-1.5 px-2.5 text-[12px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted"
         >
-          <span className="text-base leading-none">
-            {selectedAgent?.icon || <Bot size={14} />}
-          </span>
           <span className="hidden sm:inline truncate max-w-[100px]">
             {selectedAgent?.name || 'Agent'}
           </span>

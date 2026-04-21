@@ -464,3 +464,21 @@ def _cleanup_sandbox(agent: Any):
 def _sse(data: Dict[str, Any]) -> str:
     """Formats a dictionary as a Server-Sent Events (SSE) string."""
     return f"data: {json.dumps(data)}\n\n"
+
+
+def run_agent_stream_to_redis(*, stream_id: str, r, stream_key: str, **kwargs) -> None:
+    """Thread target: runs agent stream and publishes each event to a Redis stream."""
+    try:
+        for sse_string in run_agent_stream(**kwargs):
+            for line in sse_string.split("\n"):
+                if line.startswith("data:"):
+                    payload = line[5:].strip()
+                    if payload and payload != "[DONE]":
+                        r.xadd(stream_key, {"payload": payload})
+                    break
+    except Exception as e:
+        logger.exception("run_agent_stream_to_redis error for stream %s", stream_id)
+        r.xadd(stream_key, {"payload": json.dumps({"type": "error", "data": str(e)})})
+    finally:
+        r.xadd(stream_key, {"payload": "__done__"})
+        r.expire(stream_key, 30)

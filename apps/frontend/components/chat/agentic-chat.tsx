@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/utils/common';
 import { Button } from '@/components/ui/button';
@@ -19,9 +18,17 @@ import { UploadedFile } from '@/components/chat/file-upload';
 import { useChat, useChatHistory, useModels } from '@/hooks/useChat';
 import { useChatStream } from '@/hooks/use-chat-stream';
 import { useWorkspace } from '@/components/desktop/workspace-provider';
+import { useAuthSafe } from '@/components/shared/auth-provider';
 
-import { Artifact, LLMModel } from '@/services/chat.service';
+import { Artifact, LLMModel, Message } from '@/services/chat.service';
 import { File } from 'lucide-react';
+
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  return 'Good evening';
+}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -62,16 +69,94 @@ const savePref = (key: string, value: string) => {
 };
 
 // ---------------------------------------------------------------------------
+// Toolbar — shared between empty state and active chat
+// ---------------------------------------------------------------------------
+
+interface ChatInputToolbarProps {
+  agents: AgentSummary[];
+  selectedAgentId: string;
+  onAgentSelect: (id: string) => void;
+  models: import('@/services/chat.service').LLMModel[];
+  isLoadingModels: boolean;
+  selectedModelDbId: string | null;
+  onModelSelect: (
+    dbId: string,
+    provider: string,
+    modelId: string,
+    name: string
+  ) => void;
+  isStreaming: boolean;
+  showArtifactsButton?: boolean;
+  artifactsCount?: number;
+  showSidePanel?: 'artifacts' | null;
+  onToggleArtifacts?: () => void;
+}
+
+function ChatInputToolbar({
+  agents,
+  selectedAgentId,
+  onAgentSelect,
+  models,
+  isLoadingModels,
+  selectedModelDbId,
+  onModelSelect,
+  isStreaming,
+  showArtifactsButton,
+  artifactsCount,
+  showSidePanel,
+  onToggleArtifacts,
+}: ChatInputToolbarProps) {
+  return (
+    <div className="flex items-center justify-between gap-2 px-3 pb-2 border-t border-border/40">
+      <div className="flex items-center gap-1 min-w-0 overflow-x-auto no-scrollbar">
+        <AgentSelector
+          agents={agents}
+          selectedAgentId={selectedAgentId}
+          onSelect={onAgentSelect}
+          disabled={isStreaming}
+        />
+        <div className="w-px h-3.5 bg-border/60 shrink-0" />
+        <ModelSelector
+          models={models}
+          isLoading={isLoadingModels}
+          selectedModelId={selectedModelDbId}
+          onSelect={onModelSelect}
+          disabled={isStreaming}
+        />
+      </div>
+      {showArtifactsButton && (
+        <button
+          onClick={onToggleArtifacts}
+          className={cn(
+            'flex items-center gap-1 h-7 px-2 rounded-lg text-xs font-medium transition-all shrink-0',
+            showSidePanel === 'artifacts'
+              ? 'bg-primary/10 text-primary'
+              : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+          )}
+        >
+          <File size={12} />
+          <span className="hidden xs:inline sm:inline">Files</span>
+          {!!artifactsCount && artifactsCount > 0 && (
+            <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-primary/20 text-primary text-[9px] font-bold">
+              {artifactsCount}
+            </span>
+          )}
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
 export const AgenticChat = ({ config, initialChatId }: AgenticChatProps) => {
-  const searchParams = useSearchParams();
-
   // ---- Chat ID ----
-  // Read from URL only on mount; after that, chatId is managed imperatively.
+  // Initialized from prop (passed by server component from searchParams).
+  // After that, chatId is managed imperatively.
   const [chatId, setChatId] = useState<string | null>(
-    () => initialChatId || searchParams.get('id') || null
+    () => initialChatId || null
   );
 
   // ---- Preferences ----
@@ -96,6 +181,10 @@ export const AgenticChat = ({ config, initialChatId }: AgenticChatProps) => {
 
   // ---- Panel state ----
   const [showSidePanel, setShowSidePanel] = useState<'artifacts' | null>(null);
+
+  // ---- Auth ----
+  const { user } = useAuthSafe();
+  const firstName = user?.name?.split(' ')[0] ?? '';
 
   // ---- Data (TanStack Query backed) ----
   const { models, isLoading: isLoadingModels } = useModels();
@@ -127,13 +216,14 @@ export const AgenticChat = ({ config, initialChatId }: AgenticChatProps) => {
   }, [workspacePath, qc]);
 
   // ---- Stream ----
+  const [streamingMessages, setStreamingMessages] = useState<Message[]>([]);
+
   const {
     isStreaming,
     isWaitingApproval,
     approvalRequest,
     isCreatingChatRef,
     isStreamingRef,
-    streamingMessages,
     sendMessage,
     stopStreaming,
     handleApprove,
@@ -143,18 +233,18 @@ export const AgenticChat = ({ config, initialChatId }: AgenticChatProps) => {
     messages,
     refetchHistory,
     onStreamEnd: refreshWorkspaceInfo,
+    setStreamingMessages,
   });
 
-  // Merge query-backed messages with any currently-streaming messages.
-  // During streaming, the user/assistant messages live in local React state
-  // for immediate re-renders; once done they're persisted to the TQ cache.
-  // We deduplicate by id to handle the brief overlap window when the TQ
-  // cache has been written but streamingMessages hasn't cleared yet.
-  const displayMessages = (() => {
+  // Merge TQ-backed messages with live streaming messages.
+  const displayMessages = useMemo(() => {
     if (streamingMessages.length === 0) return messages;
-    const ids = new Set(streamingMessages.map((m) => m.id));
-    return [...messages.filter((m) => !ids.has(m.id)), ...streamingMessages];
-  })();
+    const ids = new Set(streamingMessages.map((m: Message) => m.id));
+    return [
+      ...messages.filter((m: Message) => !ids.has(m.id)),
+      ...streamingMessages,
+    ];
+  }, [messages, streamingMessages]);
 
   // ---- URL sync (browser back/forward only) ----
   useEffect(() => {
@@ -237,7 +327,6 @@ export const AgenticChat = ({ config, initialChatId }: AgenticChatProps) => {
       createChat: apiCreateChat,
       onChatCreated: (id) => {
         setChatId(id);
-        updateUrl(id);
       },
     });
   };
@@ -293,6 +382,8 @@ export const AgenticChat = ({ config, initialChatId }: AgenticChatProps) => {
   const selectedAgent = config.availableAgents.find(
     (a) => a.id === selectedAgentId
   );
+  const isEmpty = displayMessages.length === 0;
+  const [fillValue, setFillValue] = useState<string | undefined>();
 
   const handleSaveArtifact = async (
     artifact: Artifact & { language?: string },
@@ -338,95 +429,129 @@ export const AgenticChat = ({ config, initialChatId }: AgenticChatProps) => {
           onNewChat={handleNewChat}
         />
 
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 custom-scrollbar chat-bg-pattern">
-          <div className="max-w-3xl mx-auto space-y-6">
-            <ChatMessageList
-              messages={displayMessages}
-              agent={selectedAgent}
-              showReasoning={config.showReasoning !== false}
-              onRevert={handleRevert}
-            />
-          </div>
-        </div>
+        {isEmpty ? (
+          /* ── Empty state: greeting + single bordered box ── */
+          <div className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 animate-in fade-in duration-500">
+            <div className="w-full max-w-2xl">
+              {/* Greeting */}
+              <h1 className="text-3xl font-serif font-light tracking-tight text-center mb-6">
+                {getGreeting()}
+                {firstName ? `, ${firstName}` : ''}
+              </h1>
 
-        {/* Input area */}
-        <div className="border-t border-border/50 bg-background/98 p-3 sm:p-4 shrink-0">
-          <div className="max-w-3xl mx-auto space-y-2">
-            {isStreaming && (
-              <div className="flex justify-center -mt-8 mb-1">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={stopStreaming}
-                  className="gap-2 bg-background shadow-md border-border/60 hover:border-primary/40 rounded-full px-4 h-8 text-xs"
-                >
-                  <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                  Stop generating
-                </Button>
-              </div>
-            )}
-
-            <ChatInput
-              onSend={handleSend}
-              chatId={chatId || undefined}
-              disabled={isStreaming || isWaitingApproval}
-              showFileUpload={config.allowFileUpload !== false}
-              placeholder={
-                isWaitingApproval ? 'Waiting for your approval…' : 'Reply…'
-              }
-              className="rounded-2xl border border-border bg-background shadow-sm overflow-hidden focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary/30 transition-all"
-            />
-
-            {/* Toolbar */}
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1 min-w-0 overflow-x-auto no-scrollbar">
-                <AgentSelector
+              {/* Single bordered container */}
+              <div className="rounded-2xl border border-border bg-background shadow-sm focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary/30 transition-all overflow-hidden">
+                <ChatInput
+                  onSend={handleSend}
+                  chatId={chatId || undefined}
+                  disabled={isStreaming || isWaitingApproval}
+                  showFileUpload={config.allowFileUpload !== false}
+                  placeholder="How can I help you today?"
+                  className="border-0 shadow-none rounded-none"
+                  fillValue={fillValue}
+                />
+                <ChatInputToolbar
                   agents={config.availableAgents}
                   selectedAgentId={selectedAgentId}
-                  onSelect={setSelectedAgentId}
-                  disabled={isStreaming}
-                />
-                <div className="w-px h-3.5 bg-border/60 shrink-0" />
-                <ModelSelector
+                  onAgentSelect={setSelectedAgentId}
                   models={models}
-                  isLoading={isLoadingModels}
-                  selectedModelId={selectedModelDbId}
-                  onSelect={handleModelSelect}
-                  disabled={isStreaming}
+                  isLoadingModels={isLoadingModels}
+                  selectedModelDbId={selectedModelDbId}
+                  onModelSelect={handleModelSelect}
+                  isStreaming={isStreaming}
                 />
               </div>
 
-              {config.showArtifacts && (
-                <div className="flex items-center gap-1 shrink-0">
+              {/* Suggestion chips */}
+              <div className="flex flex-wrap gap-2 justify-center mt-4">
+                {[
+                  'Analyze a stock',
+                  'Summarize a document',
+                  'Draft a report',
+                  'Research a company',
+                  'Explain a concept',
+                ].map((s) => (
                   <button
-                    onClick={toggleArtifactsPanel}
-                    className={cn(
-                      'flex items-center gap-1 h-7 px-2 rounded-lg text-xs font-medium transition-all shrink-0',
-                      showSidePanel === 'artifacts'
-                        ? 'bg-primary/10 text-primary'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                    )}
+                    key={s}
+                    onClick={() => setFillValue(s)}
+                    className="text-xs px-3 py-1.5 rounded-full border border-border bg-background hover:bg-muted hover:border-primary/30 transition-colors text-muted-foreground hover:text-foreground"
                   >
-                    <File size={12} />
-                    <span className="hidden xs:inline sm:inline">Files</span>
-                    {artifacts.length > 0 && (
-                      <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-primary/20 text-primary text-[9px] font-bold">
-                        {artifacts.length}
-                      </span>
-                    )}
+                    {s}
                   </button>
-                </div>
-              )}
-            </div>
-
-            <div className="flex justify-center py-1">
-              <p className="text-[10px] text-muted-foreground/50 px-0.5 text-center">
-                AI can make mistakes. Double-check important information.
-              </p>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
+        ) : (
+          <>
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 custom-scrollbar chat-bg-pattern">
+              <div className="max-w-3xl mx-auto space-y-6">
+                <ChatMessageList
+                  messages={displayMessages}
+                  agent={selectedAgent}
+                  showReasoning={config.showReasoning !== false}
+                  onRevert={handleRevert}
+                />
+              </div>
+            </div>
+
+            {/* Input area */}
+            <div className="border-t border-border/50 bg-background/98 p-3 sm:p-4 shrink-0">
+              <div className="max-w-3xl mx-auto">
+                {isStreaming && (
+                  <div className="flex justify-center mb-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={stopStreaming}
+                      className="gap-2 bg-background shadow-md border-border/60 hover:border-primary/40 rounded-full px-4 h-8 text-xs"
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                      Stop generating
+                    </Button>
+                  </div>
+                )}
+
+                {/* Single bordered box — same as empty state */}
+                <div className="rounded-2xl border border-border bg-background shadow-sm focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary/30 transition-all overflow-hidden">
+                  <ChatInput
+                    onSend={handleSend}
+                    chatId={chatId || undefined}
+                    disabled={isStreaming || isWaitingApproval}
+                    showFileUpload={config.allowFileUpload !== false}
+                    placeholder={
+                      isWaitingApproval
+                        ? 'Waiting for your approval…'
+                        : 'Reply…'
+                    }
+                    className="border-0 shadow-none rounded-none"
+                  />
+                  <ChatInputToolbar
+                    agents={config.availableAgents}
+                    selectedAgentId={selectedAgentId}
+                    onAgentSelect={setSelectedAgentId}
+                    models={models}
+                    isLoadingModels={isLoadingModels}
+                    selectedModelDbId={selectedModelDbId}
+                    onModelSelect={handleModelSelect}
+                    isStreaming={isStreaming}
+                    showArtifactsButton={config.showArtifacts}
+                    artifactsCount={artifacts.length}
+                    showSidePanel={showSidePanel}
+                    onToggleArtifacts={toggleArtifactsPanel}
+                  />
+                </div>
+
+                <div className="flex justify-center pt-2">
+                  <p className="text-[10px] text-muted-foreground/50 text-center">
+                    AI can make mistakes. Double-check important information.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Side panels */}

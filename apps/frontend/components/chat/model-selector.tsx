@@ -141,9 +141,6 @@ export function ModelSelector({
   };
 
   const selectedModel = models.find((m) => m.id === selectedModelId);
-  const selectedMeta = selectedModel
-    ? getProviderMeta(selectedModel.provider)
-    : null;
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -183,11 +180,6 @@ export function ModelSelector({
           disabled={disabled}
           className="h-7 gap-1.5 px-2.5 text-[12px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted max-w-[200px]"
         >
-          {selectedMeta ? (
-            <span className={selectedMeta.color}>{selectedMeta.icon}</span>
-          ) : (
-            <Cpu size={13} />
-          )}
           <span className="truncate">
             {selectedModel?.name ?? 'Select Model'}
           </span>

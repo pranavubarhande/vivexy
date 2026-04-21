@@ -2,7 +2,9 @@ import type {
   Message,
   Artifact,
   InlineTodo,
+  ReasoningStep,
   SSEEvent,
+  TimelineItem,
 } from '@/services/chat.service';
 import { chatService } from '@/services/chat.service';
 import {
@@ -72,18 +74,12 @@ const normalizeArtifact = (data: unknown): Artifact => {
   };
 };
 
-export interface ReasoningStep {
-  thought: string;
-  toolCalls?: Array<{
-    tool: string;
-    input: Record<string, unknown>;
-    output: string;
-  }>;
-}
+export type { ReasoningStep };
 
 interface StreamAccumulator {
   content: string;
   reasoning: ReasoningStep[];
+  timeline: TimelineItem[];
 }
 
 type CacheOps = ReturnType<typeof useQueryCacheUpdater>;
@@ -104,6 +100,7 @@ interface EventHandlerDeps {
   setIsWaitingApproval: (v: boolean) => void;
   refetchHistory: () => void;
   userMsgId: string;
+  onUserMessageIdReceived: (id: string) => void;
   /** Push a partial update to the streaming assistant message (React state). */
   updateStreaming: (patch: Partial<Message>) => void;
 }
@@ -120,7 +117,7 @@ export const handleStreamEvent = (
     setApprovalRequest,
     setIsWaitingApproval,
     refetchHistory,
-    userMsgId,
+    onUserMessageIdReceived,
     updateStreaming,
   } = deps;
 
@@ -141,60 +138,42 @@ export const handleStreamEvent = (
     case STREAM_EVENT_PHASE_CHANGE:
       break;
 
-    case STREAM_EVENT_TASK_PLANNED: {
+    case STREAM_EVENT_TASK_PLANNED:
+    case STREAM_EVENT_TASK_STARTED:
+    case STREAM_EVENT_TASK_COMPLETED:
+    case STREAM_EVENT_TASK_ERROR: {
+      const taskStatusMap: Record<string, InlineTodo['status']> = {
+        [STREAM_EVENT_TASK_PLANNED]: 'PENDING',
+        [STREAM_EVENT_TASK_STARTED]: 'IN_PROGRESS',
+        [STREAM_EVENT_TASK_COMPLETED]: 'COMPLETED',
+        [STREAM_EVENT_TASK_ERROR]: 'ERROR',
+      };
       const d = event.data as {
         id: string;
         title: string;
-        status: string;
         description?: string | null;
       };
       upsertTodoOnMessage({
         id: d.id,
         title: d.title,
         description: d.description,
-        status: 'PENDING',
-      });
-      break;
-    }
-
-    case STREAM_EVENT_TASK_STARTED: {
-      const d = event.data as { id: string; title: string; status: string };
-      upsertTodoOnMessage({
-        id: d.id,
-        title: d.title,
-        status: 'IN_PROGRESS',
-      });
-      break;
-    }
-
-    case STREAM_EVENT_TASK_COMPLETED: {
-      const d = event.data as { id: string; title: string; status: string };
-      upsertTodoOnMessage({
-        id: d.id,
-        title: d.title,
-        status: 'COMPLETED',
-      });
-      break;
-    }
-
-    case STREAM_EVENT_TASK_ERROR: {
-      const d = event.data as {
-        id: string;
-        title: string;
-        status: string;
-        error?: string;
-      };
-      upsertTodoOnMessage({
-        id: d.id,
-        title: d.title,
-        status: 'ERROR',
+        status: taskStatusMap[event.type],
       });
       break;
     }
 
     case STREAM_EVENT_CONTENT: {
       accumulator.content += event.data;
-      updateStreaming({ content: accumulator.content });
+      const last = accumulator.timeline[accumulator.timeline.length - 1];
+      if (last?.type === 'content') {
+        last.text += event.data;
+      } else {
+        accumulator.timeline.push({ type: 'content', text: event.data });
+      }
+      updateStreaming({
+        content: accumulator.content,
+        timeline: [...accumulator.timeline],
+      });
       break;
     }
 
@@ -245,15 +224,23 @@ export const handleStreamEvent = (
         thought: rawData.thought ?? '',
         toolCalls: rawData.tool_calls ?? rawData.toolCalls,
       };
-      if (
-        (event as { isUpdate?: boolean }).isUpdate &&
-        accumulator.reasoning.length > 0
-      ) {
+      if (event.isUpdate && accumulator.reasoning.length > 0) {
         accumulator.reasoning[accumulator.reasoning.length - 1] = step;
+        // update corresponding timeline step in-place
+        for (let i = accumulator.timeline.length - 1; i >= 0; i--) {
+          if (accumulator.timeline[i].type === 'step') {
+            accumulator.timeline[i] = { type: 'step', step };
+            break;
+          }
+        }
       } else {
         accumulator.reasoning.push(step);
+        accumulator.timeline.push({ type: 'step', step });
       }
-      updateStreaming({ reasoning: [...accumulator.reasoning] });
+      updateStreaming({
+        reasoning: [...accumulator.reasoning],
+        timeline: [...accumulator.timeline],
+      });
       break;
     }
 
@@ -265,7 +252,21 @@ export const handleStreamEvent = (
           break;
         }
       }
-      updateStreaming({ reasoning: [...accumulator.reasoning] });
+      // mirror tool output update into timeline
+      for (let i = accumulator.timeline.length - 1; i >= 0; i--) {
+        const item = accumulator.timeline[i];
+        if (
+          item.type === 'step' &&
+          item.step?.toolCalls?.[0]?.tool === event.data.tool
+        ) {
+          item.step.toolCalls[0].output = event.data.output;
+          break;
+        }
+      }
+      updateStreaming({
+        reasoning: [...accumulator.reasoning],
+        timeline: [...accumulator.timeline],
+      });
       break;
     }
 
@@ -375,8 +376,7 @@ export const handleStreamEvent = (
         assistantMsg.id = event.messageId;
       }
       if (event.userMessageId) {
-        (assistantMsg as unknown as Record<string, unknown>).__userMessageId =
-          event.userMessageId;
+        onUserMessageIdReceived(event.userMessageId);
       }
       updateStreaming({
         content: finalContent,
