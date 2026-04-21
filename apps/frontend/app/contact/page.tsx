@@ -4,9 +4,10 @@ import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Send, Check, Bot } from 'lucide-react';
+import { ArrowLeft, Send, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { APP_NAME } from '@/constants/project';
+import Image from 'next/image';
 
 const INTERESTS = [
   { value: 'legal-ai', label: 'Legal AI Workspace' },
@@ -199,9 +200,13 @@ export default function ContactPage() {
         >
           {/* Header */}
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
-              <Bot className="w-4.5 h-4.5 text-primary-foreground" />
-            </div>
+            <Image
+              src="/logo.png"
+              alt={APP_NAME}
+              width={32}
+              height={32}
+              className="rounded-md object-contain"
+            />
             <span className="font-serif text-lg font-light">{APP_NAME}</span>
           </div>
           <h1 className="font-serif text-4xl sm:text-5xl font-light tracking-tight mb-3 mt-6">

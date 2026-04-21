@@ -27,6 +27,7 @@ import { useState } from 'react';
 import { useAuthSafe } from '@/components/shared/auth-provider';
 import { TemplateShowcase } from '@/components/landing/feature-demos';
 import { APP_NAME } from '@/constants/project';
+import Image from 'next/image';
 
 /* ─── animation presets ─────────────────────────────────────────────── */
 const fadeUp = {
@@ -439,9 +440,13 @@ export default function LandingPage() {
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
             <Link href="/" className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-md bg-primary flex items-center justify-center">
-                <Bot className="w-4 h-4 text-primary-foreground" />
-              </div>
+              <Image
+                src="/logo.png"
+                alt={APP_NAME}
+                width={28}
+                height={28}
+                className="rounded-md object-contain"
+              />
               <span className="font-serif text-xl font-light tracking-tight">
                 {APP_NAME}
               </span>
@@ -940,9 +945,13 @@ export default function LandingPage() {
             {/* Brand */}
             <div>
               <div className="flex items-center gap-2.5 mb-3">
-                <div className="w-7 h-7 rounded-md bg-primary flex items-center justify-center">
-                  <Bot className="w-4 h-4 text-primary-foreground" />
-                </div>
+                <Image
+                  src="/logo.png"
+                  alt={APP_NAME}
+                  width={28}
+                  height={28}
+                  className="rounded-md object-contain"
+                />
                 <span className="font-serif text-xl font-light">
                   {APP_NAME}
                 </span>

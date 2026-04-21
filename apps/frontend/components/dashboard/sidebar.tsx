@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ROUTES } from '@/constants/routes';
 import { APP_NAME } from '@/constants/project';
+import Image from 'next/image';
 import { useWorkspace } from '@/components/desktop/workspace-provider';
 import {
   Sidebar,
@@ -72,9 +73,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
         <div className="flex items-center justify-between group-data-[collapsible=icon]:justify-center p-1">
-          <span className="px-2 font-semibold text-lg truncate group-data-[collapsible=icon]:hidden">
-            {APP_NAME}
-          </span>
+          <div className="flex items-center gap-2 px-2 group-data-[collapsible=icon]:hidden">
+            <Image
+              src="/logo.png"
+              alt={APP_NAME}
+              width={24}
+              height={24}
+              className="rounded-sm object-contain shrink-0"
+            />
+            <span className="font-semibold text-lg truncate">{APP_NAME}</span>
+          </div>
           <SidebarTrigger />
         </div>
       </SidebarHeader>

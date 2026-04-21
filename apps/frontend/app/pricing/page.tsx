@@ -2,9 +2,10 @@
 
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Check, ArrowLeft, ArrowRight, Bot } from 'lucide-react';
+import { Check, ArrowLeft, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { APP_NAME } from '@/constants/project';
+import Image from 'next/image';
 
 const PLANS = [
   {
@@ -69,9 +70,13 @@ export default function PricingPage() {
           className="mb-16"
         >
           <div className="flex items-center gap-2.5 mb-6">
-            <div className="w-7 h-7 rounded-md bg-primary flex items-center justify-center">
-              <Bot className="w-4 h-4 text-primary-foreground" />
-            </div>
+            <Image
+              src="/logo.png"
+              alt={APP_NAME}
+              width={28}
+              height={28}
+              className="rounded-md object-contain"
+            />
             <span className="font-serif text-lg font-light">{APP_NAME}</span>
           </div>
           <p className="text-xs uppercase tracking-widest text-primary font-semibold mb-3">

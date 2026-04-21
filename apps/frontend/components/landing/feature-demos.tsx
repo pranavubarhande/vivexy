@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { APP_NAME } from '@/constants/project';
+import Image from 'next/image';
 import {
   X,
   Check,
@@ -1214,9 +1215,13 @@ function MiniChat({ compact = false }: { compact?: boolean }) {
       <div
         className={`flex items-center gap-1.5 border-b border-border bg-muted/30 ${compact ? 'px-2 py-1' : 'px-3 py-2'}`}
       >
-        <div className="w-4 h-4 rounded-sm bg-primary/20 flex items-center justify-center">
-          <Bot className="w-2.5 h-2.5 text-primary" />
-        </div>
+        <Image
+          src="/logo.png"
+          alt={APP_NAME}
+          width={16}
+          height={16}
+          className="rounded-sm object-contain"
+        />
         <span
           className={`font-semibold text-foreground ${compact ? 'text-[8px]' : 'text-[10px]'}`}
         >
