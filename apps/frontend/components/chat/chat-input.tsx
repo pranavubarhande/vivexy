@@ -15,6 +15,7 @@ import {
   Blocks,
   Settings,
   SendHorizontal,
+  Square,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { ROUTES } from '@/constants/routes';
@@ -24,10 +25,12 @@ import { useCommandPalette } from '@/hooks/useCommandPalette';
 
 interface ChatInputProps {
   onSend: (message: string, files?: UploadedFile[], rawFiles?: File[]) => void;
+  onStop?: () => void;
   onFilesChange?: (files: File[]) => void;
   chatId?: string;
   placeholder?: string;
   disabled?: boolean;
+  isGenerating?: boolean;
   showFileUpload?: boolean;
   className?: string;
   fillValue?: string;
@@ -35,10 +38,12 @@ interface ChatInputProps {
 
 export const ChatInput = ({
   onSend,
+  onStop,
   onFilesChange,
   chatId,
   placeholder = 'Type a message... (/ for skills, @ for files)',
   disabled = false,
+  isGenerating = false,
   showFileUpload = true,
   className,
   fillValue,
@@ -272,20 +277,25 @@ export const ChatInput = ({
           )}
         />
 
-        {/* Send button */}
+        {/* Send / Stop button */}
         <Button
-          onClick={handleSubmit}
+          onClick={isGenerating ? onStop : handleSubmit}
           disabled={
-            disabled ||
-            (!message.trim() &&
-              uploadedFiles.length === 0 &&
-              files.length === 0)
+            !isGenerating &&
+            (disabled ||
+              (!message.trim() &&
+                uploadedFiles.length === 0 &&
+                files.length === 0))
           }
           variant="ghost"
           size="sm"
           className="h-9 w-9 p-0 shrink-0 rounded-full text-muted-foreground hover:text-foreground self-end"
         >
-          <SendHorizontal className="h-4 w-4" />
+          {isGenerating ? (
+            <Square className="h-4 w-4 fill-current" />
+          ) : (
+            <SendHorizontal className="h-4 w-4" />
+          )}
         </Button>
       </div>
 

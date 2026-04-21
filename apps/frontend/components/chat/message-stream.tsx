@@ -1,9 +1,46 @@
 'use client';
 
-import { memo } from 'react';
+import { memo, useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { cn } from '@/utils/common';
+
+const THINKING_WORDS = [
+  'Thinking...',
+  'Reasoning...',
+  'Analyzing...',
+  'Processing...',
+  'Considering...',
+  'Working on it...',
+];
+
+function ThinkingIndicator() {
+  const [index, setIndex] = useState(0);
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    const fade = setInterval(() => {
+      setVisible(false);
+      setTimeout(() => {
+        setIndex((i) => (i + 1) % THINKING_WORDS.length);
+        setVisible(true);
+      }, 300);
+    }, 1800);
+    return () => clearInterval(fade);
+  }, []);
+
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span className="inline-block w-2 h-4 bg-primary animate-pulse" />
+      <span
+        className="text-sm text-muted-foreground transition-opacity duration-300"
+        style={{ opacity: visible ? 1 : 0 }}
+      >
+        {THINKING_WORDS[index]}
+      </span>
+    </span>
+  );
+}
 
 interface MessageStreamProps {
   content: string;
@@ -111,9 +148,7 @@ export const MessageStream = memo(function MessageStream({
       >
         {content}
       </ReactMarkdown>
-      {isStreaming && (
-        <span className="inline-block w-2 h-4 bg-primary animate-pulse ml-0.5" />
-      )}
+      {isStreaming && <ThinkingIndicator />}
     </div>
   );
 });

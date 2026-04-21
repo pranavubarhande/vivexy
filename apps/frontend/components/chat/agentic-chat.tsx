@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/utils/common';
-import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
 import { AgentSelector } from '@/components/chat/agent-selector';
@@ -379,9 +378,6 @@ export const AgenticChat = ({ config, initialChatId }: AgenticChatProps) => {
   };
 
   // ---- Derived ----
-  const selectedAgent = config.availableAgents.find(
-    (a) => a.id === selectedAgentId
-  );
   const isEmpty = displayMessages.length === 0;
   const [fillValue, setFillValue] = useState<string | undefined>();
 
@@ -489,7 +485,6 @@ export const AgenticChat = ({ config, initialChatId }: AgenticChatProps) => {
               <div className="max-w-3xl mx-auto space-y-6">
                 <ChatMessageList
                   messages={displayMessages}
-                  agent={selectedAgent}
                   showReasoning={config.showReasoning !== false}
                   onRevert={handleRevert}
                 />
@@ -499,26 +494,14 @@ export const AgenticChat = ({ config, initialChatId }: AgenticChatProps) => {
             {/* Input area */}
             <div className="border-t border-border/50 bg-background/98 p-3 sm:p-4 shrink-0">
               <div className="max-w-3xl mx-auto">
-                {isStreaming && (
-                  <div className="flex justify-center mb-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={stopStreaming}
-                      className="gap-2 bg-background shadow-md border-border/60 hover:border-primary/40 rounded-full px-4 h-8 text-xs"
-                    >
-                      <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                      Stop generating
-                    </Button>
-                  </div>
-                )}
-
                 {/* Single bordered box — same as empty state */}
                 <div className="rounded-2xl border border-border bg-background shadow-sm focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary/30 transition-all overflow-hidden">
                   <ChatInput
                     onSend={handleSend}
+                    onStop={stopStreaming}
+                    isGenerating={isStreaming}
                     chatId={chatId || undefined}
-                    disabled={isStreaming || isWaitingApproval}
+                    disabled={isWaitingApproval}
                     showFileUpload={config.allowFileUpload !== false}
                     placeholder={
                       isWaitingApproval

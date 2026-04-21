@@ -65,17 +65,11 @@ export function UserMessage({ message, onRevert }: UserMessageProps) {
 
 interface AssistantMessageProps {
   message: Message;
-  agentName?: string;
-  agentIcon?: string;
-  agentColor?: string;
   showReasoning?: boolean;
 }
 
 export function AssistantMessage({
   message,
-  agentName,
-  agentIcon,
-  agentColor,
   showReasoning = true,
 }: AssistantMessageProps) {
   const [copied, setCopied] = React.useState(false);
@@ -88,20 +82,6 @@ export function AssistantMessage({
 
   return (
     <div className="w-full space-y-2 group">
-      <div className="flex items-center gap-2 mb-1">
-        <div
-          className="w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-bold"
-          style={{
-            backgroundColor: `${agentColor}20`,
-            color: agentColor,
-          }}
-        >
-          {agentIcon || '🤖'}
-        </div>
-        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-          {agentName || 'Assistant'}
-        </span>
-      </div>
       <div className="w-full">
         {message.todos && message.todos.length > 0 && (
           <InlineTodoList todos={message.todos} />
@@ -180,18 +160,12 @@ export function AssistantMessage({
 
 interface ChatMessageProps {
   message: Message;
-  agentName?: string;
-  agentIcon?: string;
-  agentColor?: string;
   showReasoning?: boolean;
   onRevert?: (messageId: string) => void;
 }
 
 export function ChatMessage({
   message,
-  agentName,
-  agentIcon,
-  agentColor,
   showReasoning,
   onRevert,
 }: ChatMessageProps) {
@@ -207,13 +181,7 @@ export function ChatMessage({
       {message.role === 'user' ? (
         <UserMessage message={message} onRevert={onRevert} />
       ) : (
-        <AssistantMessage
-          message={message}
-          agentName={agentName}
-          agentIcon={agentIcon}
-          agentColor={agentColor}
-          showReasoning={showReasoning}
-        />
+        <AssistantMessage message={message} showReasoning={showReasoning} />
       )}
     </div>
   );
