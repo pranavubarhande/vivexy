@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { SkillConfig } from '@/types/electron';
+import { skillsService } from '@/services/skills.service';
 
 export type CommandType = 'skill' | 'file';
 
@@ -50,15 +51,13 @@ export const useCommandPalette = (
   const [palette, setPalette] = useState<PaletteState>(INITIAL_STATE);
   const skillsRef = useRef<CommandItem[]>([]);
   const filesRef = useRef<CommandItem[]>([]);
-  const isDesktop = typeof window !== 'undefined' && !!window.electronAPI;
 
-  // Load skills (desktop only), and refresh the open palette if it's showing skills.
-  const loadSkills = useCallback(async () => {
+  // Pure fetch helpers — no setState, safe to call from effects.
+  const fetchSkillItems = useCallback(async (): Promise<CommandItem[]> => {
     const api = typeof window !== 'undefined' ? window.electronAPI : undefined;
-    if (!api) return;
-    try {
+    if (api) {
       const list = await api.getSkills();
-      const items: CommandItem[] = list
+      return list
         .filter((s: SkillConfig) => s.enabled)
         .map((s: SkillConfig) => ({
           type: 'skill' as CommandType,
@@ -67,8 +66,68 @@ export const useCommandPalette = (
           description: s.description,
           insertText: `/${s.name} `,
         }));
+    }
+    // Web: official + user skills allowed on web
+    const [official, user] = await Promise.all([
+      skillsService.getOfficialSkills(),
+      skillsService.getUserSkills(),
+    ]);
+    const officialItems: CommandItem[] = official.map((s) => ({
+      type: 'skill' as CommandType,
+      id: s.name,
+      label: `/${s.name}`,
+      description: s.description,
+      insertText: `/${s.name} `,
+    }));
+    const userItems: CommandItem[] = user
+      .filter((s) => s.enabled && s.platform !== 'desktop')
+      .map((s) => ({
+        type: 'skill' as CommandType,
+        id: s.name,
+        label: `/${s.name}`,
+        description: s.description,
+        insertText: `/${s.name} `,
+      }));
+    const seen = new Set(userItems.map((i) => i.id));
+    return [...userItems, ...officialItems.filter((i) => !seen.has(i.id))];
+  }, []);
+
+  const fetchFileItems = useCallback(async (): Promise<CommandItem[]> => {
+    const api = typeof window !== 'undefined' ? window.electronAPI : undefined;
+    if (!api) return [];
+    const raw = await api.listWorkspaceFiles();
+    const entries: Array<{ name: string; type: string; path: string }> =
+      JSON.parse(raw);
+    return entries
+      .filter((e) => e.type === 'file')
+      .map((e) => ({
+        type: 'file' as CommandType,
+        id: e.name,
+        label: e.name,
+        description: e.path,
+        insertText: `@${e.name} `,
+      }));
+  }, []);
+
+  // Populate refs on mount — no setState, satisfies react-hooks/set-state-in-effect.
+  useEffect(() => {
+    fetchSkillItems()
+      .then((items) => {
+        skillsRef.current = items;
+      })
+      .catch(() => {});
+    fetchFileItems()
+      .then((items) => {
+        filesRef.current = items;
+      })
+      .catch(() => {});
+  }, [fetchSkillItems, fetchFileItems]);
+
+  // Used by refreshItems: fetch + update ref + refresh open palette.
+  const loadSkills = useCallback(async () => {
+    try {
+      const items = await fetchSkillItems();
       skillsRef.current = items;
-      // If the palette is currently open on '/', refresh its items
       setPalette((prev) => {
         if (!prev.open || prev.trigger !== '/') return prev;
         const filtered = items.filter(
@@ -80,30 +139,13 @@ export const useCommandPalette = (
         );
         return { ...prev, items, filteredItems: filtered };
       });
-    } catch {
-      // non-desktop, ignore
-    }
-  }, []);
+    } catch {}
+  }, [fetchSkillItems]);
 
-  // Load workspace files (desktop only), and refresh the open palette if it's showing files.
   const loadFiles = useCallback(async () => {
-    const api = typeof window !== 'undefined' ? window.electronAPI : undefined;
-    if (!api) return;
     try {
-      const raw = await api.listWorkspaceFiles();
-      const entries: Array<{ name: string; type: string; path: string }> =
-        JSON.parse(raw);
-      const items: CommandItem[] = entries
-        .filter((e) => e.type === 'file')
-        .map((e) => ({
-          type: 'file' as CommandType,
-          id: e.name,
-          label: e.name,
-          description: e.path,
-          insertText: `@${e.name} `,
-        }));
+      const items = await fetchFileItems();
       filesRef.current = items;
-      // If the palette is currently open on '@', refresh its items
       setPalette((prev) => {
         if (!prev.open || prev.trigger !== '@') return prev;
         const filtered = items.filter(
@@ -115,15 +157,8 @@ export const useCommandPalette = (
         );
         return { ...prev, items, filteredItems: filtered };
       });
-    } catch {
-      // non-desktop or no workspace, ignore
-    }
-  }, []);
-
-  useEffect(() => {
-    loadSkills();
-    loadFiles();
-  }, [loadSkills, loadFiles]);
+    } catch {}
+  }, [fetchFileItems]);
 
   const close = useCallback(() => {
     setPalette(INITIAL_STATE);
@@ -228,9 +263,7 @@ export const useCommandPalette = (
 
       if (!palette.open || palette.trigger !== trigger) {
         // Need to (re)open for this trigger.
-        // On web (no electronAPI), skip if there will be nothing to show.
         const items = trigger === '/' ? skillsRef.current : filesRef.current;
-        if (items.length === 0 && !isDesktop) return;
 
         // Kick off a background refresh so newly installed items appear
         refreshItems(trigger);
@@ -253,7 +286,7 @@ export const useCommandPalette = (
         updateQuery(query);
       }
     },
-    [palette.open, palette.trigger, close, updateQuery, isDesktop, refreshItems]
+    [palette.open, palette.trigger, close, updateQuery, refreshItems]
   );
 
   return {
