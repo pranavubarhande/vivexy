@@ -1,0 +1,154 @@
+# Koyeb service definitions — free-tier path.
+#
+# Apply with:
+#   koyeb app init portfolio-helper --git github.com/<owner>/portfolio-helper-fe \
+#     --git-branch main --git-workdir infra/free
+# or via the Koyeb dashboard: "Create Service" → Docker → pick these values.
+#
+# Secrets referenced as {{ secret.<name> }} must exist in Koyeb beforehand
+# (Koyeb dashboard → Secrets). See infra/free/README.md step 4.
+
+services:
+  - name: agents-web
+    type: web
+    docker:
+      image: ghcr.io/{{ secret.ghcr_owner }}/portfolio-helper-agents:latest
+      registry_secret: ghcr-credentials
+    instance_type: free
+    regions:
+      - fra
+    ports:
+      - port: 5000
+        protocol: http
+    routes:
+      - path: /
+        port: 5000
+    health_checks:
+      - http:
+          path: /health
+          port: 5000
+        grace_period: 45 # cold boot headroom
+        interval: 30
+        timeout: 5
+        restart_limit: 3
+    scaling:
+      min: 0 # scale-to-zero on free plan
+      max: 1
+    # Pre-deploy: run Alembic migrations before the web process accepts traffic.
+    # Koyeb runs this once per deploy; blocks rollout on non-zero exit.
+    run_command: |
+      set -euxo pipefail
+      uv run alembic upgrade head
+      exec gunicorn --bind 0.0.0.0:5000 --workers 1 --threads 4 --timeout 120 wsgi:app
+    env:
+      - name: FLASK_ENV
+        value: production
+      - name: PORT
+        value: "5000"
+      - name: USE_RABBITMQ
+        value: "true"
+      - name: USE_REDIS_STREAM
+        value: "true"
+      - name: SANDBOX_ENABLED
+        value: "true" # offload Playwright to Daytona — 512 MB can't host chromium
+      - name: DATABASE_URL
+        secret: database-url
+      - name: REDIS_URL
+        secret: redis-url
+      - name: RABBITMQ_URL
+        secret: rabbitmq-url
+      - name: SECRET_KEY
+        secret: flask-secret-key
+      - name: JWT_SECRET_KEY
+        secret: jwt-secret-key
+      - name: OPENAI_API_KEY
+        secret: openai-api-key
+      - name: ANTHROPIC_API_KEY
+        secret: anthropic-api-key
+      - name: GOOGLE_AI_API_KEY
+        secret: google-ai-api-key
+      - name: GROQ_API_KEY
+        secret: groq-api-key
+      - name: EXA_API_KEY
+        secret: exa-api-key
+      - name: PINECONE_API_KEY
+        secret: pinecone-api-key
+      - name: DAYTONA_API_KEY
+        secret: daytona-api-key
+      - name: COMPOSIO_API_KEY
+        secret: composio-api-key
+      - name: SENTRY_DSN
+        secret: sentry-dsn
+      # Cloudflare R2 (S3-compatible) — uses the endpoint_url shim in s3_service.py
+      - name: AWS_S3_ENDPOINT_URL
+        secret: r2-endpoint-url
+      - name: AWS_ACCESS_KEY_ID
+        secret: r2-access-key-id
+      - name: AWS_SECRET_ACCESS_KEY
+        secret: r2-secret-access-key
+      - name: AWS_S3_BUCKET_NAME
+        secret: r2-bucket-name
+      - name: AWS_S3_REGION
+        value: auto # R2 uses "auto"
+      - name: CORS_ORIGINS
+        secret: frontend-url
+
+  - name: chat-worker
+    type: worker
+    docker:
+      image: ghcr.io/{{ secret.ghcr_owner }}/portfolio-helper-agents:latest
+      command: [python, -m, worker.consumer]
+      registry_secret: ghcr-credentials
+    instance_type: free
+    regions:
+      - fra
+    scaling:
+      min: 1
+      max: 1
+    env:
+      - name: FLASK_ENV
+        value: production
+      - name: USE_RABBITMQ
+        value: "true"
+      - name: USE_REDIS_STREAM
+        value: "true"
+      - name: SANDBOX_ENABLED
+        value: "true"
+      - name: DATABASE_URL
+        secret: database-url
+      - name: REDIS_URL
+        secret: redis-url
+      - name: RABBITMQ_URL
+        secret: rabbitmq-url
+      - name: SECRET_KEY
+        secret: flask-secret-key
+      - name: JWT_SECRET_KEY
+        secret: jwt-secret-key
+      - name: OPENAI_API_KEY
+        secret: openai-api-key
+      - name: ANTHROPIC_API_KEY
+        secret: anthropic-api-key
+      - name: GOOGLE_AI_API_KEY
+        secret: google-ai-api-key
+      - name: GROQ_API_KEY
+        secret: groq-api-key
+      - name: EXA_API_KEY
+        secret: exa-api-key
+      - name: PINECONE_API_KEY
+        secret: pinecone-api-key
+      - name: DAYTONA_API_KEY
+        secret: daytona-api-key
+      - name: COMPOSIO_API_KEY
+        secret: composio-api-key
+      - name: SENTRY_DSN
+        secret: sentry-dsn
+      - name: AWS_S3_ENDPOINT_URL
+        secret: r2-endpoint-url
+      - name: AWS_ACCESS_KEY_ID
+        secret: r2-access-key-id
+      - name: AWS_SECRET_ACCESS_KEY
+        secret: r2-secret-access-key
+      - name: AWS_S3_BUCKET_NAME
+        secret: r2-bucket-name
+      - name: AWS_S3_REGION
+        value: auto

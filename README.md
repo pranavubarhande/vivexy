@@ -86,13 +86,10 @@ brew install uv
 5. **Start services**:
 
    ```bash
-   # Using Docker Compose (recommended for full isolation)
-   cd infra
-   docker-compose up -d
-
-   # Or run locally (requires UV for Python)
    npm run dev  # Starts all services via Turborepo (Next.js + Flask)
    ```
+
+   You'll need local Postgres, Redis, and (optionally) RabbitMQ running on their default ports — install via Homebrew (`brew install postgresql@15 redis rabbitmq`) or your package manager of choice.
 
 6. **Access the application**:
    - Frontend: http://localhost:3000
@@ -187,8 +184,10 @@ portfolio-helper-fe/
 │       └── scripts/              # Seed scripts (seed_llm_models.py)
 ├── packages/                     # Shared packages
 │   └── shared-types/             # TypeScript types
-├── infra/                        # Infrastructure
-│   └── docker-compose.yml
+├── infra/                        # Deployment infrastructure
+│   ├── docker/                   # Production Dockerfiles
+│   ├── coolify/                  # Cheap path (VPS + managed services)
+│   └── aws/                      # Scalable path (Terraform + ECS Fargate)
 ├── .gitignore
 ├── package.json                  # Root monorepo config
 ├── turbo.json                    # Turborepo config
@@ -223,19 +222,22 @@ REDIS_URL=redis://localhost:6379
 
 ## Deployment
 
-### Docker
+Three supported paths — pick whichever matches your scale and ops budget. All three share the same image build pipeline ([.github/workflows/build-and-push.yml](.github/workflows/build-and-push.yml) → GHCR), so switching is a config change, not a rewrite.
 
-```bash
-# Build and run
-cd infra
-docker-compose up --build
-```
+| Aspect                 | [Free (demo)](infra/free/README.md) | [Coolify (cheap)](infra/coolify/README.md) | [AWS ECS Fargate (scalable)](infra/aws/README.md) |
+| ---------------------- | ----------------------------------- | ------------------------------------------ | ------------------------------------------------- |
+| **Cost**               | $0                                  | ~$5–20/mo                                  | ~$200–500/mo                                      |
+| **Hosts**              | Vercel + Koyeb                      | VPS + Coolify                              | ECS Fargate + RDS + ElastiCache + MQ              |
+| **Stateful services**  | Neon, Upstash, CloudAMQP, R2        | Supabase, Upstash, CloudAMQP, S3           | RDS Multi-AZ, ElastiCache cluster, Amazon MQ, S3  |
+| **Cold starts**        | ~30 s (scales to zero)              | None                                       | None                                              |
+| **Scaling**            | Single replica ceiling              | Vertical (bigger VPS)                      | Horizontal autoscaling                            |
+| **Desktop installers** | GH Releases (unsigned)              | —                                          | —                                                 |
+| **Setup time**         | ~30 min                             | ~45 min                                    | ~2 hr                                             |
+| **When to pick**       | Demos, OSS forks, pre-launch POC    | Pre-scale, single team, low ops budget     | Spiky traffic, compliance, multi-AZ HA            |
 
-### Production
+Auto-deploy on push to `main` is wired up for both paths via the workflows in [.github/workflows/](.github/workflows/). Each path has its own README with end-to-end setup, secrets bootstrap, DNS/TLS, and validation steps.
 
-1. Set production environment variables
-2. Use Kubernetes manifests in `infra/k8s/`
-3. Configure load balancer and secrets
+For local development, see the Quick Start section above — use `npm run dev` with Postgres/Redis running natively.
 
 ## Code Quality & Formatting
 

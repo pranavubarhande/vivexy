@@ -43,7 +43,9 @@ class S3Service:
             "AWS_S3_REGION", getattr(Config, "AWS_S3_REGION", "us-east-1")
         )
 
-        # Initialize S3 client
+        # Initialize S3 client. `AWS_S3_ENDPOINT_URL` is honoured for
+        # S3-compatible providers (Cloudflare R2, Backblaze B2, MinIO, ...).
+        endpoint_url = os.getenv("AWS_S3_ENDPOINT_URL") or None
         self.s3_client = boto3.client(
             "s3",
             aws_access_key_id=os.getenv(
@@ -53,6 +55,7 @@ class S3Service:
                 "AWS_SECRET_ACCESS_KEY", getattr(Config, "AWS_SECRET_ACCESS_KEY", None)
             ),
             region_name=self.region,
+            endpoint_url=endpoint_url,
         )
 
     def _get_file_key(

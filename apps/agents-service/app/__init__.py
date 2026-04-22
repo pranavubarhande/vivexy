@@ -100,4 +100,8 @@ def create_app(config_object=None):
     app.register_blueprint(connectors_bp)
     app.register_blueprint(skills_bp)
 
+    @app.route("/health")
+    def _health():
+        return {"status": "ok"}, 200
+
     return app

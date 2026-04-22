@@ -1,0 +1,146 @@
+name: deploy-aws
+
+# Fires after build-and-push succeeds on main.
+# Updates ECS task definitions with the new image tag, runs Alembic migrations
+# as a one-shot task, then rolls the three Fargate services.
+
+on:
+  workflow_run:
+    workflows: [build-and-push]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Image tag to deploy (defaults to commit SHA from triggering build)'
+        required: false
+        default: ''
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
+  PROJECT_PREFIX: ${{ vars.PROJECT_PREFIX }}
+  GHCR_OWNER: ${{ github.repository_owner }}
+
+jobs:
+  deploy:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute image tag
+        id: tag
+        run: |
+          if [ -n "${{ inputs.image_tag }}" ]; then
+            TAG="${{ inputs.image_tag }}"
+          elif [ -n "${{ github.event.workflow_run.head_sha }}" ]; then
+            TAG="sha-${{ github.event.workflow_run.head_sha }}"
+          else
+            TAG="sha-${GITHUB_SHA}"
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "Deploying image tag: ${TAG}"
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Render & register migrations task definition
+        id: migrations_td
+        env:
+          IMAGE_TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          AGENTS_IMAGE="ghcr.io/${GHCR_OWNER}/portfolio-helper-agents:${IMAGE_TAG}"
+          EXEC_ROLE=$(aws iam get-role --role-name "${PROJECT_PREFIX}-agents-execution" --query Role.Arn --output text)
+          TASK_ROLE=$(aws iam get-role --role-name "${PROJECT_PREFIX}-agents-task" --query Role.Arn --output text)
+          DB_SECRET=$(aws secretsmanager describe-secret --secret-id "${PROJECT_PREFIX}/database-url" --query ARN --output text)
+          GHCR_SECRET="${{ secrets.GHCR_CREDENTIALS_SECRET_ARN }}"
+
+          sed \
+            -e "s|PROJECT_PREFIX|${PROJECT_PREFIX}|g" \
+            -e "s|EXECUTION_ROLE_ARN|${EXEC_ROLE}|g" \
+            -e "s|TASK_ROLE_ARN|${TASK_ROLE}|g" \
+            -e "s|AGENTS_IMAGE|${AGENTS_IMAGE}|g" \
+            -e "s|GHCR_CREDENTIALS_SECRET_ARN|${GHCR_SECRET}|g" \
+            -e "s|DATABASE_URL_SECRET_ARN|${DB_SECRET}|g" \
+            -e "s|AWS_REGION|${AWS_REGION}|g" \
+            infra/aws/task-definitions/migrations.json > /tmp/migrations.json
+
+          ARN=$(aws ecs register-task-definition --cli-input-json file:///tmp/migrations.json --query 'taskDefinition.taskDefinitionArn' --output text)
+          echo "arn=${ARN}" >> "$GITHUB_OUTPUT"
+
+      - name: Run migrations (one-shot)
+        env:
+          TASK_DEF_ARN: ${{ steps.migrations_td.outputs.arn }}
+        run: |
+          # Reuse network config from the agents service
+          NETWORK_CFG=$(aws ecs describe-services \
+            --cluster "${ECS_CLUSTER}" --services agents \
+            --query 'services[0].networkConfiguration' --output json)
+
+          TASK_ARN=$(aws ecs run-task \
+            --cluster "${ECS_CLUSTER}" \
+            --launch-type FARGATE \
+            --task-definition "${TASK_DEF_ARN}" \
+            --network-configuration "${NETWORK_CFG}" \
+            --query 'tasks[0].taskArn' --output text)
+
+          echo "Migration task: ${TASK_ARN}"
+          aws ecs wait tasks-stopped --cluster "${ECS_CLUSTER}" --tasks "${TASK_ARN}"
+
+          EXIT=$(aws ecs describe-tasks --cluster "${ECS_CLUSTER}" --tasks "${TASK_ARN}" \
+            --query 'tasks[0].containers[0].exitCode' --output text)
+          echo "Migration exit code: ${EXIT}"
+          if [ "${EXIT}" != "0" ]; then
+            echo "::error::Alembic migration failed"
+            exit 1
+          fi
+
+      - name: Update ECS services with new image
+        env:
+          IMAGE_TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          AGENTS_IMAGE="ghcr.io/${GHCR_OWNER}/portfolio-helper-agents:${IMAGE_TAG}"
+          FRONTEND_IMAGE="ghcr.io/${GHCR_OWNER}/portfolio-helper-frontend:${IMAGE_TAG}"
+
+          update_service() {
+            local svc="$1"
+            local family="$2"
+            local image="$3"
+
+            local current_td
+            current_td=$(aws ecs describe-task-definition --task-definition "${family}" --query taskDefinition)
+
+            local new_td
+            new_td=$(echo "${current_td}" | jq --arg IMG "${image}" '
+              .containerDefinitions[0].image = $IMG
+              | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)
+            ')
+
+            local new_arn
+            new_arn=$(aws ecs register-task-definition --cli-input-json "${new_td}" --query 'taskDefinition.taskDefinitionArn' --output text)
+            echo "${svc}: registered ${new_arn}"
+
+            aws ecs update-service \
+              --cluster "${ECS_CLUSTER}" \
+              --service "${svc}" \
+              --task-definition "${new_arn}" \
+              --force-new-deployment >/dev/null
+          }
+
+          update_service frontend    "${PROJECT_PREFIX}-frontend"    "${FRONTEND_IMAGE}"
+          update_service agents      "${PROJECT_PREFIX}-agents"      "${AGENTS_IMAGE}"
+          update_service chat-worker "${PROJECT_PREFIX}-chat-worker" "${AGENTS_IMAGE}"
+
+      - name: Wait for services to stabilise
+        run: |
+          aws ecs wait services-stable \
+            --cluster "${ECS_CLUSTER}" \
+            --services frontend agents chat-worker

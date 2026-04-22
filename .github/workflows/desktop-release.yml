@@ -1,0 +1,50 @@
+name: desktop-release
+
+# Builds unsigned installers for macOS / Windows / Linux and uploads them
+# to a GitHub Release as draft. Promote to published manually when ready.
+#
+# Trigger:
+#   git tag desktop-v0.1.0 && git push --tags
+
+on:
+  push:
+    tags:
+      - 'desktop-v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release as (e.g. desktop-v0.1.0)'
+        required: true
+
+permissions:
+  contents: write # create release + upload assets
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install workspace dependencies
+        run: npm ci --workspace apps/desktop --include-workspace-root
+
+      - name: Compile TypeScript
+        working-directory: apps/desktop
+        run: npm run build
+
+      - name: Build + publish installers
+        working-directory: apps/desktop
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # electron-builder refuses to publish without this on macOS; empty disables
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: npx electron-builder --publish always
