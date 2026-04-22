@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npx turbo build --filter=portfolio-helper-frontend --no-daemon",
+  "buildCommand": "./node_modules/.bin/turbo build --filter=portfolio-helper-frontend --no-daemon",
   "installCommand": "npm install",
   "framework": "nextjs",
   "outputDirectory": "apps/frontend/.next"

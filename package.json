@@ -24,7 +24,7 @@
     "format": "turbo format",
     "format:check": "turbo format:check",
     "clean": "turbo clean",
-    "prepare": "husky",
+    "prepare": "if [ -z \"$VERCEL\" ]; then husky; fi",
     "test": "turbo test"
   },
   "devDependencies": {
