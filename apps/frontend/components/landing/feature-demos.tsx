@@ -156,7 +156,7 @@ const SESSION_MESSAGES = [
   },
 ];
 
-function LongSessionDemo() {
+export function LongSessionDemo() {
   const [visible, setVisible] = useState(0);
   const [typing, setTyping] = useState(false);
 
@@ -249,7 +249,7 @@ const SKILLS = [
   },
 ];
 
-function SkillsDemo() {
+export function SkillsDemo() {
   const [phase, setPhase] = useState<
     'idle' | 'typing' | 'dropdown' | 'selected' | 'response'
   >('idle');
@@ -401,7 +401,7 @@ const MCP_SERVERS = [
   },
 ];
 
-function MCPDemo() {
+export function MCPDemo() {
   const [enabled, setEnabled] = useState<number[]>([]);
   const phase = useLoop(4, Math.floor(ADVANCE_MS / 4));
 
@@ -515,7 +515,7 @@ const SANDBOX_STEPS = [
   },
 ];
 
-function SandboxDemo() {
+export function SandboxDemo() {
   const phase = useLoop(
     SANDBOX_STEPS.length,
     Math.floor(ADVANCE_MS / SANDBOX_STEPS.length)
@@ -624,7 +624,7 @@ const HITL_STEPS = [
   { label: 'Delivered', done: false },
 ];
 
-function HITLDemo() {
+export function HITLDemo() {
   const [approved, setApproved] = useState(false);
   const [phase, setPhase] = useState(0);
 
@@ -780,7 +780,7 @@ function HITLDemo() {
 const GUARDRAIL_TEXT =
   'Based on our analysis, we recommend reaching out to John Smith at john.smith@lawfirm.com (+1-555-0192) regarding the liability clause. His SSN 123-45-6789 was referenced in the exhibit.';
 
-function GuardrailsDemo() {
+export function GuardrailsDemo() {
   const [phase, setPhase] = useState<'streaming' | 'scanning' | 'redacted'>(
     'streaming'
   );
@@ -934,7 +934,7 @@ const SUB_AGENTS = [
   { label: 'Review Agent', icon: Shield, desc: 'Validates accuracy' },
 ];
 
-function SubAgentDemo() {
+export function SubAgentDemo() {
   const phase = useLoop(
     SUB_AGENTS.length + 2,
     Math.floor(ADVANCE_MS / (SUB_AGENTS.length + 2))
@@ -1073,7 +1073,7 @@ const MEMORIES = [
   { date: '2h ago', text: 'Client approved renegotiation approach', score: 0 },
 ];
 
-function MemoryDemo() {
+export function MemoryDemo() {
   const [phase, setPhase] = useState<
     'idle' | 'query' | 'searching' | 'found' | 'response'
   >('idle');
@@ -1260,7 +1260,7 @@ function MiniChat({ compact = false }: { compact?: boolean }) {
   );
 }
 
-function MultiPlatformDemo() {
+export function MultiPlatformDemo() {
   const phase = useLoop(
     PLATFORMS.length,
     Math.floor(ADVANCE_MS / PLATFORMS.length)
@@ -1464,7 +1464,7 @@ const TIERS = [
   },
 ];
 
-function ScaleDemo() {
+export function ScaleDemo() {
   const phase = useLoop(TIERS.length, Math.floor(ADVANCE_MS / TIERS.length));
   const tier = TIERS[phase];
 
@@ -1563,7 +1563,7 @@ const SLOT_OPTIONS = {
   deploy: ['Local VPS', 'AWS ECS', 'GCP Run', 'Terraform'],
 };
 
-function PlugPlayDemo() {
+export function PlugPlayDemo() {
   const [absPhase, setAbsPhase] = useState(-1);
   useEffect(() => {
     const id = setInterval(
@@ -1680,7 +1680,7 @@ const THEME_SWATCHES = [
   },
 ];
 
-function ThemesDemo() {
+export function ThemesDemo() {
   const phase = useLoop(
     THEME_SWATCHES.length,
     Math.floor(ADVANCE_MS / THEME_SWATCHES.length)

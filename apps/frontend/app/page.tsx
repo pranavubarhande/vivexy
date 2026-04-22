@@ -454,14 +454,19 @@ export default function LandingPage() {
 
             {/* Desktop links */}
             <div className="hidden md:flex items-center gap-8">
-              {['Workflows', 'Template', 'Tools', 'Insights'].map((link) => (
-                <a
-                  key={link}
-                  href={`#${link.toLowerCase()}`}
+              {[
+                { label: 'Workflows', href: '/workflows' },
+                { label: 'Template', href: '/template' },
+                { label: 'Integrations', href: '/integrations' },
+                { label: 'Insights', href: '/insights' },
+              ].map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
                   className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  {link}
-                </a>
+                  {link.label}
+                </Link>
               ))}
               <Link
                 href="/pricing"
@@ -519,15 +524,20 @@ export default function LandingPage() {
               className="md:hidden bg-background border-t border-border"
             >
               <div className="px-4 py-4 space-y-3">
-                {['Workflows', 'Template', 'Tools', 'Insights'].map((link) => (
-                  <a
-                    key={link}
-                    href={`#${link.toLowerCase()}`}
+                {[
+                  { label: 'Workflows', href: '/workflows' },
+                  { label: 'Template', href: '/template' },
+                  { label: 'Integrations', href: '/integrations' },
+                  { label: 'Insights', href: '/insights' },
+                ].map((link) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
                     className="block text-sm text-muted-foreground hover:text-foreground"
                     onClick={() => setIsMenuOpen(false)}
                   >
-                    {link}
-                  </a>
+                    {link.label}
+                  </Link>
                 ))}
                 <div className="pt-3 flex flex-col gap-2">
                   <Button variant="outline" size="sm" asChild>
@@ -970,8 +980,12 @@ export default function LandingPage() {
                   links: ['Workflows', 'Template', 'Integrations', 'Pricing'],
                 },
                 {
+                  heading: 'Company',
+                  links: ['Insights', 'Contact', 'Support'],
+                },
+                {
                   heading: 'Legal',
-                  links: ['Privacy', 'Terms', 'Security', 'Support'],
+                  links: ['Privacy', 'Terms', 'Security'],
                 },
               ].map((col) => (
                 <div key={col.heading}>
@@ -991,7 +1005,17 @@ export default function LandingPage() {
                                 ? '/security'
                                 : link === 'Support'
                                   ? '/support'
-                                  : '#';
+                                  : link === 'Contact'
+                                    ? '/contact'
+                                    : link === 'Insights'
+                                      ? '/insights'
+                                      : link === 'Workflows'
+                                        ? '/workflows'
+                                        : link === 'Template'
+                                          ? '/template'
+                                          : link === 'Integrations'
+                                            ? '/integrations'
+                                            : '#';
                       return (
                         <li key={link}>
                           <Link

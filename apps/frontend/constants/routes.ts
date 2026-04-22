@@ -7,6 +7,10 @@ export const ROUTES = {
   teams: '/teams',
   billing: '/billing',
   connectors: '/connectors',
+  workflows: '/workflows',
+  template: '/template',
+  integrations: '/integrations',
+  insights: '/insights',
   chat: (chatId?: string) => (chatId ? `/chat/${chatId}` : '/chat'),
 } as const;
 
@@ -19,6 +23,10 @@ export const PUBLIC_ROUTES: string[] = [
   '/terms',
   '/security',
   '/support',
+  '/workflows',
+  '/template',
+  '/integrations',
+  '/insights',
 ];
 
 // Auth-only entry pages. If the user is already logged in, redirect away from these.
