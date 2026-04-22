@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { APP_NAME } from '@/constants/project';
 import Image from 'next/image';
+import { useState } from 'react';
 
 const articles = [
   {
@@ -37,20 +38,18 @@ const articles = [
 ];
 
 const categories = [
-  { label: 'All', count: articles.length },
-  {
-    label: 'Engineering',
-    count: articles.filter((a) => a.category === 'Engineering').length,
-  },
-  {
-    label: 'Legal AI',
-    count: articles.filter((a) => a.category === 'Legal AI').length,
-  },
-  { label: 'Product', count: 0 },
-  { label: 'Case Studies', count: 0 },
+  { label: 'All', value: null },
+  { label: 'Engineering', value: 'Engineering' },
+  { label: 'Legal AI', value: 'Legal AI' },
 ];
 
 export default function InsightsPage() {
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+
+  const filteredArticles = activeCategory
+    ? articles.filter((a) => a.category === activeCategory)
+    : articles;
+
   return (
     <div className="min-h-screen bg-background">
       <motion.nav
@@ -141,21 +140,32 @@ export default function InsightsPage() {
           </motion.div>
 
           <div className="flex gap-2 mb-10 overflow-x-auto pb-2 scrollbar-none">
-            {categories.map((cat) => (
-              <button
-                key={cat.label}
-                className={`px-4 py-2 rounded-lg text-sm font-medium shrink-0 transition-colors ${
-                  cat.label === 'All'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                {cat.label}
-                {cat.count > 0 && (
-                  <span className="ml-2 text-xs opacity-70">({cat.count})</span>
-                )}
-              </button>
-            ))}
+            {categories.map((cat) => {
+              const isActive =
+                cat.value === activeCategory ||
+                (cat.value === null && activeCategory === null);
+              const articleCount = cat.value
+                ? articles.filter((a) => a.category === cat.value).length
+                : articles.length;
+              return (
+                <button
+                  key={cat.label}
+                  onClick={() => setActiveCategory(cat.value)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium shrink-0 transition-colors ${
+                    isActive
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {cat.label}
+                  {articleCount > 0 && (
+                    <span className="ml-2 text-xs opacity-70">
+                      ({articleCount})
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
 
           <motion.div
@@ -164,7 +174,7 @@ export default function InsightsPage() {
             viewport={{ once: true }}
             className="grid grid-cols-1 md:grid-cols-3 gap-6"
           >
-            {articles.map((article, i) => (
+            {filteredArticles.map((article, i) => (
               <motion.a
                 key={article.title}
                 initial={{ opacity: 0, y: 16 }}
