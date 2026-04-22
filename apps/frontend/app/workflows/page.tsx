@@ -399,7 +399,7 @@ export default function WorkflowsPage() {
             </p>
           </motion.div>
 
-          <div className="flex mb-10 border-b border-border overflow-x-auto scrollbar-none">
+          <div className="flex mb-10 border-b border-border overflow-x-auto no-scrollbar">
             {workflows.map((w, i) => {
               const Icon = w.icon;
               return (
