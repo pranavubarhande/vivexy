@@ -2,6 +2,7 @@ import json
 import os
 
 import sentry_sdk
+from flasgger import Swagger
 from flask import Flask, g, request
 from flask_cors import CORS
 from sentry_sdk.integrations.flask import FlaskIntegration
@@ -18,6 +19,7 @@ from app.routes.teams import bp as teams_bp
 from app.routes.users import bp as users_bp
 from app.utils.casing import camel_to_snake, snake_to_camel
 from configs import Config
+from configs.swagger_config import SWAGGER_CONFIG, SWAGGER_TEMPLATE
 
 
 def create_app(config_object=None):
@@ -102,6 +104,22 @@ def create_app(config_object=None):
 
     @app.route("/health")
     def _health():
+        """Health check endpoint.
+        ---
+        tags:
+          - Health
+        responses:
+          200:
+            description: Service is healthy
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  example: ok
+        """
         return {"status": "ok"}, 200
+
+    Swagger(app, template=SWAGGER_TEMPLATE, config=SWAGGER_CONFIG)
 
     return app

@@ -12,11 +12,29 @@ bp = Blueprint("stripe", __name__, url_prefix="/stripe")
 @bp.route("/checkout", methods=["POST"])
 @auth_middleware
 def create_checkout():
+    """Create a Stripe checkout session (placeholder).
+    ---
+    tags:
+      - Stripe
+    security:
+      - BearerAuth: []
+    responses:
+      501:
+        description: Not yet implemented
+    """
     # Placeholder implementation
     return jsonify({"message": "Stripe checkout not yet implemented"}), 501
 
 
 @bp.route("/webhook", methods=["POST"])
 def handle_webhook():
+    """Handle Stripe webhook events (placeholder).
+    ---
+    tags:
+      - Stripe
+    responses:
+      501:
+        description: Not yet implemented
+    """
     # Placeholder implementation
     return jsonify({"message": "Stripe webhook not yet implemented"}), 501

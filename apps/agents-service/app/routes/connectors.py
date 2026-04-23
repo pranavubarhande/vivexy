@@ -9,7 +9,23 @@ bp = Blueprint("connectors", __name__, url_prefix="/api/connectors")
 @bp.route("/active", methods=["GET"])
 @auth_middleware
 def list_active_connectors():
-    """Get all connected apps for the authenticated user via Composio."""
+    """Get all connected apps for the authenticated user via Composio.
+    ---
+    tags:
+      - Connectors
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: List of active connector slugs
+        schema:
+          type: array
+          items:
+            type: string
+            example: gmail
+      401:
+        description: Unauthorized
+    """
     try:
         user = request.user
 
@@ -53,7 +69,31 @@ def list_active_connectors():
 @bp.route("/generate_link", methods=["GET"])
 @auth_middleware
 def generate_connection_link():
-    """Generate a Composio OAuth link for a specific app."""
+    """Generate a Composio OAuth link for a specific app.
+    ---
+    tags:
+      - Connectors
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: query
+        name: app
+        type: string
+        required: true
+        description: App name to connect (e.g. gmail, slack, jira)
+    responses:
+      200:
+        description: OAuth redirect URL
+        schema:
+          type: object
+          properties:
+            url:
+              type: string
+      400:
+        description: Missing app parameter or integration not enabled
+      401:
+        description: Unauthorized
+    """
     try:
         user = request.user
         app_name = request.args.get("app")
@@ -98,7 +138,40 @@ def generate_connection_link():
 @bp.route("/disconnect", methods=["POST"])
 @auth_middleware
 def disconnect_connector():
-    """Disconnect a Composio integration."""
+    """Disconnect a Composio integration.
+    ---
+    tags:
+      - Connectors
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - app
+          properties:
+            app:
+              type: string
+              description: App slug to disconnect
+              example: gmail
+    responses:
+      200:
+        description: Disconnected successfully
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+      400:
+        description: Missing app parameter
+      401:
+        description: Unauthorized
+      404:
+        description: No active connection found
+    """
     try:
         user = request.user
         data = request.get_json() or {}

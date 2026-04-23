@@ -20,7 +20,25 @@ bp = Blueprint("teams", __name__, url_prefix="/teams")
 @bp.route("", methods=["GET"])
 @auth_middleware
 def list_teams():
-    """Get all teams for the authenticated user."""
+    """Get all teams for the authenticated user.
+    ---
+    tags:
+      - Teams
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: List of teams
+        schema:
+          type: object
+          properties:
+            teams:
+              type: array
+              items:
+                type: object
+      401:
+        description: Unauthorized
+    """
     try:
         user = request.user
         teams = get_user_teams(user.id)
@@ -32,7 +50,42 @@ def list_teams():
 @bp.route("", methods=["POST"])
 @auth_middleware
 def create_new_team():
-    """Create a new team."""
+    """Create a new team.
+    ---
+    tags:
+      - Teams
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - name
+          properties:
+            name:
+              type: string
+              example: Engineering Team
+            description:
+              type: string
+              example: Backend engineering squad
+    responses:
+      201:
+        description: Team created
+        schema:
+          type: object
+          properties:
+            team:
+              type: object
+            message:
+              type: string
+      400:
+        description: Validation error
+      401:
+        description: Unauthorized
+    """
     try:
         user = request.user
         data = request.get_json()
@@ -50,7 +103,30 @@ def create_new_team():
 @bp.route("/<team_id>", methods=["GET"])
 @auth_middleware
 def get_team_details(team_id):
-    """Get a specific team."""
+    """Get a specific team.
+    ---
+    tags:
+      - Teams
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: path
+        name: team_id
+        type: string
+        required: true
+    responses:
+      200:
+        description: Team details
+        schema:
+          type: object
+          properties:
+            team:
+              type: object
+      401:
+        description: Unauthorized
+      404:
+        description: Team not found
+    """
     try:
         user = request.user
         team = get_team(team_id, user.id)
@@ -64,7 +140,37 @@ def get_team_details(team_id):
 @bp.route("/<team_id>", methods=["PATCH"])
 @auth_middleware
 def update_team_details(team_id):
-    """Update a team."""
+    """Update a team.
+    ---
+    tags:
+      - Teams
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: path
+        name: team_id
+        type: string
+        required: true
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            name:
+              type: string
+            description:
+              type: string
+    responses:
+      200:
+        description: Team updated
+      400:
+        description: Validation error
+      401:
+        description: Unauthorized
+      403:
+        description: Not team owner
+    """
     try:
         user = request.user
         data = request.get_json()
@@ -82,7 +188,25 @@ def update_team_details(team_id):
 @bp.route("/<team_id>", methods=["DELETE"])
 @auth_middleware
 def delete_team_endpoint(team_id):
-    """Delete a team."""
+    """Delete a team.
+    ---
+    tags:
+      - Teams
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: path
+        name: team_id
+        type: string
+        required: true
+    responses:
+      200:
+        description: Team deleted
+      401:
+        description: Unauthorized
+      403:
+        description: Not team owner
+    """
     try:
         user = request.user
         result = delete_team(team_id, user.id)
@@ -96,7 +220,32 @@ def delete_team_endpoint(team_id):
 @bp.route("/<team_id>/members", methods=["GET"])
 @auth_middleware
 def list_members(team_id):
-    """Get team members."""
+    """Get team members.
+    ---
+    tags:
+      - Teams
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: path
+        name: team_id
+        type: string
+        required: true
+    responses:
+      200:
+        description: List of team members
+        schema:
+          type: object
+          properties:
+            members:
+              type: array
+              items:
+                type: object
+      401:
+        description: Unauthorized
+      403:
+        description: Not a team member
+    """
     try:
         user = request.user
         members = get_team_members(team_id, user.id)
@@ -110,7 +259,39 @@ def list_members(team_id):
 @bp.route("/<team_id>/members", methods=["POST"])
 @auth_middleware
 def add_member(team_id):
-    """Add a member to the team."""
+    """Add a member to the team.
+    ---
+    tags:
+      - Teams
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: path
+        name: team_id
+        type: string
+        required: true
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - email
+          properties:
+            email:
+              type: string
+              example: member@example.com
+            role:
+              type: string
+              example: member
+    responses:
+      201:
+        description: Member added
+      400:
+        description: Validation error or already a member
+      401:
+        description: Unauthorized
+    """
     try:
         user = request.user
         data = request.get_json()
@@ -128,7 +309,29 @@ def add_member(team_id):
 @bp.route("/<team_id>/members/<user_id>", methods=["DELETE"])
 @auth_middleware
 def remove_member(team_id, user_id):
-    """Remove a member from the team."""
+    """Remove a member from the team.
+    ---
+    tags:
+      - Teams
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: path
+        name: team_id
+        type: string
+        required: true
+      - in: path
+        name: user_id
+        type: string
+        required: true
+    responses:
+      200:
+        description: Member removed
+      400:
+        description: Cannot remove yourself or invalid request
+      401:
+        description: Unauthorized
+    """
     try:
         requester = request.user
         result = remove_team_member(team_id, user_id, requester.id)

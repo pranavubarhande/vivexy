@@ -93,6 +93,33 @@ def get_official_skills() -> List[Dict[str, Any]]:
 
 @bp.route("/catalog", methods=["GET"])
 def get_catalog():
+    """Get the catalog of official (built-in) skills.
+    ---
+    tags:
+      - Skills
+    responses:
+      200:
+        description: Array of official skill objects
+        schema:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              displayName:
+                type: string
+              description:
+                type: string
+              category:
+                type: string
+              tags:
+                type: array
+                items:
+                  type: string
+              official:
+                type: boolean
+    """
     try:
         return jsonify(get_official_skills())
     except Exception as e:
@@ -103,6 +130,35 @@ def get_catalog():
 @bp.route("/user", methods=["GET"])
 @auth_middleware
 def list_user_skills():
+    """List all skills for the authenticated user.
+    ---
+    tags:
+      - Skills
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Array of user skill objects
+        schema:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+              description:
+                type: string
+              content:
+                type: string
+              enabled:
+                type: boolean
+              platform:
+                type: string
+      401:
+        description: Unauthorized
+    """
     try:
         skills = get_user_skills(request.user.id)
         return jsonify(
@@ -127,6 +183,42 @@ def list_user_skills():
 @bp.route("/user", methods=["POST"])
 @auth_middleware
 def save_user_skill():
+    """Create or update a user skill.
+    ---
+    tags:
+      - Skills
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - name
+            - content
+          properties:
+            name:
+              type: string
+              example: my-custom-skill
+            description:
+              type: string
+            content:
+              type: string
+            files:
+              type: object
+            enabled:
+              type: boolean
+              default: true
+            platform:
+              type: string
+    responses:
+      201:
+        description: Skill created/updated
+      401:
+        description: Unauthorized
+    """
     try:
         body = request.get_json() or {}
         data = UserSkillCreate(**body)
@@ -153,6 +245,43 @@ def save_user_skill():
 @bp.route("/user/<skill_id>", methods=["PUT"])
 @auth_middleware
 def update_skill(skill_id: str):
+    """Update an existing user skill.
+    ---
+    tags:
+      - Skills
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: path
+        name: skill_id
+        type: string
+        required: true
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            name:
+              type: string
+            description:
+              type: string
+            content:
+              type: string
+            files:
+              type: object
+            enabled:
+              type: boolean
+            platform:
+              type: string
+    responses:
+      200:
+        description: Skill updated
+      401:
+        description: Unauthorized
+      404:
+        description: Skill not found
+    """
     try:
         body = request.get_json() or {}
         data = UserSkillUpdate(**body)
@@ -178,6 +307,30 @@ def update_skill(skill_id: str):
 @bp.route("/user/<skill_id>", methods=["DELETE"])
 @auth_middleware
 def delete_skill(skill_id: str):
+    """Delete a user skill.
+    ---
+    tags:
+      - Skills
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: path
+        name: skill_id
+        type: string
+        required: true
+    responses:
+      200:
+        description: Skill deleted
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+      401:
+        description: Unauthorized
+      404:
+        description: Skill not found
+    """
     try:
         deleted = delete_user_skill(request.user.id, skill_id)
         if not deleted:

@@ -70,6 +70,22 @@ bp = Blueprint("chat", __name__, url_prefix="/chat")
 @bp.route("", methods=["GET"])
 @auth_middleware
 def get_chats():
+    """List all chats for the authenticated user.
+    ---
+    tags:
+      - Chat
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Array of chat objects
+        schema:
+          type: array
+          items:
+            type: object
+      401:
+        description: Unauthorized
+    """
     try:
         user = request.user
         chats = get_user_chats(user.id)
@@ -81,6 +97,30 @@ def get_chats():
 @bp.route("", methods=["POST"])
 @auth_middleware
 def create_new_chat():
+    """Create a new chat conversation.
+    ---
+    tags:
+      - Chat
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            title:
+              type: string
+              example: New Conversation
+    responses:
+      201:
+        description: Chat created
+      400:
+        description: Validation error
+      401:
+        description: Unauthorized
+    """
     try:
         user = request.user
         data = request.get_json() or {}
@@ -96,6 +136,25 @@ def create_new_chat():
 @bp.route("/<chat_id>", methods=["GET"])
 @auth_middleware
 def get_chat(chat_id):
+    """Get a specific chat by ID.
+    ---
+    tags:
+      - Chat
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: path
+        name: chat_id
+        type: string
+        required: true
+    responses:
+      200:
+        description: Chat object
+      401:
+        description: Unauthorized
+      404:
+        description: Chat not found
+    """
     try:
         user = request.user
         chat = get_user_chat(chat_id, user.id)
@@ -109,6 +168,29 @@ def get_chat(chat_id):
 @bp.route("/<chat_id>/messages", methods=["GET"])
 @auth_middleware
 def get_messages(chat_id):
+    """Get all messages in a chat.
+    ---
+    tags:
+      - Chat
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: path
+        name: chat_id
+        type: string
+        required: true
+    responses:
+      200:
+        description: Array of messages
+        schema:
+          type: array
+          items:
+            type: object
+      401:
+        description: Unauthorized
+      404:
+        description: Chat not found
+    """
     try:
         user = request.user
         messages = get_chat_messages(chat_id, user.id)
@@ -122,6 +204,43 @@ def get_messages(chat_id):
 @bp.route("/<chat_id>/messages", methods=["POST"])
 @auth_middleware
 def create_new_message(chat_id):
+    """Create a new message in a chat.
+    ---
+    tags:
+      - Chat
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: path
+        name: chat_id
+        type: string
+        required: true
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - role
+            - content
+          properties:
+            role:
+              type: string
+              enum: [user, assistant, system]
+            content:
+              type: string
+            model_id:
+              type: string
+    responses:
+      201:
+        description: Message created
+      400:
+        description: Validation error
+      401:
+        description: Unauthorized
+      404:
+        description: Chat not found
+    """
     try:
         user = request.user
         data = request.get_json()
@@ -139,6 +258,43 @@ def create_new_message(chat_id):
 @bp.route("/<chat_id>/messages/<message_id>", methods=["PUT"])
 @auth_middleware
 def update_existing_message(chat_id, message_id):
+    """Update an existing message's content.
+    ---
+    tags:
+      - Chat
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: path
+        name: chat_id
+        type: string
+        required: true
+      - in: path
+        name: message_id
+        type: string
+        required: true
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - content
+          properties:
+            content:
+              type: string
+            model_id:
+              type: string
+    responses:
+      200:
+        description: Message updated
+      400:
+        description: Content is required
+      401:
+        description: Unauthorized
+      404:
+        description: Message not found
+    """
     try:
         user = request.user
         data = request.get_json() or {}
@@ -157,7 +313,37 @@ def update_existing_message(chat_id, message_id):
 @bp.route("/<chat_id>/messages/<message_id>/revert", methods=["POST"])
 @auth_middleware
 def revert_to_message_endpoint(chat_id, message_id):
-    """Delete all messages after message_id, reverting the chat to that point."""
+    """Delete all messages after message_id, reverting the chat to that point.
+    ---
+    tags:
+      - Chat
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: path
+        name: chat_id
+        type: string
+        required: true
+      - in: path
+        name: message_id
+        type: string
+        required: true
+        description: Revert to this message (all subsequent messages are deleted)
+    responses:
+      200:
+        description: Revert successful
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+            deletedCount:
+              type: integer
+      401:
+        description: Unauthorized
+      404:
+        description: Chat or message not found
+    """
     try:
         user = request.user
         count = revert_to_message(chat_id, message_id, user.id)
@@ -171,6 +357,22 @@ def revert_to_message_endpoint(chat_id, message_id):
 @bp.route("/models", methods=["GET"])
 @auth_middleware
 def get_models():
+    """Get available LLM models.
+    ---
+    tags:
+      - Chat
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Array of LLM model objects
+        schema:
+          type: array
+          items:
+            type: object
+      401:
+        description: Unauthorized
+    """
     try:
         models = get_llm_models()
         return jsonify([m.dict() for m in models])
@@ -181,6 +383,29 @@ def get_models():
 @bp.route("/<chat_id>/artifacts", methods=["GET"])
 @auth_middleware
 def get_artifacts(chat_id):
+    """Get all artifacts for a chat.
+    ---
+    tags:
+      - Artifacts
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: path
+        name: chat_id
+        type: string
+        required: true
+    responses:
+      200:
+        description: Array of artifact objects
+        schema:
+          type: array
+          items:
+            type: object
+      401:
+        description: Unauthorized
+      404:
+        description: Chat not found
+    """
     try:
         user = request.user
         artifacts = get_chat_artifacts(chat_id, user.id)
@@ -194,6 +419,45 @@ def get_artifacts(chat_id):
 @bp.route("/<chat_id>/artifacts", methods=["POST"])
 @auth_middleware
 def create_new_artifact(chat_id):
+    """Create a new artifact in a chat.
+    ---
+    tags:
+      - Artifacts
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: path
+        name: chat_id
+        type: string
+        required: true
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - title
+            - content
+            - type
+          properties:
+            title:
+              type: string
+            content:
+              type: string
+            type:
+              type: string
+            filename:
+              type: string
+    responses:
+      201:
+        description: Artifact created
+      400:
+        description: Validation error
+      401:
+        description: Unauthorized
+      404:
+        description: Chat not found
+    """
     try:
         user = request.user
         data = request.get_json()
@@ -213,6 +477,40 @@ def create_new_artifact(chat_id):
 @bp.route("/<chat_id>/artifacts/<artifact_id>/export", methods=["GET"])
 @auth_middleware
 def export_artifact_endpoint(chat_id, artifact_id):
+    """Export an artifact as PDF or DOCX.
+    ---
+    tags:
+      - Artifacts
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: path
+        name: chat_id
+        type: string
+        required: true
+      - in: path
+        name: artifact_id
+        type: string
+        required: true
+      - in: query
+        name: format
+        type: string
+        enum: [pdf, docx]
+        default: pdf
+        description: Export format
+    produces:
+      - application/pdf
+      - application/vnd.openxmlformats-officedocument.wordprocessingml.document
+    responses:
+      200:
+        description: Exported file binary
+      400:
+        description: Invalid format
+      401:
+        description: Unauthorized
+      404:
+        description: Artifact not found
+    """
     try:
         user = request.user
         fmt = request.args.get("format", "pdf").lower()
@@ -257,7 +555,31 @@ def export_artifact_endpoint(chat_id, artifact_id):
 @bp.route("/<chat_id>/artifacts/<artifact_id>/download", methods=["GET"])
 @auth_middleware
 def download_artifact_endpoint(chat_id, artifact_id):
-    """Proxy-download an artifact's raw file from S3, avoiding browser CORS restrictions."""
+    """Proxy-download an artifact's raw file from S3, avoiding browser CORS restrictions.
+    ---
+    tags:
+      - Artifacts
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: path
+        name: chat_id
+        type: string
+        required: true
+      - in: path
+        name: artifact_id
+        type: string
+        required: true
+    responses:
+      200:
+        description: Raw file content from S3
+      401:
+        description: Unauthorized
+      404:
+        description: Artifact or S3 key not found
+      502:
+        description: Failed to fetch from S3
+    """
     try:
         artifact = Artifact.query.filter_by(id=artifact_id, chat_id=chat_id).first()
         if not artifact:
@@ -300,7 +622,43 @@ def download_artifact_endpoint(chat_id, artifact_id):
 @bp.route("/<chat_id>/export-content", methods=["POST"])
 @auth_middleware
 def export_content_endpoint(chat_id):
-    """Export markdown content to PDF/DOCX without needing the artifact in DB."""
+    """Export markdown content to PDF/DOCX without needing the artifact in DB.
+    ---
+    tags:
+      - Artifacts
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: path
+        name: chat_id
+        type: string
+        required: true
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - content
+          properties:
+            content:
+              type: string
+              description: Markdown content to export
+            format:
+              type: string
+              enum: [pdf, docx]
+              default: pdf
+    produces:
+      - application/pdf
+      - application/vnd.openxmlformats-officedocument.wordprocessingml.document
+    responses:
+      200:
+        description: Exported file binary
+      400:
+        description: Invalid format or missing content
+      401:
+        description: Unauthorized
+    """
     try:
         data = request.get_json() or {}
         content = data.get("content", "")
@@ -332,6 +690,29 @@ def export_content_endpoint(chat_id):
 @bp.route("/<chat_id>/attachments", methods=["GET"])
 @auth_middleware
 def get_attachments(chat_id):
+    """Get all file attachments for a chat.
+    ---
+    tags:
+      - Attachments
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: path
+        name: chat_id
+        type: string
+        required: true
+    responses:
+      200:
+        description: Array of attachment objects
+        schema:
+          type: array
+          items:
+            type: object
+      401:
+        description: Unauthorized
+      404:
+        description: Chat not found
+    """
     try:
         user = request.user
         attachments = get_chat_attachments(chat_id, user.id)
@@ -345,6 +726,34 @@ def get_attachments(chat_id):
 @bp.route("/<chat_id>/attachments", methods=["POST"])
 @auth_middleware
 def upload_attachment(chat_id):
+    """Upload a file attachment to a chat (max 10 MB).
+    ---
+    tags:
+      - Attachments
+    security:
+      - BearerAuth: []
+    consumes:
+      - multipart/form-data
+    parameters:
+      - in: path
+        name: chat_id
+        type: string
+        required: true
+      - in: formData
+        name: file
+        type: file
+        required: true
+        description: File to upload (max 10 MB)
+    responses:
+      201:
+        description: Attachment created
+      400:
+        description: No file provided, empty file, or too large
+      401:
+        description: Unauthorized
+      404:
+        description: Chat not found
+    """
     try:
         user = request.user
         if "file" not in request.files:
@@ -384,7 +793,72 @@ def upload_attachment(chat_id):
 @bp.route("/start", methods=["POST"])
 @auth_middleware
 def start_chat_stream():
-    """Start agent in a background thread; return stream_id for EventSource subscription."""
+    """Start agent in a background thread; return stream_id for EventSource subscription.
+    ---
+    tags:
+      - Streaming
+    security:
+      - BearerAuth: []
+    consumes:
+      - application/json
+      - multipart/form-data
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - chat_id
+            - messages
+          properties:
+            chat_id:
+              type: string
+            messages:
+              type: array
+              items:
+                type: object
+                properties:
+                  role:
+                    type: string
+                  content:
+                    type: string
+            model_id:
+              type: string
+            model_db_id:
+              type: string
+            model_provider:
+              type: string
+              default: google
+            file_ids:
+              type: array
+              items:
+                type: string
+            user_skills:
+              type: array
+              items:
+                type: string
+            mcp_tools:
+              type: array
+              items:
+                type: object
+    responses:
+      200:
+        description: Stream started, returns stream_id for SSE subscription
+        schema:
+          type: object
+          properties:
+            stream_id:
+              type: string
+      400:
+        description: Missing chat_id or messages
+      401:
+        description: Unauthorized
+      404:
+        description: Chat not found
+      503:
+        description: Redis unavailable
+    """
     try:
         user = request.user
         user_id = user.id
@@ -520,7 +994,26 @@ def start_chat_stream():
 
 @bp.route("/events/<stream_id>", methods=["GET"])
 def chat_events(stream_id):
-    """SSE relay: reads from Redis stream and sends events to the client."""
+    """SSE relay: reads from Redis stream and sends events to the client.
+    ---
+    tags:
+      - Streaming
+    parameters:
+      - in: path
+        name: stream_id
+        type: string
+        required: true
+        description: Stream ID returned from POST /chat/start
+    produces:
+      - text/event-stream
+    responses:
+      200:
+        description: SSE event stream (data chunks as JSON)
+      404:
+        description: Invalid or expired stream
+      503:
+        description: Redis unavailable
+    """
     r = _get_redis()
     if not r:
         return jsonify({"error": "Redis unavailable"}), 503
@@ -563,7 +1056,43 @@ def chat_events(stream_id):
 @bp.route("/<chat_id>/tool-result", methods=["POST"])
 @auth_middleware
 def post_tool_result(chat_id):
-    """Receive tool execution result from Electron desktop client."""
+    """Receive tool execution result from Electron desktop client.
+    ---
+    tags:
+      - Streaming
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: path
+        name: chat_id
+        type: string
+        required: true
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - request_id
+          properties:
+            request_id:
+              type: string
+            result:
+              type: string
+              default: ""
+    responses:
+      200:
+        description: Result received
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+      400:
+        description: Missing request_id
+      401:
+        description: Unauthorized
+    """
     try:
         data = request.get_json() or {}
         request_id = data.get("request_id")

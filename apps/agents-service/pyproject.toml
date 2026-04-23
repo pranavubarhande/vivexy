@@ -54,6 +54,7 @@ dependencies = [
     "exa-py>=0.1.8",
     "crawl4ai>=0.4.0",
     "playwright>=1.48.0",
+    "flasgger",
 ]
 
 [project.optional-dependencies]

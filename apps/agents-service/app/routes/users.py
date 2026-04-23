@@ -19,6 +19,20 @@ bp = Blueprint("users", __name__, url_prefix="/users")
 @bp.route("/me", methods=["GET"])
 @auth_middleware
 def get_profile():
+    """Get authenticated user's profile.
+    ---
+    tags:
+      - Users
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: User profile data
+      401:
+        description: Unauthorized
+      404:
+        description: User not found
+    """
     try:
         user_id = request.user.id
         user = get_user_profile(user_id)
@@ -32,6 +46,38 @@ def get_profile():
 @bp.route("/me", methods=["PATCH"])
 @auth_middleware
 def update_profile():
+    """Update authenticated user's profile.
+    ---
+    tags:
+      - Users
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            name:
+              type: string
+              example: Updated Name
+            email:
+              type: string
+              example: newemail@example.com
+    responses:
+      200:
+        description: Profile updated
+        schema:
+          type: object
+          properties:
+            user:
+              type: object
+      400:
+        description: No valid fields or validation error
+      401:
+        description: Unauthorized
+    """
     try:
         user_id = request.user.id
         data = request.get_json()
@@ -51,6 +97,41 @@ def update_profile():
 @bp.route("/me", methods=["PUT"])
 @auth_middleware
 def update_password():
+    """Update authenticated user's password.
+    ---
+    tags:
+      - Users
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - current_password
+            - new_password
+          properties:
+            current_password:
+              type: string
+              example: oldpass123
+            new_password:
+              type: string
+              example: newpass456
+    responses:
+      200:
+        description: Password updated
+        schema:
+          type: object
+          properties:
+            user:
+              type: object
+      400:
+        description: Validation error or incorrect current password
+      401:
+        description: Unauthorized
+    """
     try:
         user_id = request.user.id
         data = request.get_json()
@@ -81,6 +162,20 @@ def update_password():
 @bp.route("/me", methods=["DELETE"])
 @auth_middleware
 def delete_account():
+    """Delete authenticated user's account.
+    ---
+    tags:
+      - Users
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Account deleted
+      401:
+        description: Unauthorized
+      404:
+        description: User not found
+    """
     try:
         user_id = request.user.id
         result = delete_user(user_id)
@@ -94,6 +189,22 @@ def delete_account():
 @bp.route("/me/api-keys", methods=["GET"])
 @auth_middleware
 def list_api_keys():
+    """List all API keys for the authenticated user.
+    ---
+    tags:
+      - Users
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: List of API keys (masked)
+        schema:
+          type: array
+          items:
+            type: object
+      401:
+        description: Unauthorized
+    """
     try:
         user_id = request.user.id
         keys = get_user_api_keys(user_id)
@@ -105,6 +216,37 @@ def list_api_keys():
 @bp.route("/me/api-keys/<provider>", methods=["PUT"])
 @auth_middleware
 def set_api_key(provider):
+    """Set or update an API key for a specific provider.
+    ---
+    tags:
+      - Users
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: path
+        name: provider
+        type: string
+        required: true
+        description: Provider name (e.g. openai, anthropic, google)
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - api_key
+          properties:
+            api_key:
+              type: string
+              example: sk-xxxxxxxxxxxxx
+    responses:
+      200:
+        description: API key saved
+      400:
+        description: Missing api_key or invalid provider
+      401:
+        description: Unauthorized
+    """
     try:
         user_id = request.user.id
         data = request.get_json() or {}
@@ -122,6 +264,31 @@ def set_api_key(provider):
 @bp.route("/me/api-keys/<provider>", methods=["DELETE"])
 @auth_middleware
 def remove_api_key(provider):
+    """Remove an API key for a specific provider.
+    ---
+    tags:
+      - Users
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: path
+        name: provider
+        type: string
+        required: true
+        description: Provider name to remove
+    responses:
+      200:
+        description: API key removed
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+      401:
+        description: Unauthorized
+      404:
+        description: API key not found for provider
+    """
     try:
         user_id = request.user.id
         delete_user_api_key(user_id, provider)
