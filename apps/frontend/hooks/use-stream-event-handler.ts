@@ -12,6 +12,7 @@ import {
   STREAM_EVENT_ARTIFACT,
   STREAM_EVENT_ARTIFACT_STREAM,
   STREAM_EVENT_CLIENT_TOOL_REQUEST,
+  STREAM_EVENT_COMPACT,
   STREAM_EVENT_CONTENT,
   STREAM_EVENT_DONE,
   STREAM_EVENT_ERROR,
@@ -395,6 +396,23 @@ export const handleStreamEvent = (
         }
         refetchHistory();
       }, 100);
+      break;
+    }
+
+    case STREAM_EVENT_COMPACT: {
+      const compactData = event.data as {
+        message: string;
+        compactedCount: number;
+      };
+      accumulator.timeline.push({
+        type: 'content',
+        text: `\n\n---\n📋 *${compactData.message}*\n\n---\n\n`,
+      });
+      accumulator.content += `\n\n---\n📋 *${compactData.message}*\n\n---\n\n`;
+      updateStreaming({
+        content: accumulator.content,
+        timeline: [...accumulator.timeline],
+      });
       break;
     }
 

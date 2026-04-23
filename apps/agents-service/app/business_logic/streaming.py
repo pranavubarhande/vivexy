@@ -19,10 +19,17 @@ from app.agents.config import FileContext
 from app.business_logic.api_keys import get_decrypted_api_keys
 from app.business_logic.artifacts import link_artifacts_to_message
 from app.business_logic.chat import create_message
+from app.business_logic.compact import (
+    compact_chat,
+    estimate_token_count,
+    get_compacted_messages,
+    should_auto_compact,
+)
 from app.constants.stream_events import (
     STREAM_EVENT_APPROVAL_REQUEST,
     STREAM_EVENT_ARTIFACT,
     STREAM_EVENT_CLIENT_TOOL_REQUEST,
+    STREAM_EVENT_COMPACT,
     STREAM_EVENT_CONTENT,
     STREAM_EVENT_DONE,
     STREAM_EVENT_ERROR,
@@ -31,6 +38,7 @@ from app.constants.stream_events import (
     STREAM_EVENT_TOOL_CALL,
 )
 from app.models.chat import Message as DBMessage
+from app.models.llm import LLMModel
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -82,6 +90,63 @@ def run_agent_stream(
 
         full_content = ""
         reasoning_steps: List[Dict] = []
+
+        # 0. Auto-compaction check
+        try:
+            context_window = None
+            if model_db_id:
+                model_record = LLMModel.query.filter_by(id=model_db_id).first()
+                if model_record:
+                    context_window = model_record.context_window
+
+            all_db_msgs = (
+                DBMessage.query.filter_by(chat_id=chat_id)
+                .order_by(DBMessage.created_at.asc())
+                .all()
+            )
+            formatted_for_check = [
+                {
+                    "role": (
+                        m.role.value.lower()
+                        if hasattr(m.role, "value")
+                        else str(m.role).lower()
+                    ),
+                    "content": m.content,
+                }
+                for m in all_db_msgs
+                if (
+                    m.role.value.lower()
+                    if hasattr(m.role, "value")
+                    else str(m.role).lower()
+                )
+                in ["user", "assistant"]
+            ]
+
+            if should_auto_compact(formatted_for_check, context_window):
+                user_api_keys = get_decrypted_api_keys(user_id) if user_id else {}
+                compact_result = compact_chat(
+                    chat_id,
+                    user_id,
+                    model_provider,
+                    model_id,
+                    user_api_keys=user_api_keys,
+                )
+                yield _sse(
+                    {
+                        "type": STREAM_EVENT_COMPACT,
+                        "data": {
+                            "message": "Context compacted — conversation summarized to free up context window",
+                            "compactedCount": compact_result["compacted_count"],
+                        },
+                    }
+                )
+                logger.info(
+                    "Auto-compacted chat %s (%d messages)",
+                    chat_id,
+                    compact_result["compacted_count"],
+                )
+        except Exception as e:
+            logger.warning("Auto-compaction check failed for chat %s: %s", chat_id, e)
 
         # 1. Prepare history and state (Amnesia Fix)
         inputs, config, seen_message_ids = _get_history_context(
@@ -313,6 +378,9 @@ def _get_history_context(
                     {"role": message_role, "content": db_msg.content, "id": message_id}
                 )
                 seen_message_ids.add(message_id)
+
+        # Apply compaction if available
+        formatted_messages = get_compacted_messages(chat_id, formatted_messages)
 
         # Add newest user message if missing
         if not any(m["role"] == "user" for m in formatted_messages) and messages:

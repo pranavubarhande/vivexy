@@ -8,6 +8,7 @@ import {
   STREAM_EVENT_ARTIFACT,
   STREAM_EVENT_ARTIFACT_STREAM,
   STREAM_EVENT_CLIENT_TOOL_REQUEST,
+  STREAM_EVENT_COMPACT,
   STREAM_EVENT_CONTENT,
   STREAM_EVENT_DONE,
   STREAM_EVENT_ERROR,
@@ -210,6 +211,10 @@ export type SSEEvent =
         tool_name: string;
         tool_input: Record<string, unknown>;
       };
+    }
+  | {
+      type: typeof STREAM_EVENT_COMPACT;
+      data: { message: string; compactedCount: number };
     }
   | {
       type: typeof STREAM_EVENT_DONE;

@@ -30,5 +30,8 @@ STREAM_EVENT_ARTIFACT_STREAM = "artifact_stream"
 STREAM_EVENT_TODO = "todo"
 STREAM_EVENT_FILE_VERSION = "file_version"
 
+# Compaction
+STREAM_EVENT_COMPACT = "compact"
+
 # Error
 STREAM_EVENT_ERROR = "error"

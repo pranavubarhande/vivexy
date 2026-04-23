@@ -52,12 +52,23 @@ export const useCommandPalette = (
   const skillsRef = useRef<CommandItem[]>([]);
   const filesRef = useRef<CommandItem[]>([]);
 
+  // Built-in commands always available
+  const builtInCommands: CommandItem[] = [
+    {
+      type: 'skill' as CommandType,
+      id: 'compact',
+      label: '/compact',
+      description: 'Summarize conversation to free context window',
+      insertText: '/compact ',
+    },
+  ];
+
   // Pure fetch helpers — no setState, safe to call from effects.
   const fetchSkillItems = useCallback(async (): Promise<CommandItem[]> => {
     const api = typeof window !== 'undefined' ? window.electronAPI : undefined;
     if (api) {
       const list = await api.getSkills();
-      return list
+      const skillItems = list
         .filter((s: SkillConfig) => s.enabled)
         .map((s: SkillConfig) => ({
           type: 'skill' as CommandType,
@@ -66,6 +77,7 @@ export const useCommandPalette = (
           description: s.description,
           insertText: `/${s.name} `,
         }));
+      return [...builtInCommands, ...skillItems];
     }
     // Web: official + user skills allowed on web
     const [official, user] = await Promise.all([
@@ -89,7 +101,11 @@ export const useCommandPalette = (
         insertText: `/${s.name} `,
       }));
     const seen = new Set(userItems.map((i) => i.id));
-    return [...userItems, ...officialItems.filter((i) => !seen.has(i.id))];
+    return [
+      ...builtInCommands,
+      ...userItems,
+      ...officialItems.filter((i) => !seen.has(i.id)),
+    ];
   }, []);
 
   const fetchFileItems = useCallback(async (): Promise<CommandItem[]> => {

@@ -19,7 +19,12 @@ import { useChatStream } from '@/hooks/use-chat-stream';
 import { useWorkspace } from '@/components/desktop/workspace-provider';
 import { useAuthSafe } from '@/components/shared/auth-provider';
 
-import { Artifact, LLMModel, Message } from '@/services/chat.service';
+import {
+  Artifact,
+  LLMModel,
+  Message,
+  chatService,
+} from '@/services/chat.service';
 import { File } from 'lucide-react';
 
 function getGreeting() {
@@ -319,6 +324,34 @@ export const AgenticChat = ({ config, initialChatId }: AgenticChatProps) => {
     files?: UploadedFile[],
     rawFiles?: File[]
   ) => {
+    // Intercept /compact command
+    const compactMatch = content.trim().match(/^\/compact\s*(.*)?$/i);
+    if (compactMatch) {
+      if (!chatId) {
+        toast.error('No active chat to compact. Start a conversation first.');
+        return;
+      }
+      const focus = compactMatch[1]?.trim() || undefined;
+      try {
+        toast.info('Compacting conversation…');
+        const result = await chatService.compactChat(chatId, {
+          focus,
+          modelId: selectedModelId ?? undefined,
+          modelProvider: selectedProvider || undefined,
+        });
+        toast.success(
+          `Context compacted — ${result.compactedCount} messages summarized`
+        );
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } catch (err: any) {
+        const errorMsg =
+          err.response?.data?.error ||
+          (err instanceof Error ? err.message : 'Compaction failed');
+        toast.error(errorMsg);
+      }
+      return;
+    }
+
     await sendMessage({
       content,
       files,

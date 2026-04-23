@@ -52,4 +52,7 @@ export const chatService = {
   approveAction: approvalApi.approveAction,
   rejectAction: approvalApi.rejectAction,
   postToolResult: approvalApi.postToolResult,
+
+  // Compaction
+  compactChat: chatApi.compactChat,
 };

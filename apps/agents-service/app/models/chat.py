@@ -15,6 +15,8 @@ class Chat(db.Model):
     title = db.Column(db.String)
     agent_id = db.Column(db.String)  # Which agent is being used for this chat
     last_model_id = db.Column(db.String, db.ForeignKey("llm_models.id"))
+    compact_summary = db.Column(db.Text, nullable=True)
+    compact_message_count = db.Column(db.Integer, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow

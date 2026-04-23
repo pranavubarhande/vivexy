@@ -41,4 +41,24 @@ export const chatApi = {
     }>(`/chat/${chatId}/messages/${messageId}/revert`);
     return response.data;
   },
+
+  compactChat: async (
+    chatId: string,
+    options?: {
+      focus?: string;
+      modelId?: string;
+      modelProvider?: string;
+    }
+  ) => {
+    const response = await axiosInstance.post<{
+      success: boolean;
+      summary: string;
+      compactedCount: number;
+    }>(`/chat/${chatId}/compact`, {
+      focus: options?.focus,
+      model_id: options?.modelId,
+      model_provider: options?.modelProvider,
+    });
+    return response.data;
+  },
 };

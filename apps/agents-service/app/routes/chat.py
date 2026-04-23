@@ -6,6 +6,7 @@ Two-way communication: REST for CRUD, POST /chat/start for agent streaming via R
 import json
 import logging
 import os
+import re
 import threading
 import uuid as uuid_lib
 
@@ -923,6 +924,39 @@ def start_chat_stream():
         if not messages:
             return jsonify({"error": "messages are required"}), 400
 
+        # Server-side /compact interception — prevent it from reaching the LLM
+
+        last_content = messages[-1].get("content", "").strip()
+        compact_match = re.match(r"^/compact\s*(.*)?$", last_content, re.IGNORECASE)
+        if compact_match:
+            focus = (compact_match.group(1) or "").strip() or None
+            try:
+                from app.business_logic.api_keys import get_decrypted_api_keys
+                from app.business_logic.compact import compact_chat
+
+                user_api_keys = get_decrypted_api_keys(user_id) if user_id else {}
+                result = compact_chat(
+                    chat_id,
+                    user_id,
+                    model_provider,
+                    model_id or "gemini-2.5-flash",
+                    user_api_keys=user_api_keys,
+                    focus=focus,
+                )
+                return jsonify(
+                    {
+                        "compact": True,
+                        "success": True,
+                        "summary": result["summary"],
+                        "compactedCount": result["compacted_count"],
+                    }
+                )
+            except ValueError as e:
+                return jsonify({"error": str(e)}), 400
+            except Exception as e:
+                logger.exception("compact via stream intercepted")
+                return jsonify({"error": str(e)}), 500
+
         local_filenames = data.get("local_filenames", [])
         if client_tools_enabled and local_filenames:
             filenames_str = ", ".join(local_filenames)
@@ -1104,4 +1138,85 @@ def post_tool_result(chat_id):
         success = resolve_client_tool(request_id, result)
         return jsonify({"success": success})
     except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@bp.route("/<chat_id>/compact", methods=["POST"])
+@auth_middleware
+def compact_chat_endpoint(chat_id):
+    """Compact a chat's context by summarizing older messages.
+    ---
+    tags:
+      - Chat
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: path
+        name: chat_id
+        type: string
+        required: true
+      - in: body
+        name: body
+        schema:
+          type: object
+          properties:
+            focus:
+              type: string
+              description: Optional focus area for the summary
+            model_id:
+              type: string
+              description: Model ID to use for summarization
+            model_provider:
+              type: string
+              default: google
+    responses:
+      200:
+        description: Compaction result
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+            summary:
+              type: string
+            compactedCount:
+              type: integer
+      400:
+        description: Not enough messages
+      401:
+        description: Unauthorized
+      404:
+        description: Chat not found
+    """
+    try:
+        user = request.user
+        data = request.get_json() or {}
+        focus = data.get("focus")
+        model_provider = data.get("model_provider", "google")
+        model_id = data.get("model_id", "gemini-2.5-flash")
+
+        from app.business_logic.api_keys import get_decrypted_api_keys
+        from app.business_logic.compact import compact_chat
+
+        user_api_keys = get_decrypted_api_keys(user.id) if user.id else {}
+
+        result = compact_chat(
+            chat_id,
+            user.id,
+            model_provider,
+            model_id,
+            user_api_keys=user_api_keys,
+            focus=focus,
+        )
+        return jsonify(
+            {
+                "success": True,
+                "summary": result["summary"],
+                "compactedCount": result["compacted_count"],
+            }
+        )
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        logger.exception("compact_chat_endpoint error")
         return jsonify({"error": str(e)}), 500
