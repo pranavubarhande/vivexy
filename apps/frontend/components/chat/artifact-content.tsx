@@ -62,9 +62,82 @@ const parseCSV = (content: string): string[][] => {
   });
 };
 
+export const CHARTJS_IFRAME = (configJson: string) => `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: transparent; display: flex; align-items: center; justify-content: center; height: 100vh; padding: 12px; }
+  canvas { max-width: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script>
+  try {
+    const cfg = ${configJson};
+    new Chart(document.getElementById('c'), cfg);
+  } catch(e) {
+    document.body.innerHTML = '<pre style="color:red;font-size:12px;padding:8px">' + e.message + '</pre>';
+  }
+</script>
+</body>
+</html>`;
+
+export const MERMAID_IFRAME = (diagram: string) => `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: transparent; display: flex; justify-content: center; padding: 16px; font-family: sans-serif; }
+  .mermaid { max-width: 100%; }
+  .mermaid svg { max-width: 100%; height: auto; }
+</style>
+</head>
+<body>
+<div class="mermaid">${diagram.replace(/`/g, '\\`')}</div>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose' });</script>
+</body>
+</html>`;
+
+const isChartjsConfig = (content: string): boolean => {
+  try {
+    const cfg = JSON.parse(content);
+    return (
+      typeof cfg === 'object' &&
+      cfg !== null &&
+      typeof cfg.type === 'string' &&
+      cfg.data != null &&
+      Array.isArray(cfg.data?.datasets)
+    );
+  } catch {
+    return false;
+  }
+};
+
 export const ArtifactContent = ({ artifact }: { artifact: Artifact }) => {
   const type = (artifact.type || 'TXT').toUpperCase();
   const content = artifact.content ?? '';
+
+  // Chart artifact — detected via metadata flag OR Chart.js config shape
+  if (
+    artifact.metadata?.is_chart ||
+    (type === 'JSON' && isChartjsConfig(content))
+  ) {
+    return (
+      <iframe
+        srcDoc={CHARTJS_IFRAME(content)}
+        sandbox="allow-scripts"
+        className="w-full rounded-lg border border-border"
+        style={{ height: '380px' }}
+        title={artifact.title ?? 'Chart'}
+      />
+    );
+  }
 
   switch (type) {
     case 'MD':
@@ -103,11 +176,24 @@ export const ArtifactContent = ({ artifact }: { artifact: Artifact }) => {
                 <strong className="font-semibold">{children}</strong>
               ),
               em: ({ children }) => <em className="italic">{children}</em>,
-              code: ({ children }) => (
-                <code className="bg-muted/80 px-1.5 py-0.5 rounded text-xs font-mono">
-                  {children}
-                </code>
-              ),
+              code: ({ className, children }) => {
+                if (className === 'language-mermaid') {
+                  return (
+                    <iframe
+                      srcDoc={MERMAID_IFRAME(String(children))}
+                      sandbox="allow-scripts"
+                      className="w-full rounded-lg border border-border my-2"
+                      style={{ height: '320px' }}
+                      title="Diagram"
+                    />
+                  );
+                }
+                return (
+                  <code className="bg-muted/80 px-1.5 py-0.5 rounded text-xs font-mono">
+                    {children}
+                  </code>
+                );
+              },
               pre: ({ children }) => (
                 <pre className="bg-muted/80 p-3 rounded-lg text-xs font-mono overflow-x-auto my-2 border border-border/50">
                   {children}
@@ -148,9 +234,11 @@ export const ArtifactContent = ({ artifact }: { artifact: Artifact }) => {
     }
     case 'HTML':
       return (
-        <div
-          className="artifact-html text-sm [&_table]:border [&_table]:border-border [&_th]:bg-muted/50 [&_td]:px-2 [&_td]:py-1"
-          dangerouslySetInnerHTML={{ __html: content }}
+        <iframe
+          srcDoc={content}
+          sandbox="allow-scripts allow-forms"
+          className="w-full min-h-[400px] rounded-lg border border-border"
+          title="HTML preview"
         />
       );
     case 'CSV': {

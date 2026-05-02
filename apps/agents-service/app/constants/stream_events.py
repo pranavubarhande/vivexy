@@ -30,6 +30,9 @@ STREAM_EVENT_ARTIFACT_STREAM = "artifact_stream"
 STREAM_EVENT_TODO = "todo"
 STREAM_EVENT_FILE_VERSION = "file_version"
 
+# Inline chart (rendered directly in the chat message timeline)
+STREAM_EVENT_CHART = "chart_render"
+
 # Compaction
 STREAM_EVENT_COMPACT = "compact"
 

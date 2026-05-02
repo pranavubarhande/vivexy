@@ -7,6 +7,7 @@ import {
   STREAM_EVENT_APPROVAL_REQUEST,
   STREAM_EVENT_ARTIFACT,
   STREAM_EVENT_ARTIFACT_STREAM,
+  STREAM_EVENT_CHART,
   STREAM_EVENT_CLIENT_TOOL_REQUEST,
   STREAM_EVENT_COMPACT,
   STREAM_EVENT_CONTENT,
@@ -53,7 +54,8 @@ export interface InlineTodo {
 
 export type TimelineItem =
   | { type: 'step'; step: ReasoningStep }
-  | { type: 'content'; text: string };
+  | { type: 'content'; text: string }
+  | { type: 'chart'; spec: Record<string, unknown>; title: string };
 
 export interface Message {
   id: string;
@@ -211,6 +213,10 @@ export type SSEEvent =
         tool_name: string;
         tool_input: Record<string, unknown>;
       };
+    }
+  | {
+      type: typeof STREAM_EVENT_CHART;
+      data: { title: string; spec: Record<string, unknown> };
     }
   | {
       type: typeof STREAM_EVENT_COMPACT;

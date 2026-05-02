@@ -10,6 +10,7 @@ import {
 import { platform } from '@/lib/platform';
 import { UploadedFile } from '@/components/chat/file-upload';
 import { ApprovalRequest } from '@/components/chat/approval-dialog';
+import { FormQuestionRequest } from '@/components/chat/form-question-card';
 import { useQueryCacheUpdater } from '@/hooks/use-query-cache-updater';
 import { chatKeys } from '@/hooks/useChat';
 import { handleStreamEvent } from '@/hooks/use-stream-event-handler';
@@ -44,6 +45,12 @@ export const useChatStream = (deps: StreamDeps) => {
   const [isWaitingApproval, setIsWaitingApproval] = useState(false);
   const [approvalRequest, setApprovalRequest] =
     useState<ApprovalRequest | null>(null);
+  const [formQuestion, setFormQuestion] = useState<FormQuestionRequest | null>(
+    null
+  );
+
+  // chatId is needed to post form answers; captured per-stream in a ref
+  const activeChatIdRef = useRef<string | null>(null);
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const isCreatingChatRef = useRef(false);
@@ -75,6 +82,25 @@ export const useChatStream = (deps: StreamDeps) => {
       } catch (err) {
         console.error('Failed to reject:', err);
         toast.error('Failed to reject action');
+      }
+    },
+    []
+  );
+
+  const handleFormSubmit = useCallback(
+    async (requestId: string, answers: Record<string, unknown>) => {
+      const chatId = activeChatIdRef.current;
+      if (!chatId) return;
+      try {
+        await chatService.postToolResult(
+          chatId,
+          requestId,
+          JSON.stringify(answers)
+        );
+        setFormQuestion(null);
+      } catch (err) {
+        console.error('Failed to submit form:', err);
+        toast.error('Failed to submit form answers');
       }
     },
     []
@@ -127,6 +153,7 @@ export const useChatStream = (deps: StreamDeps) => {
       }
 
       const targetChatId = currentChatId;
+      activeChatIdRef.current = targetChatId;
       const allFileIds: string[] = files?.map((f) => f.id) ?? [];
       let finalRawFiles = rawFiles;
 
@@ -222,6 +249,7 @@ export const useChatStream = (deps: StreamDeps) => {
           accumulator,
           setApprovalRequest,
           setIsWaitingApproval,
+          setFormQuestion,
           refetchHistory,
           userMsgId: userMsg.id,
           onUserMessageIdReceived: (id: string) => {
@@ -286,12 +314,14 @@ export const useChatStream = (deps: StreamDeps) => {
     isStreaming,
     isWaitingApproval,
     approvalRequest,
+    formQuestion,
     isCreatingChatRef,
     isStreamingRef,
     sendMessage,
     stopStreaming,
     handleApprove,
     handleReject,
+    handleFormSubmit,
     patchArtifact: cache.patchArtifact,
   };
 };

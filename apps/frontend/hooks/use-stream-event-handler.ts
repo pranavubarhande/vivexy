@@ -7,11 +7,16 @@ import type {
   SSEEvent,
   TimelineItem,
 } from '@/services/chat.service';
+import type {
+  FormQuestionRequest,
+  FormQuestionField,
+} from '@/components/chat/form-question-card';
 import { chatService } from '@/services/chat.service';
 import {
   STREAM_EVENT_APPROVAL_REQUEST,
   STREAM_EVENT_ARTIFACT,
   STREAM_EVENT_ARTIFACT_STREAM,
+  STREAM_EVENT_CHART,
   STREAM_EVENT_CLIENT_TOOL_REQUEST,
   STREAM_EVENT_COMPACT,
   STREAM_EVENT_CONTENT,
@@ -100,6 +105,7 @@ interface EventHandlerDeps {
     } | null
   ) => void;
   setIsWaitingApproval: (v: boolean) => void;
+  setFormQuestion: (req: FormQuestionRequest | null) => void;
   refetchHistory: () => void;
   userMsgId: string;
   onUserMessageIdReceived: (id: string) => void;
@@ -118,6 +124,7 @@ export const handleStreamEvent = (
     accumulator,
     setApprovalRequest,
     setIsWaitingApproval,
+    setFormQuestion,
     refetchHistory,
     onUserMessageIdReceived,
     updateStreaming,
@@ -179,6 +186,20 @@ export const handleStreamEvent = (
       break;
     }
 
+    case STREAM_EVENT_CHART: {
+      const chartData = event.data as {
+        title: string;
+        spec: Record<string, unknown>;
+      };
+      accumulator.timeline.push({
+        type: 'chart',
+        spec: chartData.spec,
+        title: chartData.title,
+      });
+      updateStreaming({ timeline: [...accumulator.timeline] });
+      break;
+    }
+
     case STREAM_EVENT_APPROVAL_REQUEST:
       setApprovalRequest({
         request_id: event.data.request_id,
@@ -195,7 +216,19 @@ export const handleStreamEvent = (
         tool_name: string;
         tool_input: Record<string, unknown>;
       };
-      if (platform.isDesktop) {
+      if (reqData.tool_name === 'form_question') {
+        const input = reqData.tool_input as {
+          title: string;
+          description?: string | null;
+          questions: FormQuestionField[];
+        };
+        setFormQuestion({
+          request_id: reqData.request_id,
+          title: input.title,
+          description: input.description,
+          questions: input.questions,
+        });
+      } else if (platform.isDesktop) {
         platform
           .executeTool(reqData.tool_name, reqData.tool_input)
           .then((result) => {

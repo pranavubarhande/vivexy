@@ -153,6 +153,8 @@ def get_base_tools(chat_id: str) -> List[BaseTool]:
     tools = []
     import_list = [
         ("app.tools.chat.chat_tools", "get_set_chat_title_tool", [chat_id]),
+        ("app.tools.chat.ask_user_tool", "get_ask_user_tool", []),
+        ("app.tools.chat.render_chart_tool", "get_render_chart_tool", []),
         ("app.tools.files.file_tools", "get_file_read_tool", [chat_id]),
         ("app.tools.web.search_tools", "get_web_tools", []),
         ("app.tools.web.crawler_tools", "get_crawler_tools", []),

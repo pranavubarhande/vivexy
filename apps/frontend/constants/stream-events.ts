@@ -31,6 +31,9 @@ export const STREAM_EVENT_ARTIFACT_STREAM = 'artifact_stream' as const;
 export const STREAM_EVENT_TODO = 'todo' as const;
 export const STREAM_EVENT_FILE_VERSION = 'file_version' as const;
 
+// Inline chart (rendered directly in the chat message timeline)
+export const STREAM_EVENT_CHART = 'chart_render' as const;
+
 // Compaction
 export const STREAM_EVENT_COMPACT = 'compact' as const;
 
@@ -56,5 +59,6 @@ export type StreamEventType =
   | typeof STREAM_EVENT_ARTIFACT_STREAM
   | typeof STREAM_EVENT_TODO
   | typeof STREAM_EVENT_FILE_VERSION
+  | typeof STREAM_EVENT_CHART
   | typeof STREAM_EVENT_COMPACT
   | typeof STREAM_EVENT_ERROR;

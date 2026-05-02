@@ -12,6 +12,7 @@ import { ChatHeader } from '@/components/chat/chat-header';
 import { ChatMessageList } from '@/components/chat/chat-message-list';
 import { ChatPanels } from '@/components/chat/chat-panels';
 import { ApprovalDialog } from '@/components/chat/approval-dialog';
+import { FormQuestionCard } from '@/components/chat/form-question-card';
 import { UploadedFile } from '@/components/chat/file-upload';
 
 import { useChat, useChatHistory, useModels } from '@/hooks/useChat';
@@ -232,12 +233,14 @@ export const AgenticChat = ({ config, initialChatId }: AgenticChatProps) => {
     isStreaming,
     isWaitingApproval,
     approvalRequest,
+    formQuestion,
     isCreatingChatRef,
     isStreamingRef,
     sendMessage,
     stopStreaming,
     handleApprove,
     handleReject,
+    handleFormSubmit,
     patchArtifact,
   } = useChatStream({
     messages,
@@ -531,6 +534,18 @@ export const AgenticChat = ({ config, initialChatId }: AgenticChatProps) => {
               </div>
             </div>
 
+            {/* Form question — inline card above input */}
+            {formQuestion && (
+              <div className="px-4 sm:px-6 pb-2">
+                <div className="max-w-3xl mx-auto">
+                  <FormQuestionCard
+                    request={formQuestion}
+                    onSubmit={handleFormSubmit}
+                  />
+                </div>
+              </div>
+            )}
+
             {/* Input area */}
             <div className="border-t border-border/50 bg-background/98 p-3 sm:p-4 shrink-0">
               <div className="max-w-3xl mx-auto">
@@ -541,12 +556,14 @@ export const AgenticChat = ({ config, initialChatId }: AgenticChatProps) => {
                     onStop={stopStreaming}
                     isGenerating={isStreaming}
                     chatId={chatId || undefined}
-                    disabled={isWaitingApproval}
+                    disabled={isWaitingApproval || !!formQuestion}
                     showFileUpload={config.allowFileUpload !== false}
                     placeholder={
                       isWaitingApproval
                         ? 'Waiting for your approval…'
-                        : 'Reply…'
+                        : formQuestion
+                          ? 'Fill out the form above to continue…'
+                          : 'Reply…'
                     }
                     className="border-0 shadow-none rounded-none"
                   />

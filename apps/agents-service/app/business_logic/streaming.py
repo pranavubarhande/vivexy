@@ -28,6 +28,7 @@ from app.business_logic.compact import (
 from app.constants.stream_events import (
     STREAM_EVENT_APPROVAL_REQUEST,
     STREAM_EVENT_ARTIFACT,
+    STREAM_EVENT_CHART,
     STREAM_EVENT_CLIENT_TOOL_REQUEST,
     STREAM_EVENT_COMPACT,
     STREAM_EVENT_CONTENT,
@@ -242,8 +243,10 @@ def run_agent_stream(
                     )
 
                     create_client_tool_event(request_id)
+                    # Form questions need extra time for the user to fill them out
+                    wait_timeout = 300.0 if tool_name == "form_question" else 60.0
                     tool_result = loop.run_until_complete(
-                        wait_for_client_tool(request_id, timeout=60.0)
+                        wait_for_client_tool(request_id, timeout=wait_timeout)
                     )
                     inputs = Command(
                         resume=tool_result
@@ -481,7 +484,18 @@ def _handle_tool_outcome(
         except (json.JSONDecodeError, ValueError):
             data = {}
 
-        if isinstance(data, dict) and data.get("artifact_id"):
+        if isinstance(data, dict) and data.get("chart_spec"):
+            yield _sse(
+                {
+                    "type": STREAM_EVENT_CHART,
+                    "data": {
+                        "title": data.get("title", "Chart"),
+                        "spec": data["chart_spec"],
+                    },
+                }
+            )
+
+        elif isinstance(data, dict) and data.get("artifact_id"):
             yield _sse(
                 {
                     "type": STREAM_EVENT_ARTIFACT,

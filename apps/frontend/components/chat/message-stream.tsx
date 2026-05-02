@@ -4,6 +4,7 @@ import { memo, useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { cn } from '@/utils/common';
+import { MERMAID_IFRAME } from '@/components/chat/artifact-content';
 
 const THINKING_WORDS = [
   'Thinking...',
@@ -93,6 +94,17 @@ export const MessageStream = memo(function MessageStream({
           ),
           em: ({ children }) => <em className="italic">{children}</em>,
           code: ({ className, children, ...props }) => {
+            if (className === 'language-mermaid') {
+              return (
+                <iframe
+                  srcDoc={MERMAID_IFRAME(String(children))}
+                  sandbox="allow-scripts"
+                  className="w-full rounded-lg border border-border my-2"
+                  style={{ height: '320px' }}
+                  title="Diagram"
+                />
+              );
+            }
             const isInline = !className;
             if (isInline) {
               return (

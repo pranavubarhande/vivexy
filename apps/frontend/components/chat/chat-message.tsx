@@ -5,6 +5,7 @@ import { MessageStream } from './message-stream';
 import { StepItem } from './reasoning-display';
 import { InlineArtifactCard } from './inline-artifact-card';
 import { InlineTodoList } from './inline-todo-list';
+import { CHARTJS_IFRAME } from './artifact-content';
 import React, { useMemo } from 'react';
 import { RotateCcw, Copy, Check } from 'lucide-react';
 import {
@@ -39,6 +40,23 @@ const buildTimelineFromReasoning = (
   if (reasoning && reasoning.length > 0) {
     for (const step of reasoning) {
       timeline.push({ type: 'step', step });
+
+      // Reconstruct inline charts from saved render_chart tool call outputs
+      const tc = step.toolCalls?.[0];
+      if (tc?.tool === 'render_chart' && tc.output) {
+        try {
+          const parsed = JSON.parse(tc.output);
+          if (parsed?.chart_spec) {
+            timeline.push({
+              type: 'chart',
+              spec: parsed.chart_spec,
+              title: parsed.title ?? 'Chart',
+            });
+          }
+        } catch {
+          // non-JSON output — skip
+        }
+      }
     }
   }
 
@@ -65,7 +83,13 @@ interface SingleStepItem {
   isStreaming: boolean;
 }
 
-type RenderItem = ContentItem | SingleStepItem;
+interface ChartItem {
+  kind: 'chart';
+  spec: Record<string, unknown>;
+  title: string;
+}
+
+type RenderItem = ContentItem | SingleStepItem | ChartItem;
 
 const groupTimelineItems = (
   timeline: TimelineItem[],
@@ -76,11 +100,7 @@ const groupTimelineItems = (
 
   const flushSteps = () => {
     for (const step of stepBuffer) {
-      result.push({
-        kind: 'step',
-        step,
-        isStreaming: !!isStreaming,
-      });
+      result.push({ kind: 'step', step, isStreaming: !!isStreaming });
     }
     stepBuffer = [];
   };
@@ -89,6 +109,9 @@ const groupTimelineItems = (
     const item = timeline[i];
     if (item.type === 'step') {
       stepBuffer.push(item.step);
+    } else if (item.type === 'chart') {
+      flushSteps();
+      result.push({ kind: 'chart', spec: item.spec, title: item.title });
     } else {
       flushSteps();
       result.push({
@@ -196,7 +219,18 @@ export function AssistantMessage({
                   </div>
                 );
               }
-              // content
+              if (item.kind === 'chart') {
+                return (
+                  <iframe
+                    key={i}
+                    srcDoc={CHARTJS_IFRAME(JSON.stringify(item.spec))}
+                    sandbox="allow-scripts"
+                    className="w-full rounded-xl border border-border my-2"
+                    style={{ height: '380px' }}
+                    title={item.title}
+                  />
+                );
+              }
               return (
                 <MessageStream
                   key={i}
