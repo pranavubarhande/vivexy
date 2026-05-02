@@ -4,10 +4,12 @@ Separates the execution environment wrappers out of the agent builder for cleanl
 """
 
 import base64
+import concurrent.futures
 import json
 import logging
 import os
 import tempfile
+import time
 import uuid
 from io import BytesIO
 
@@ -15,6 +17,7 @@ import openpyxl
 from langchain_core.tools import BaseTool, tool
 from langchain_daytona import DaytonaSandbox
 
+from app.agents.cancel_store import check_cancel_flag
 from app.agents.skill_loader import load_skill_deps
 from app.models import Artifact, db
 from app.models.enums import ArtifactType
@@ -162,7 +165,7 @@ def get_upload_sandbox_file_tool(backend: DaytonaSandbox, chat_id: str) -> BaseT
     return upload_sandbox_file_to_chat
 
 
-def get_execute_code_tool(backend: DaytonaSandbox) -> BaseTool:
+def get_execute_code_tool(backend: DaytonaSandbox, chat_id: str) -> BaseTool:
     @tool
     def execute_code(code: str, language: str = "python") -> str:
         """Executes a script in the sandbox. Supports 'python' or 'javascript' (Node.js)."""
@@ -177,7 +180,23 @@ def get_execute_code_tool(backend: DaytonaSandbox) -> BaseTool:
                 return f"Failed to write script: {getattr(write_res, 'output', 'Unknown error')}"
 
             cmd = f"python3 {filename}" if language == "python" else f"node {filename}"
-            run_res = backend.execute(cmd)
+
+            # Execute the command in a background thread so we can poll for cancellation
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(backend.execute, cmd)
+
+                # Poll for completion and check cancellation
+                while not future.done():
+                    if check_cancel_flag(chat_id, "execute_code"):
+                        # Forcefully kill the script in the sandbox
+                        backend.execute(f"pkill -f {filename}")
+                        from app.agents.cancel_store import clear_cancel_flag
+
+                        clear_cancel_flag(chat_id, "execute_code")
+                        return "Execution stopped by user."
+                    time.sleep(1)
+
+                run_res = future.result()
 
             output = getattr(run_res, "output", "")
             exit_code = getattr(run_res, "exit_code", -1)

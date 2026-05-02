@@ -19,3 +19,6 @@ REDIS_KEY_STREAM_TOKEN = (
     "stream_token:{stream_id}"  # TTL 120s — one-time EventSource auth
 )
 REDIS_STREAM_CHAT = "chat:xstream:{stream_id}"  # Redis stream key for event payloads
+
+# Cancellation flag: key TTL 300s
+REDIS_KEY_CANCEL_TOOL = "cancel_tool:{chat_id}:{tool_name}"

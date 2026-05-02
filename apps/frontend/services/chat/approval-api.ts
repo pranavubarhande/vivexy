@@ -24,4 +24,12 @@ export const approvalApi = {
     );
     return response.data;
   },
+
+  cancelTool: async (chatId: string, toolName: string) => {
+    const response = await axiosInstance.post<{ success: boolean }>(
+      `/chat/${chatId}/cancel_tool`,
+      { tool_name: toolName }
+    );
+    return response.data;
+  },
 };

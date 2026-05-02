@@ -134,6 +134,74 @@ def create_new_chat():
         return jsonify({"error": str(e)}), 500
 
 
+@bp.route("/<chat_id>/cancel_tool", methods=["POST"])
+@auth_middleware
+def cancel_tool_endpoint(chat_id):
+    """Set a cancellation flag for a specific running tool.
+    ---
+    tags:
+      - Chat
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: path
+        name: chat_id
+        type: string
+        required: true
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - tool_name
+          properties:
+            tool_name:
+              type: string
+    responses:
+      200:
+        description: Cancel flag set
+      400:
+        description: Validation error
+      401:
+        description: Unauthorized
+      404:
+        description: Chat not found
+    """
+    try:
+        user = request.user
+        data = request.get_json() or {}
+        tool_name = data.get("tool_name")
+        if not tool_name:
+            return jsonify({"error": "tool_name is required"}), 400
+
+        # Verify chat belongs to user
+        chat = get_user_chat(chat_id, user.id)
+        if not chat:
+            return jsonify({"error": "Chat not found"}), 404
+
+        if tool_name not in ["execute_code"]:
+            return (
+                jsonify({"error": f"Cancellation is not supported for '{tool_name}'"}),
+                400,
+            )
+
+        from app.agents.cancel_store import set_cancel_flag
+
+        success = set_cancel_flag(chat_id, tool_name)
+        if not success:
+            return (
+                jsonify({"error": "Failed to set cancel flag (Redis might be down)"}),
+                500,
+            )
+
+        return jsonify(
+            {"success": True, "message": f"Cancellation requested for {tool_name}"}
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @bp.route("/<chat_id>", methods=["GET"])
 @auth_middleware
 def get_chat(chat_id):

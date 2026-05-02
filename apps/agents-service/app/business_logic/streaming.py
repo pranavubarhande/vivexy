@@ -188,7 +188,9 @@ def run_agent_stream(
                                     )
 
                             elif message_type == "tool":
-                                yield from _handle_tool_outcome(message)
+                                yield from _handle_tool_outcome(
+                                    message, reasoning_steps
+                                )
 
                             # Reasoning / Tool Calls
                             if getattr(message, "tool_calls", None):
@@ -462,7 +464,9 @@ def _extract_text(content: Any) -> str:
     return ""
 
 
-def _handle_tool_outcome(message: Any) -> Generator[str, None, None]:
+def _handle_tool_outcome(
+    message: Any, reasoning_steps: List[Dict]
+) -> Generator[str, None, None]:
     """Process artifact creations and broadcast statuses from tool messages."""
     content = getattr(message, "content", "")
     if not content:
@@ -513,6 +517,17 @@ def _handle_tool_outcome(message: Any) -> Generator[str, None, None]:
                 "data": {"tool": tool_name, "input": {}, "output": status_text[:500]},
             }
         )
+
+        # 3. Patch the matching reasoning step
+        for step in reversed(reasoning_steps):
+            tc_list = step.get("tool_calls", [])
+            if (
+                tc_list
+                and tc_list[0].get("tool") == tool_name
+                and not tc_list[0].get("output")
+            ):
+                tc_list[0]["output"] = status_text[:500]
+                break
     except Exception:
         pass
 

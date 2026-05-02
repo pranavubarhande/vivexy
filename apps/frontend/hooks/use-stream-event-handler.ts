@@ -1,4 +1,5 @@
 import type {
+  Chat,
   Message,
   Artifact,
   InlineTodo,
@@ -268,6 +269,27 @@ export const handleStreamEvent = (
         reasoning: [...accumulator.reasoning],
         timeline: [...accumulator.timeline],
       });
+
+      // Immediately update chat title in cache when set_chat_title completes
+      if (event.data.tool === 'set_chat_title' && event.data.output) {
+        try {
+          const parsed = JSON.parse(event.data.output);
+          const newTitle = parsed.title;
+          if (newTitle) {
+            cache.qc.setQueryData<Chat[]>(chatKeys.list(), (prev = []) =>
+              prev.map((c) =>
+                c.id === targetChatId ? { ...c, title: newTitle } : c
+              )
+            );
+            cache.qc.setQueryData<Chat>(
+              chatKeys.detail(targetChatId),
+              (prev) => (prev ? { ...prev, title: newTitle } : prev)
+            );
+          }
+        } catch {
+          // output isn't JSON — ignore
+        }
+      }
       break;
     }
 

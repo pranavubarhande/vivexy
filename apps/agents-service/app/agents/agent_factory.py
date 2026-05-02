@@ -390,7 +390,7 @@ def create_agent(
 
         # Register the upload and execute tools explicitly
         tools.append(get_upload_sandbox_file_tool(backend, chat_id))
-        tools.append(get_execute_code_tool(backend))
+        tools.append(get_execute_code_tool(backend, chat_id))
         tools.append(get_list_sandbox_files_tool(backend))
 
         # 4. Restore previous artifacts to the sandbox

@@ -1,14 +1,28 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
+import { useParams } from 'next/navigation';
 import { cn } from '@/utils/common';
-import { ChevronDown, Terminal, Brain, Loader2 } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronRight,
+  Terminal,
+  Brain,
+  Loader2,
+  Square,
+  AlertCircle,
+  Check,
+  Circle,
+} from 'lucide-react';
 import type { ReasoningStep } from '@/types/chat';
+import { chatService } from '@/services/chat.service';
+
+import { toast } from 'sonner';
 
 export type { ReasoningStep };
 
 // ---------------------------------------------------------------------------
-// Single step — no header/collapse wrapper. Used in timeline rendering.
+// Single step — compact inline row. Used inside ToolCallGroup.
 // ---------------------------------------------------------------------------
 
 interface StepItemProps {
@@ -16,97 +30,209 @@ interface StepItemProps {
   isStreaming?: boolean;
 }
 
+const formatToolName = (name: string): string => {
+  return name.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+};
+
+const cleanThought = (thought: string, toolName?: string): string => {
+  if (!thought) return '';
+  let cleaned = thought;
+  if (toolName) {
+    cleaned = cleaned.replace(`Using tool: ${toolName}`, '').trim();
+  }
+  return cleaned;
+};
+
 export function StepItem({ step, isStreaming }: StepItemProps) {
-  const [expanded, setExpanded] = useState(false);
+  const OPEN_BY_DEFAULT = [
+    'write_todos',
+    'execute_code',
+    'task',
+    'analyze_data',
+    'read_url',
+    'upload_sandbox_file_to_chat',
+  ];
+  const [expanded, setExpanded] = useState(() => {
+    if (step.toolCalls?.[0]?.tool) {
+      return OPEN_BY_DEFAULT.includes(step.toolCalls[0].tool);
+    }
+    return false;
+  });
+  const [isStopping, setIsStopping] = useState(false);
+  const params = useParams<{ id: string }>();
+  const chatId = params?.id;
+
   const toolCall = step.toolCalls?.[0];
+  const toolName = toolCall?.tool;
   const isDone = !!toolCall?.output;
+  const isStopped = toolCall?.output?.includes('Execution stopped by user');
+  const thought = cleanThought(step.thought, toolName);
+
+  const handleStop = useCallback(
+    async (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (!chatId || !toolName || isStopping) return;
+
+      setIsStopping(true);
+      try {
+        await chatService.cancelTool(chatId, toolName);
+        toast.success('Stop signal sent to sandbox');
+      } catch (error) {
+        console.error('Failed to cancel tool:', error);
+        const err = error as { response?: { data?: { error?: string } } };
+        const msg = err?.response?.data?.error || 'Failed to cancel tool';
+        toast.error(msg);
+        setIsStopping(false);
+      }
+    },
+    [chatId, toolName, isStopping]
+  );
 
   if (toolCall) {
-    // Tool call row
     return (
-      <div className="my-1">
+      <div className="group/step">
         <button
           onClick={() => setExpanded((e) => !e)}
-          className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left hover:bg-muted/40 transition-colors group"
+          className="w-full flex items-center gap-2 px-1.5 py-1 rounded-md text-left hover:bg-muted/50 transition-colors"
         >
           <div
             className={cn(
-              'w-5 h-5 rounded flex items-center justify-center shrink-0',
-              isDone
-                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                : 'bg-blue-500/10 text-blue-500'
+              'w-4 h-4 rounded flex items-center justify-center shrink-0',
+              isStopped
+                ? 'text-red-500'
+                : isDone
+                  ? 'text-emerald-600 dark:text-emerald-400'
+                  : 'text-blue-500'
             )}
           >
-            {!isDone && isStreaming ? (
+            {isStopped ? (
+              <AlertCircle size={10} />
+            ) : !isDone && isStreaming ? (
               <Loader2 size={10} className="animate-spin" />
             ) : (
               <Terminal size={10} />
             )}
           </div>
-          <span className="font-mono text-[11px] font-medium text-foreground/70 shrink-0">
-            {toolCall.tool}
+          <span className="text-[12px] font-medium text-foreground/90 shrink-0">
+            {formatToolName(toolName || toolCall.tool)}
           </span>
-          {step.thought && (
-            <span className="text-[11px] text-muted-foreground/40 truncate">
-              {step.thought.split('\n')[0]}
+          {thought && (
+            <span className="text-[12px] text-muted-foreground/50 truncate hidden sm:inline">
+              {thought.split('\n')[0]}
             </span>
           )}
-          <span
-            className={cn(
-              'ml-auto text-[10px] font-medium px-1.5 py-0.5 rounded shrink-0',
-              isDone
-                ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10'
-                : 'text-blue-500 bg-blue-500/10'
+
+          <div className="ml-auto flex items-center gap-1.5 shrink-0">
+            {!isDone && isStreaming && (
+              <div
+                onClick={handleStop}
+                className={cn(
+                  'flex items-center justify-center w-5 h-5 rounded-md hover:bg-red-500/20 text-red-500 transition-colors',
+                  isStopping && 'opacity-50 pointer-events-none'
+                )}
+                title="Stop task"
+              >
+                {isStopping ? (
+                  <Loader2 size={10} className="animate-spin" />
+                ) : (
+                  <Square size={10} className="fill-current" />
+                )}
+              </div>
             )}
-          >
-            {isDone ? 'done' : 'running'}
-          </span>
-          <ChevronDown
-            size={11}
-            className={cn(
-              'text-muted-foreground/30 shrink-0 transition-transform group-hover:text-muted-foreground/60',
-              expanded && 'rotate-180'
-            )}
-          />
+            <span
+              className={cn(
+                'text-[10px] font-semibold uppercase tracking-tight px-1.5 py-0.5 rounded-md',
+                isStopped
+                  ? 'text-red-500 bg-red-500/10'
+                  : isDone
+                    ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10'
+                    : 'text-blue-500 bg-blue-500/10'
+              )}
+            >
+              {isStopped ? 'stopped' : isDone ? 'done' : 'running'}
+            </span>
+            <ChevronRight
+              size={10}
+              className={cn(
+                'text-muted-foreground/30 transition-transform',
+                expanded && 'rotate-90'
+              )}
+            />
+          </div>
         </button>
 
         {expanded && (
-          <div className="ml-7 mr-2 mb-1 mt-0.5 rounded-lg border border-border/60 overflow-hidden text-[11px] font-mono animate-in fade-in slide-in-from-top-1 duration-150">
-            <div className="bg-muted/30 px-3 py-1.5 border-b border-border/40">
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                {toolCall.tool}
-              </span>
-            </div>
-            <div className="divide-y divide-border/40">
-              <div className="p-3">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1.5">
-                  Input
-                </p>
-                <pre className="text-muted-foreground overflow-x-auto whitespace-pre-wrap">
-                  {JSON.stringify(toolCall.input, null, 2)}
-                </pre>
+          <div className="ml-6 mr-1 my-1 rounded-md border border-border/40 overflow-hidden text-[11px] animate-in fade-in slide-in-from-top-1 duration-150">
+            {toolName === 'write_todos' &&
+            typeof toolCall.input === 'object' &&
+            Array.isArray(
+              (toolCall.input as Record<string, unknown>)?.todos
+            ) ? (
+              <div className="p-2 bg-muted/10 space-y-2">
+                {(
+                  (toolCall.input as Record<string, unknown>).todos as Array<{
+                    status: string;
+                    content: string;
+                  }>
+                ).map((todo, idx: number) => (
+                  <div key={idx} className="flex items-start gap-2">
+                    <div className="mt-0.5 shrink-0">
+                      {todo.status === 'completed' || todo.status === 'done' ? (
+                        <Check size={12} className="text-emerald-500" />
+                      ) : todo.status === 'in_progress' ? (
+                        <Circle size={12} className="text-blue-500" />
+                      ) : (
+                        <Circle
+                          size={12}
+                          className="text-muted-foreground/40"
+                        />
+                      )}
+                    </div>
+                    <span
+                      className={cn(
+                        'text-[13px] text-foreground/90 leading-snug',
+                        (todo.status === 'completed' ||
+                          todo.status === 'done') &&
+                          'line-through text-muted-foreground/60'
+                      )}
+                    >
+                      {todo.content}
+                    </span>
+                  </div>
+                ))}
               </div>
-              {toolCall.output && (
-                <div className="p-3">
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1.5">
-                    Output
+            ) : (
+              <div className="font-mono">
+                <div className="p-2.5 bg-muted/20">
+                  <p className="text-[10px] font-medium text-muted-foreground/60 tracking-wider mb-1">
+                    Input
                   </p>
-                  <pre className="text-muted-foreground overflow-x-auto whitespace-pre-wrap max-h-48 overflow-y-auto">
-                    {(() => {
-                      try {
-                        return JSON.stringify(
-                          JSON.parse(toolCall.output),
-                          null,
-                          2
-                        );
-                      } catch {
-                        return toolCall.output;
-                      }
-                    })()}
+                  <pre className="text-muted-foreground overflow-x-auto whitespace-pre-wrap text-[10px] max-h-32 overflow-y-auto">
+                    {JSON.stringify(toolCall.input, null, 2)}
                   </pre>
                 </div>
-              )}
-            </div>
+                {toolCall.output && (
+                  <div className="p-2.5 border-t border-border/30">
+                    <p className="text-[10px] font-medium text-muted-foreground/60 tracking-wider mb-1">
+                      Output
+                    </p>
+                    <pre className="text-muted-foreground overflow-x-auto whitespace-pre-wrap text-[10px] max-h-32 overflow-y-auto">
+                      {(() => {
+                        try {
+                          return JSON.stringify(
+                            JSON.parse(toolCall.output),
+                            null,
+                            2
+                          );
+                        } catch {
+                          return toolCall.output;
+                        }
+                      })()}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -114,15 +240,20 @@ export function StepItem({ step, isStreaming }: StepItemProps) {
   }
 
   // Pure thought — subtle italic line
+  if (!thought) return null;
   return (
-    <div className="flex items-start gap-2 px-2 py-1 my-0.5">
-      <Brain size={11} className="text-muted-foreground/30 mt-0.5 shrink-0" />
-      <p className="text-[11px] text-muted-foreground/50 italic leading-relaxed line-clamp-2">
-        {step.thought}
+    <div className="flex items-start gap-2 px-1.5 py-0.5">
+      <Brain size={10} className="text-muted-foreground/30 mt-0.5 shrink-0" />
+      <p className="text-[12px] text-muted-foreground/50 italic leading-relaxed line-clamp-2">
+        {thought}
       </p>
     </div>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Grouped tool calls — a single collapsible section for consecutive steps
+// ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
 // Grouped display — used for legacy messages without timeline.

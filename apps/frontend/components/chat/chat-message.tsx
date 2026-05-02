@@ -2,24 +2,106 @@
 
 import { cn } from '@/utils/common';
 import { MessageStream } from './message-stream';
-import { ReasoningDisplay, StepItem } from './reasoning-display';
+import { StepItem } from './reasoning-display';
 import { InlineArtifactCard } from './inline-artifact-card';
 import { InlineTodoList } from './inline-todo-list';
-import React from 'react';
+import React, { useMemo } from 'react';
 import { RotateCcw, Copy, Check } from 'lucide-react';
-import { Message, Artifact } from '@/services/chat.service';
+import {
+  Message,
+  Artifact,
+  TimelineItem,
+  ReasoningStep,
+} from '@/services/chat.service';
 
 // ---------------------------------------------------------------------------
 // Shared helper
 // ---------------------------------------------------------------------------
 
-function formatTime(iso: string) {
+const formatTime = (iso: string) => {
   const dateString = iso.endsWith('Z') ? iso : `${iso}Z`;
   return new Date(dateString).toLocaleTimeString([], {
     hour: '2-digit',
     minute: '2-digit',
   });
+};
+
+// ---------------------------------------------------------------------------
+// Reconstruct timeline from persisted reasoning + content
+// ---------------------------------------------------------------------------
+
+const buildTimelineFromReasoning = (
+  reasoning: ReasoningStep[] | undefined,
+  content: string
+): TimelineItem[] => {
+  const timeline: TimelineItem[] = [];
+
+  if (reasoning && reasoning.length > 0) {
+    for (const step of reasoning) {
+      timeline.push({ type: 'step', step });
+    }
+  }
+
+  if (content) {
+    timeline.push({ type: 'content', text: content });
+  }
+
+  return timeline;
+};
+
+// ---------------------------------------------------------------------------
+// Group consecutive step items into ToolCallGroup chunks
+// ---------------------------------------------------------------------------
+
+interface ContentItem {
+  kind: 'content';
+  text: string;
+  isLastStreaming: boolean;
 }
+
+interface SingleStepItem {
+  kind: 'step';
+  step: ReasoningStep;
+  isStreaming: boolean;
+}
+
+type RenderItem = ContentItem | SingleStepItem;
+
+const groupTimelineItems = (
+  timeline: TimelineItem[],
+  isStreaming?: boolean
+): RenderItem[] => {
+  const result: RenderItem[] = [];
+  let stepBuffer: ReasoningStep[] = [];
+
+  const flushSteps = () => {
+    for (const step of stepBuffer) {
+      result.push({
+        kind: 'step',
+        step,
+        isStreaming: !!isStreaming,
+      });
+    }
+    stepBuffer = [];
+  };
+
+  for (let i = 0; i < timeline.length; i++) {
+    const item = timeline[i];
+    if (item.type === 'step') {
+      stepBuffer.push(item.step);
+    } else {
+      flushSteps();
+      result.push({
+        kind: 'content',
+        text: item.text,
+        isLastStreaming: !!isStreaming && i === timeline.length - 1,
+      });
+    }
+  }
+
+  flushSteps();
+  return result;
+};
 
 // ---------------------------------------------------------------------------
 // User message
@@ -80,54 +162,58 @@ export function AssistantMessage({
     setTimeout(() => setCopied(false), 2000);
   };
 
+  // Reconstruct timeline from persisted reasoning if not already present
+  const effectiveTimeline = useMemo(() => {
+    if (message.timeline && message.timeline.length > 0) {
+      return message.timeline;
+    }
+    if (message.reasoning && message.reasoning.length > 0) {
+      return buildTimelineFromReasoning(message.reasoning, message.content);
+    }
+    return null;
+  }, [message.timeline, message.reasoning, message.content]);
+
+  // Group consecutive steps into collapsible groups
+  const groupedItems = useMemo(() => {
+    if (!effectiveTimeline) return null;
+    return groupTimelineItems(effectiveTimeline, message.isStreaming);
+  }, [effectiveTimeline, message.isStreaming]);
+
   return (
     <div className="w-full space-y-2 group">
       <div className="w-full">
         {message.todos && message.todos.length > 0 && (
           <InlineTodoList todos={message.todos} />
         )}
-        {showReasoning && message.timeline && message.timeline.length > 0 ? (
-          // Interleaved: render steps and content chunks in arrival order
+        {showReasoning && groupedItems ? (
+          // Interleaved: render grouped steps and content chunks
           <>
-            {message.timeline.map((item, i) => {
-              if (item.type === 'step') {
+            {groupedItems.map((item, i) => {
+              if (item.kind === 'step') {
                 return (
-                  <StepItem
-                    key={i}
-                    step={item.step}
-                    isStreaming={message.isStreaming}
-                  />
+                  <div key={i} className="my-1">
+                    <StepItem step={item.step} isStreaming={item.isStreaming} />
+                  </div>
                 );
               }
+              // content
               return (
                 <MessageStream
                   key={i}
                   content={item.text}
                   role={message.role}
-                  isStreaming={
-                    message.isStreaming && i === message.timeline!.length - 1
-                  }
+                  isStreaming={item.isLastStreaming}
                 />
               );
             })}
           </>
         ) : (
-          // Fallback: legacy layout (saved messages without timeline)
-          <>
-            {showReasoning &&
-              message.reasoning &&
-              message.reasoning.length > 0 && (
-                <ReasoningDisplay
-                  steps={message.reasoning}
-                  defaultCollapsed={!message.isStreaming}
-                />
-              )}
-            <MessageStream
-              content={message.content}
-              role={message.role}
-              isStreaming={message.isStreaming}
-            />
-          </>
+          // Fallback: no reasoning at all — just render content
+          <MessageStream
+            content={message.content}
+            role={message.role}
+            isStreaming={message.isStreaming}
+          />
         )}
         {message.artifacts && message.artifacts.length > 0 && (
           <div className="mt-3 space-y-3">

@@ -12,7 +12,12 @@ export { ChatPanels } from './chat-panels';
 export { FileUpload, FileAttachButton } from './file-upload';
 export type { UploadedFile } from './file-upload';
 export { MessageStream } from './message-stream';
-export { ReasoningDisplay, ReasoningBadge } from './reasoning-display';
+export {
+  ReasoningDisplay,
+  ReasoningBadge,
+  ToolCallGroup,
+  StepItem,
+} from './reasoning-display';
 export { ArtifactsPanel, ArtifactNotification } from './artifacts-panel';
 export { InlineTodoList } from './inline-todo-list';
 export { ArtifactContent } from './artifact-content';
