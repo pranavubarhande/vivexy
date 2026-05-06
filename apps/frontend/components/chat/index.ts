@@ -15,7 +15,6 @@ export { MessageStream } from './message-stream';
 export {
   ReasoningDisplay,
   ReasoningBadge,
-  ToolCallGroup,
   StepItem,
 } from './reasoning-display';
 export { ArtifactsPanel, ArtifactNotification } from './artifacts-panel';
