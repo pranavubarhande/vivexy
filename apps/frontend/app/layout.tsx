@@ -7,6 +7,7 @@ import { AuthProvider } from '@/components/shared/auth-provider';
 import { Providers } from '@/components/shared/providers';
 import { Toaster } from 'sonner';
 import { AppShell } from '@/components/shared/app-shell';
+import { Analytics } from '@vercel/analytics/next';
 
 const inter = Inter({
   variable: '--font-inter',
@@ -59,6 +60,7 @@ export default function RootLayout({
             </AuthProvider>
           </Providers>
         </ThemeProvider>
+        <Analytics />
       </body>
     </html>
   );
