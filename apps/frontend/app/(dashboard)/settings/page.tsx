@@ -18,6 +18,7 @@ import { McpSettings } from '@/components/settings/mcp-settings';
 import { SkillsSettings } from '@/components/settings/skills-settings';
 import { ApiKeysSettings } from '@/components/settings/api-keys-settings';
 import { ThemeSettings } from '@/components/settings/theme-settings';
+import { GithubSettings } from '@/components/settings/github-settings';
 
 const SettingsContent = () => {
   const [isDesktop] = useState(
@@ -33,6 +34,7 @@ const SettingsContent = () => {
         <TabsTrigger value="password">Password</TabsTrigger>
         <TabsTrigger value="notifications">Notifications</TabsTrigger>
         <TabsTrigger value="api-keys">API Keys</TabsTrigger>
+        <TabsTrigger value="connections">Connections</TabsTrigger>
         <TabsTrigger value="extensions">Extensions</TabsTrigger>
         <TabsTrigger value="appearance">Appearance</TabsTrigger>
         <TabsTrigger value="danger">Danger Zone</TabsTrigger>
@@ -91,6 +93,21 @@ const SettingsContent = () => {
           </CardHeader>
           <CardContent>
             <ApiKeysSettings />
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      <TabsContent value="connections" className="space-y-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Connected Accounts</CardTitle>
+            <CardDescription>
+              Link external services so the agent can interact with your
+              repositories, workspaces, and data sources.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <GithubSettings />
           </CardContent>
         </Card>
       </TabsContent>

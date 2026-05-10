@@ -59,6 +59,7 @@ def run_agent_stream(
     app_context,
     user_skills: Optional[List[Dict[str, Any]]] = None,
     mcp_tools: Optional[List[Dict[str, Any]]] = None,
+    github_context: Optional[Dict[str, Any]] = None,
 ) -> Generator[str, None, None]:
     """
     Generator that drives the agent and yields SSE-formatted strings.
@@ -87,10 +88,13 @@ def run_agent_stream(
             user_skills=user_skills or [],
             mcp_tools=mcp_tools or [],
             user_api_keys=user_api_keys,
+            github_context=github_context,
         )
 
         full_content = ""
         reasoning_steps: List[Dict] = []
+        tool_call_count = 0
+        CHECKPOINT_INTERVAL = 5
 
         # 0. Auto-compaction check
         try:
@@ -211,6 +215,27 @@ def run_agent_stream(
                                             "data": reasoning,
                                         }
                                     )
+                                    tool_call_count += 1
+                                    if tool_call_count % CHECKPOINT_INTERVAL == 0:
+                                        try:
+                                            with app_context:
+                                                from app.business_logic.chat import (
+                                                    create_auto_checkpoint,
+                                                )
+
+                                                saved_msg_id = (
+                                                    saved_user_message.get("id")
+                                                    if isinstance(
+                                                        saved_user_message, dict
+                                                    )
+                                                    else None
+                                                )
+                                                if saved_msg_id:
+                                                    create_auto_checkpoint(
+                                                        chat_id, user_id, saved_msg_id
+                                                    )
+                                        except Exception:
+                                            pass
 
                     if interrupt_data:
                         break
@@ -313,10 +338,28 @@ def run_agent_stream(
         )
 
     except Exception as e:
-        logger.exception("Streaming error")
-        yield _sse(
-            {"type": STREAM_EVENT_ERROR, "data": {"message": _friendly_error(e)}}
+        # GraphRecursionError: agent hit the LangGraph step counter.
+        # Save whatever was generated and surface a soft continue-prompt rather than
+        # destroying the response — the user can just send a follow-up to resume.
+        is_recursion = (
+            "GraphRecursionError" in type(e).__name__
+            or "recursion limit" in str(e).lower()
         )
+        if is_recursion and full_content:
+            logger.warning(
+                "Agent hit recursion limit for chat %s — soft stopping", chat_id
+            )
+            full_content += "\n\n---\n*Paused after a long task sequence. Send a follow-up message to continue where I left off.*"
+        elif is_recursion:
+            logger.warning(
+                "Agent hit recursion limit for chat %s with no output", chat_id
+            )
+            full_content = "*Paused after a long task sequence. Send a follow-up message to continue.*"
+        else:
+            logger.exception("Streaming error")
+            yield _sse(
+                {"type": STREAM_EVENT_ERROR, "data": {"message": _friendly_error(e)}}
+            )
     finally:
         yield "data: [DONE]\n\n"
         app_context.pop()
@@ -324,6 +367,13 @@ def run_agent_stream(
 
 def _friendly_error(exc: Exception) -> str:
     raw = str(exc)
+    exc_type = type(exc).__name__
+
+    if "GraphRecursionError" in exc_type or "Recursion limit" in raw:
+        return (
+            "The agent reached its maximum step limit for this task. "
+            "The work completed so far is saved. You can continue by sending a follow-up message."
+        )
     if "does not support tools" in raw:
         model = raw.split("/")[-1].split(" ")[0] if "/" in raw else "This model"
         return f"Model '{model}' does not support tool calling. Please choose a model that supports tools (e.g. llama3.1:8b, mistral:7b)."
@@ -346,7 +396,10 @@ def _get_history_context(
     agent: Any, chat_id: str, messages: List[Dict]
 ) -> Tuple[Dict, Dict, Set[str]]:
     """Detect checkpointer state and restore history from DB if empty (Amnesia Fix)."""
-    config = {"configurable": {"thread_id": chat_id}, "recursion_limit": 50}
+    # No hard recursion cap — let the agent run until it decides to stop.
+    # LangGraph's default is 25; we use a very high value to avoid premature
+    # termination on long multi-step tasks.
+    config = {"configurable": {"thread_id": chat_id}, "recursion_limit": 1000}
     state_messages = []
     has_history = False
 

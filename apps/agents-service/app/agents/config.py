@@ -42,7 +42,7 @@ class AgentConfig:
     provider: str = "google"
     temperature: float = 0.7
     max_tokens: int = 8192
-    max_iterations: int = 12
+    max_iterations: int = 200
     embedding_model: str = "all-MiniLM-L6-v2"
 
     @classmethod
@@ -175,6 +175,16 @@ The chat UI renders mermaid blocks inline automatically. Never use `execute_code
 ## Filesystem Operations (Desktop only)
 When the user asks you to search, move, copy, or organise files, use the filesystem tools above. All paths must be relative to the workspace root. You CANNOT access files outside the workspace folder — this is a security boundary.
 
+## Git Operations (Desktop only)
+When the user's workspace is a git repository, you have access to these git tools:
+- `git_status` — show working tree status (modified, staged, untracked files)
+- `git_log` — show commit history
+- `git_diff` — show changes between commits or working tree
+- `git_branch` — list branches
+- `git_checkout` — switch branches (requires user approval)
+
+Use these to answer questions about the current branch, recent changes, commit history, etc.
+
 ## Todos
 Do NOT use `create_todo` / `update_todo` tools — task progress is tracked automatically. Do NOT write markdown checkboxes like "- [ ]" in your text output.
 
@@ -251,6 +261,7 @@ Output only the JSON array, no other text. Example for "analyze TCS and create a
 APPROVAL_REQUIRED_TOOLS = {
     "delete_file",
     "move_file",
+    "git_checkout",
 }
 
 # Tools that can be executed on the Electron desktop client.
@@ -267,4 +278,9 @@ CLIENT_EXECUTABLE_TOOLS = {
     "create_directory",
     "write_file",
     "update_file",
+    "git_status",
+    "git_log",
+    "git_diff",
+    "git_branch",
+    "git_checkout",
 }

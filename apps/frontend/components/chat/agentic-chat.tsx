@@ -14,11 +14,14 @@ import { ChatPanels } from '@/components/chat/chat-panels';
 import { ApprovalDialog } from '@/components/chat/approval-dialog';
 import { FormQuestionCard } from '@/components/chat/form-question-card';
 import { UploadedFile } from '@/components/chat/file-upload';
+import { RevertDialog, type RevertMode } from '@/components/chat/revert-dialog';
+import { platform } from '@/lib/platform';
 
 import { useChat, useChatHistory, useModels } from '@/hooks/useChat';
 import { useChatStream } from '@/hooks/use-chat-stream';
 import { useWorkspace } from '@/components/desktop/workspace-provider';
 import { useAuthSafe } from '@/components/shared/auth-provider';
+import { useGitContext } from '@/hooks/useGitContext';
 
 import {
   Artifact,
@@ -26,7 +29,22 @@ import {
   Message,
   chatService,
 } from '@/services/chat.service';
-import { File } from 'lucide-react';
+import { File, RotateCcw } from 'lucide-react';
+import type { PanelType } from '@/components/chat/chat-panels';
+
+function GitHubIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.009-.868-.013-1.703-2.782.604-3.369-1.341-3.369-1.341-.454-1.154-1.11-1.461-1.11-1.461-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0112 6.844a9.59 9.59 0 012.504.337c1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.202 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.163 22 16.418 22 12c0-5.523-4.477-10-10-10z" />
+    </svg>
+  );
+}
 
 function getGreeting() {
   const h = new Date().getHours();
@@ -93,8 +111,9 @@ interface ChatInputToolbarProps {
   isStreaming: boolean;
   showArtifactsButton?: boolean;
   artifactsCount?: number;
-  showSidePanel?: 'artifacts' | null;
+  showSidePanel?: PanelType;
   onToggleArtifacts?: () => void;
+  onToggleGithub?: () => void;
 }
 
 function ChatInputToolbar({
@@ -110,9 +129,10 @@ function ChatInputToolbar({
   artifactsCount,
   showSidePanel,
   onToggleArtifacts,
+  onToggleGithub,
 }: ChatInputToolbarProps) {
   return (
-    <div className="flex items-center justify-between gap-2 px-3 pb-2 border-t border-border/40">
+    <div className="flex items-center justify-between gap-2 px-3 py-2 border-t border-border/40">
       <div className="flex items-center gap-1 min-w-0 overflow-x-auto no-scrollbar">
         <AgentSelector
           agents={agents}
@@ -129,25 +149,42 @@ function ChatInputToolbar({
           disabled={isStreaming}
         />
       </div>
-      {showArtifactsButton && (
-        <button
-          onClick={onToggleArtifacts}
-          className={cn(
-            'flex items-center gap-1 h-7 px-2 rounded-lg text-xs font-medium transition-all shrink-0',
-            showSidePanel === 'artifacts'
-              ? 'bg-primary/10 text-primary'
-              : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-          )}
-        >
-          <File size={12} />
-          <span className="hidden xs:inline sm:inline">Files</span>
-          {!!artifactsCount && artifactsCount > 0 && (
-            <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-primary/20 text-primary text-[9px] font-bold">
-              {artifactsCount}
-            </span>
-          )}
-        </button>
-      )}
+      <div className="flex items-center gap-1 shrink-0">
+        {showArtifactsButton && (
+          <button
+            onClick={onToggleArtifacts}
+            className={cn(
+              'flex items-center gap-1 h-7 px-2 rounded-lg text-xs font-medium transition-all',
+              showSidePanel === 'artifacts'
+                ? 'bg-primary/10 text-primary'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+            )}
+          >
+            <File size={12} />
+            <span className="hidden xs:inline sm:inline">Files</span>
+            {!!artifactsCount && artifactsCount > 0 && (
+              <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-primary/20 text-primary text-[9px] font-bold">
+                {artifactsCount}
+              </span>
+            )}
+          </button>
+        )}
+        {onToggleGithub && (
+          <button
+            onClick={onToggleGithub}
+            className={cn(
+              'flex items-center gap-1 h-7 px-2 rounded-lg text-xs font-medium transition-all',
+              showSidePanel === 'github'
+                ? 'bg-primary/10 text-primary'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+            )}
+            title="GitHub repositories"
+          >
+            <GitHubIcon size={12} />
+            <span className="hidden xs:inline sm:inline">GitHub</span>
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -185,7 +222,7 @@ export const AgenticChat = ({ config, initialChatId }: AgenticChatProps) => {
   );
 
   // ---- Panel state ----
-  const [showSidePanel, setShowSidePanel] = useState<'artifacts' | null>(null);
+  const [showSidePanel, setShowSidePanel] = useState<PanelType>(null);
 
   // ---- Auth ----
   const { user } = useAuthSafe();
@@ -207,14 +244,67 @@ export const AgenticChat = ({ config, initialChatId }: AgenticChatProps) => {
     artifacts,
     chatDetail,
     revertToMessage,
+    isReverting,
     createArtifact,
     isLoadingMessages,
+    checkpoints,
+    restoreCheckpoint,
+    isRestoringCheckpoint,
   } = useChat(chatId || undefined);
 
   // ---- Workspace ----
   const { refreshWorkspaceInfo, workspacePath } = useWorkspace();
   const qc = useQueryClient();
   const prevWorkspaceRef = useRef(workspacePath);
+
+  // ---- Git / repo context ----
+  const { context: gitContext, setContext: setGitContext } =
+    useGitContext(workspacePath);
+
+  // Per-chat context lock — keyed by chatId, persisted to localStorage.
+  // We write it immediately when a message is sent so the lock is instant,
+  // not dependent on a server refetch. The DB column is the server-side source
+  // of truth for page reloads; this state handles the in-session UX.
+  const [chatContextMap, setChatContextMap] = useState<
+    Record<string, import('@/types/chat').GitContext>
+  >(() => {
+    if (typeof window === 'undefined') return {};
+    try {
+      return JSON.parse(
+        localStorage.getItem('portfolio-helper-chat-contexts') ?? '{}'
+      );
+    } catch {
+      return {};
+    }
+  });
+
+  const lockContextToChat = useCallback(
+    (id: string, ctx: import('@/types/chat').GitContext | null) => {
+      if (!id || !ctx) return;
+      setChatContextMap((prev) => {
+        if (prev[id]) return prev; // already locked — never overwrite
+        const next = { ...prev, [id]: ctx };
+        try {
+          localStorage.setItem(
+            'portfolio-helper-chat-contexts',
+            JSON.stringify(next)
+          );
+        } catch {
+          /* ignore */
+        }
+        return next;
+      });
+    },
+    []
+  );
+
+  // lockedContext: in-memory map first, then DB value as page-refresh fallback.
+  // We never call setState here — chatDetail is read-only for derivation.
+  const lockedContext = chatId
+    ? (chatContextMap[chatId] ?? chatDetail?.githubContext ?? null)
+    : null;
+  const effectiveGitContext = lockedContext ?? gitContext;
+  const chatContextLocked = !!lockedContext;
 
   useEffect(() => {
     if (
@@ -355,6 +445,13 @@ export const AgenticChat = ({ config, initialChatId }: AgenticChatProps) => {
       return;
     }
 
+    // Lock the context to the existing chat on first send
+    if (chatId && effectiveGitContext)
+      lockContextToChat(chatId, effectiveGitContext);
+
+    // Snapshot the git state before the agent acts (desktop only, best-effort)
+    await takeAndStorePendingSnapshot();
+
     await sendMessage({
       content,
       files,
@@ -365,9 +462,17 @@ export const AgenticChat = ({ config, initialChatId }: AgenticChatProps) => {
       selectedModelDbId,
       selectedProvider,
       selectedModelName,
+      githubContext: effectiveGitContext,
       createChat: apiCreateChat,
       onChatCreated: (id) => {
         setChatId(id);
+        if (effectiveGitContext) lockContextToChat(id, effectiveGitContext);
+      },
+      onUserMessageReady: (userMessageId) => {
+        if (pendingSnapshotRef.current) {
+          saveSnapshot(userMessageId, pendingSnapshotRef.current);
+          pendingSnapshotRef.current = null;
+        }
       },
     });
   };
@@ -406,17 +511,131 @@ export const AgenticChat = ({ config, initialChatId }: AgenticChatProps) => {
     }
   };
 
-  const handleRevert = async (messageId: string) => {
-    if (!chatId) return;
+  // ---- Git snapshots (per user-message, stored in localStorage) ----
+  type GitSnapshot = { sha: string; workspacePath: string; branch: string };
+
+  const getSnapshots = useCallback((): Record<string, GitSnapshot> => {
+    if (!chatId) return {};
     try {
-      await revertToMessage(messageId);
+      return JSON.parse(localStorage.getItem(`ph-snapshots-${chatId}`) ?? '{}');
+    } catch {
+      return {};
+    }
+  }, [chatId]);
+
+  const saveSnapshot = useCallback(
+    (userMessageId: string, snap: GitSnapshot) => {
+      if (!chatId) return;
+      const key = `ph-snapshots-${chatId}`;
+      const existing = (() => {
+        try {
+          return JSON.parse(localStorage.getItem(key) ?? '{}');
+        } catch {
+          return {};
+        }
+      })();
+      localStorage.setItem(
+        key,
+        JSON.stringify({ ...existing, [userMessageId]: snap })
+      );
+    },
+    [chatId]
+  );
+
+  // Holds the snapshot taken right before a send, until we know the real message ID
+  const pendingSnapshotRef = useRef<GitSnapshot | null>(null);
+
+  const takeAndStorePendingSnapshot = useCallback(async () => {
+    if (!platform.isDesktop) return;
+    const api = typeof window !== 'undefined' ? window.electronAPI : undefined;
+    if (!api?.snapshotGit || !effectiveGitContext?.workspacePath) return;
+    const sha = await api
+      .snapshotGit(effectiveGitContext.workspacePath)
+      .catch(() => '');
+    if (sha) {
+      pendingSnapshotRef.current = {
+        sha,
+        workspacePath: effectiveGitContext.workspacePath,
+        branch: effectiveGitContext.branch,
+      };
+    }
+  }, [effectiveGitContext?.workspacePath, effectiveGitContext?.branch]);
+
+  // ---- Revert dialog state ----
+  const [revertTarget, setRevertTarget] = useState<{
+    messageId: string;
+    content: string;
+  } | null>(null);
+
+  const handleRevert = (messageId: string, content: string) => {
+    setRevertTarget({ messageId, content });
+  };
+
+  const handleRevertConfirm = async (mode: RevertMode) => {
+    if (!chatId || !revertTarget) return;
+    const { messageId, content } = revertTarget;
+    const snap = getSnapshots()[messageId];
+
+    try {
+      if (mode === 'code' || mode === 'both') {
+        const api =
+          typeof window !== 'undefined' ? window.electronAPI : undefined;
+        if (api?.restoreGitSnapshot && snap) {
+          const result = await api.restoreGitSnapshot(
+            snap.workspacePath,
+            snap.sha
+          );
+          if (result.error) {
+            toast.error(`Code revert failed: ${result.error}`);
+            return;
+          }
+        }
+      }
+
+      if (mode === 'messages' || mode === 'both') {
+        await revertToMessage({ messageId, deleteSelf: true });
+        setFillValue(content);
+        toast.success(
+          mode === 'both'
+            ? 'Code reverted and conversation rewound'
+            : 'Conversation rewound — edit and resend'
+        );
+      } else {
+        toast.success('Code reverted to state before this message');
+      }
     } catch (err) {
-      console.error('Failed to revert:', err);
+      console.error('Revert failed:', err);
+      toast.error('Revert failed');
+    } finally {
+      setRevertTarget(null);
     }
   };
 
   const toggleArtifactsPanel = () => {
     setShowSidePanel((p) => (p === 'artifacts' ? null : 'artifacts'));
+  };
+
+  const toggleGithubPanel = () => {
+    setShowSidePanel((p) => (p === 'github' ? null : 'github'));
+  };
+
+  // ---- Checkpoint restore ----
+  const [editingMessageAfterRestore, setEditingMessageAfterRestore] = useState<{
+    id: string;
+    content: string;
+  } | null>(null);
+
+  const handleCheckpointRestore = async (checkpointId: string) => {
+    if (!chatId) return;
+    try {
+      const result = await restoreCheckpoint(checkpointId);
+      setEditingMessageAfterRestore({
+        id: result.checkpointMessageId,
+        content: result.checkpointMessage.content,
+      });
+    } catch (err) {
+      console.error('Failed to restore checkpoint:', err);
+    }
   };
 
   // ---- Derived ----
@@ -447,6 +666,18 @@ export const AgenticChat = ({ config, initialChatId }: AgenticChatProps) => {
 
   return (
     <div className={cn('flex h-full overflow-hidden', config.className)}>
+      {/* Revert dialog */}
+      <RevertDialog
+        open={!!revertTarget}
+        messagePreview={revertTarget?.content ?? ''}
+        hasGitSnapshot={
+          revertTarget ? !!getSnapshots()[revertTarget.messageId] : false
+        }
+        isReverting={isReverting}
+        onConfirm={handleRevertConfirm}
+        onClose={() => setRevertTarget(null)}
+      />
+
       {/* Approval dialog */}
       <ApprovalDialog
         open={!!approvalRequest}
@@ -497,6 +728,8 @@ export const AgenticChat = ({ config, initialChatId }: AgenticChatProps) => {
                   selectedModelDbId={selectedModelDbId}
                   onModelSelect={handleModelSelect}
                   isStreaming={isStreaming}
+                  showSidePanel={showSidePanel}
+                  onToggleGithub={toggleGithubPanel}
                 />
               </div>
 
@@ -530,6 +763,9 @@ export const AgenticChat = ({ config, initialChatId }: AgenticChatProps) => {
                   showReasoning={config.showReasoning !== false}
                   isLoading={isLoadingMessages}
                   onRevert={handleRevert}
+                  checkpoints={checkpoints}
+                  onRestoreCheckpoint={handleCheckpointRestore}
+                  isRestoringCheckpoint={isRestoringCheckpoint}
                 />
               </div>
             </div>
@@ -546,6 +782,40 @@ export const AgenticChat = ({ config, initialChatId }: AgenticChatProps) => {
               </div>
             )}
 
+            {/* Checkpoint restore banner */}
+            {editingMessageAfterRestore && (
+              <div className="px-4 sm:px-6 pb-2">
+                <div className="max-w-3xl mx-auto rounded-xl border border-primary/30 bg-primary/5 p-3 flex items-center gap-3">
+                  <RotateCcw size={14} className="text-primary shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-muted-foreground mb-1">
+                      Restored — edit and resend to branch from this point
+                    </p>
+                    <p className="text-sm truncate">
+                      {editingMessageAfterRestore.content}
+                    </p>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <button
+                      onClick={() => {
+                        setFillValue(editingMessageAfterRestore.content);
+                        setEditingMessageAfterRestore(null);
+                      }}
+                      className="text-xs px-2.5 py-1 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                    >
+                      Edit &amp; Resend
+                    </button>
+                    <button
+                      onClick={() => setEditingMessageAfterRestore(null)}
+                      className="text-xs px-2.5 py-1 rounded-lg text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Input area */}
             <div className="border-t border-border/50 bg-background/98 p-3 sm:p-4 shrink-0">
               <div className="max-w-3xl mx-auto">
@@ -558,6 +828,7 @@ export const AgenticChat = ({ config, initialChatId }: AgenticChatProps) => {
                     chatId={chatId || undefined}
                     disabled={isWaitingApproval || !!formQuestion}
                     showFileUpload={config.allowFileUpload !== false}
+                    fillValue={fillValue}
                     placeholder={
                       isWaitingApproval
                         ? 'Waiting for your approval…'
@@ -580,6 +851,7 @@ export const AgenticChat = ({ config, initialChatId }: AgenticChatProps) => {
                     artifactsCount={artifacts.length}
                     showSidePanel={showSidePanel}
                     onToggleArtifacts={toggleArtifactsPanel}
+                    onToggleGithub={toggleGithubPanel}
                   />
                 </div>
 
@@ -600,6 +872,9 @@ export const AgenticChat = ({ config, initialChatId }: AgenticChatProps) => {
         setShowSidePanel={setShowSidePanel}
         artifacts={artifacts}
         onSaveArtifact={handleSaveArtifact}
+        activeGitContext={effectiveGitContext}
+        onGitContextChange={setGitContext}
+        chatContextLocked={chatContextLocked}
       />
     </div>
   );

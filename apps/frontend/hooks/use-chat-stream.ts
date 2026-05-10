@@ -7,6 +7,7 @@ import {
   type StreamMessageParams,
   type TimelineItem,
 } from '@/services/chat.service';
+import type { GitContext } from '@/types/chat';
 import { platform } from '@/lib/platform';
 import { UploadedFile } from '@/components/chat/file-upload';
 import { ApprovalRequest } from '@/components/chat/approval-dialog';
@@ -33,8 +34,11 @@ export interface SendMessageParams {
   selectedModelDbId: string | null;
   selectedProvider: string;
   selectedModelName: string;
+  githubContext?: GitContext | null;
   onChatCreated: (id: string) => void;
   createChat: (params: { agentId: string }) => Promise<{ id: string }>;
+  /** Called once the server-assigned user message ID is known (after stream completes). */
+  onUserMessageReady?: (userMessageId: string) => void;
 }
 
 export const useChatStream = (deps: StreamDeps) => {
@@ -210,6 +214,8 @@ export const useChatStream = (deps: StreamDeps) => {
       };
 
       const currentMessages = messagesRef.current;
+      const { githubContext } = params;
+
       const streamParams: StreamMessageParams & { local_filenames?: string[] } =
         {
           chatId: targetChatId,
@@ -227,6 +233,7 @@ export const useChatStream = (deps: StreamDeps) => {
           modelName: selectedModelName,
           fileIds: allFileIds.length > 0 ? allFileIds : undefined,
           files: finalRawFiles?.length ? finalRawFiles : undefined,
+          githubContext: githubContext ?? undefined,
           local_filenames:
             platform.isDesktop && rawFiles?.length
               ? rawFiles.map((f) => f.name)
@@ -278,6 +285,7 @@ export const useChatStream = (deps: StreamDeps) => {
       } finally {
         if (serverUserMsgIdRef.current) {
           userMsgRef.current.id = serverUserMsgIdRef.current;
+          params.onUserMessageReady?.(serverUserMsgIdRef.current);
           serverUserMsgIdRef.current = undefined;
         }
 

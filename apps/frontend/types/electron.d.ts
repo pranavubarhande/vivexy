@@ -133,6 +133,54 @@ interface ElectronAPI {
     toolName: string,
     toolInput: Record<string, unknown>
   ) => Promise<string>;
+
+  /** Detect whether the workspace is a git repo; returns branch, remote, etc. */
+  detectGit: () => Promise<{
+    isGit: boolean;
+    branch?: string;
+    remote?: string;
+    repoName?: string;
+    workspacePath?: string;
+    /** All git repos found at workspace root + one level of subdirs */
+    repos?: Array<{
+      isGit: boolean;
+      branch?: string;
+      remote?: string;
+      repoName?: string;
+      workspacePath?: string;
+    }>;
+  }>;
+
+  /** Run a safe git subcommand (status/log/diff/branch) in the default workspace */
+  gitExec: (args: string[]) => Promise<string>;
+
+  /** Run a safe git subcommand in a specific workspace path */
+  gitExecAt: (workspacePath: string, args: string[]) => Promise<string>;
+
+  /** Read a file within a workspace path */
+  readWorkspaceFile: (workspacePath: string, filePath: string) => Promise<string>;
+
+  /** List files/folders in a directory within a workspace */
+  listWorkspaceDir: (
+    workspacePath: string,
+    dirPath: string
+  ) => Promise<{ items?: Array<{ name: string; type: 'file' | 'dir' }>; error?: string }>;
+
+  /** Write a file within a workspace path */
+  writeWorkspaceFile: (
+    workspacePath: string,
+    filePath: string,
+    content: string
+  ) => Promise<{ success?: boolean; error?: string }>;
+
+  /** Subscribe to workspace change events; returns unsubscribe function */
+  onWorkspaceChanged: (callback: (newPath: string) => void) => () => void;
+
+  /** Capture current git state as a SHA (stash object or HEAD). Returns '' if not a git repo. */
+  snapshotGit: (workspacePath?: string) => Promise<string>;
+
+  /** Restore workspace files to a previously captured SHA. */
+  restoreGitSnapshot: (workspacePath: string, sha: string) => Promise<{ success?: boolean; error?: string }>;
 }
 
 export interface McpToolDefinition {

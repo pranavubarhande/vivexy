@@ -6,7 +6,9 @@ import {
   Message,
   Artifact,
   LLMModel,
+  Checkpoint,
 } from '@/services/chat.service';
+import { toast } from 'sonner';
 import { artifactApi } from '@/services/chat/artifact-api';
 import { platform } from '@/lib/platform';
 
@@ -166,14 +168,44 @@ export const useChat = (chatId?: string) => {
   });
 
   const revertMutation = useMutation({
-    mutationFn: (messageId: string) =>
-      chatService.revertToMessage(chatId!, messageId),
-    onSuccess: (_, messageId) => {
+    mutationFn: ({
+      messageId,
+      deleteSelf,
+    }: {
+      messageId: string;
+      deleteSelf?: boolean;
+    }) => chatService.revertToMessage(chatId!, messageId, deleteSelf),
+    onSuccess: (_, { messageId, deleteSelf }) => {
       qc.setQueryData<Message[]>(chatKeys.messages(chatId!), (prev = []) => {
         const idx = prev.findIndex((m) => m.id === messageId);
-        return idx >= 0 ? prev.slice(0, idx + 1) : prev;
+        if (idx < 0) return prev;
+        return deleteSelf ? prev.slice(0, idx) : prev.slice(0, idx + 1);
       });
     },
+  });
+
+  const checkpointsQuery = useQuery<Checkpoint[]>({
+    queryKey: [...chatKeys.messages(chatId!), 'checkpoints'],
+    queryFn: () => chatService.getCheckpoints(chatId!),
+    enabled: !!chatId,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+  });
+
+  const restoreCheckpointMutation = useMutation({
+    mutationFn: (checkpointId: string) =>
+      chatService.restoreCheckpoint(chatId!, checkpointId),
+    onSuccess: (data) => {
+      qc.setQueryData<Message[]>(chatKeys.messages(chatId!), (prev = []) => {
+        const idx = prev.findIndex((m) => m.id === data.checkpointMessageId);
+        return idx >= 0 ? prev.slice(0, idx + 1) : prev;
+      });
+      qc.invalidateQueries({
+        queryKey: [...chatKeys.messages(chatId!), 'checkpoints'],
+      });
+      toast.success('Restored to checkpoint');
+    },
+    onError: () => toast.error('Failed to restore checkpoint'),
   });
 
   function invalidateChatData() {
@@ -193,9 +225,15 @@ export const useChat = (chatId?: string) => {
     isLoadingArtifacts: artifactsQuery.isLoading,
 
     revertToMessage: revertMutation.mutateAsync,
+    isReverting: revertMutation.isPending,
     createArtifact: createArtifactMutation.mutateAsync,
     exportArtifact: exportArtifactMutation.mutateAsync,
     isExporting: exportArtifactMutation.isPending,
+
+    checkpoints: checkpointsQuery.data ?? [],
+    isLoadingCheckpoints: checkpointsQuery.isLoading,
+    restoreCheckpoint: restoreCheckpointMutation.mutateAsync,
+    isRestoringCheckpoint: restoreCheckpointMutation.isPending,
 
     invalidateChatData,
   };

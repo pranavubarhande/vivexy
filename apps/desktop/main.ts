@@ -11,6 +11,7 @@
  */
 
 import { app, BrowserWindow, dialog, ipcMain } from 'electron';
+import { execSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import {
@@ -147,6 +148,7 @@ ipcMain.handle('select-workspace-folder', async (): Promise<string | null> => {
     setWorkspaceRoot(selectedPath);
     addRecentWorkspace(selectedPath);
     ensureDataDirs();
+    mainWindow?.webContents.send('workspace-changed', selectedPath);
 
     return selectedPath;
 });
@@ -164,6 +166,7 @@ ipcMain.handle(
         setWorkspaceRoot(workspacePath);
         addRecentWorkspace(workspacePath);
         ensureDataDirs();
+        mainWindow?.webContents.send('workspace-changed', workspacePath);
         return { success: true };
     }
 );
@@ -438,6 +441,245 @@ ipcMain.handle(
         toolInput: Record<string, unknown>
     ): Promise<string> => {
         return callMcpTool(serverName, toolName, toolInput);
+    }
+);
+
+// ── Git helpers ───────────────────────────────────────────────────────
+
+const SAFE_GIT_SUBCOMMANDS = new Set([
+    'status',
+    'log',
+    'diff',
+    'branch',
+    'show',
+    'blame',
+    'checkout',
+    'ls-tree',
+]);
+
+function gitRun(cwd: string, args: string[]): string {
+    return execSync(
+        `git ${args.map((a) => `"${a.replace(/"/g, '\\"')}"`).join(' ')}`,
+        {
+            cwd,
+            stdio: 'pipe',
+            timeout: 10_000,
+        }
+    )
+        .toString()
+        .trim();
+}
+
+function detectRepoAt(dir: string): Record<string, unknown> | null {
+    try {
+        gitRun(dir, ['rev-parse', '--git-dir']);
+        const branch = gitRun(dir, ['branch', '--show-current']);
+        let remote = '';
+        try {
+            remote = gitRun(dir, ['remote', 'get-url', 'origin']);
+        } catch {
+            /* no remote */
+        }
+        return {
+            isGit: true,
+            branch,
+            remote,
+            repoName: path.basename(dir),
+            workspacePath: dir,
+        };
+    } catch {
+        return null;
+    }
+}
+
+ipcMain.handle('git-detect', (): Record<string, unknown> => {
+    const root = getWorkspaceRoot();
+    if (!root) return { isGit: false, repos: [] };
+
+    const repos: Record<string, unknown>[] = [];
+
+    // Check the workspace root itself
+    const rootRepo = detectRepoAt(root);
+    if (rootRepo) repos.push(rootRepo);
+
+    // Scan one level of subdirectories for nested git repos
+    try {
+        const entries = fs.readdirSync(root, { withFileTypes: true });
+        for (const entry of entries) {
+            if (!entry.isDirectory() || entry.name.startsWith('.')) continue;
+            const subdir = path.join(root, entry.name);
+            const subRepo = detectRepoAt(subdir);
+            if (subRepo) repos.push(subRepo);
+        }
+    } catch {
+        /* unreadable dir */
+    }
+
+    if (repos.length === 0) return { isGit: false, repos: [] };
+    // Return the first repo's fields at top-level for backward compat + full list
+    return { ...repos[0], repos };
+});
+
+ipcMain.handle(
+    'git-exec',
+    (_event: Electron.IpcMainInvokeEvent, args: string[]): string => {
+        const root = getWorkspaceRoot();
+        if (!root) return JSON.stringify({ error: 'No workspace set' });
+        if (!args.length || !SAFE_GIT_SUBCOMMANDS.has(args[0])) {
+            return JSON.stringify({
+                error: `Git subcommand '${args[0]}' not allowed`,
+            });
+        }
+        try {
+            return gitRun(root, args);
+        } catch (err) {
+            return JSON.stringify({ error: String(err) });
+        }
+    }
+);
+
+ipcMain.handle(
+    'git-exec-at',
+    (
+        _event: Electron.IpcMainInvokeEvent,
+        workspacePath: string,
+        args: string[]
+    ): string => {
+        if (!workspacePath || !fs.existsSync(workspacePath)) {
+            return JSON.stringify({ error: 'Invalid workspace path' });
+        }
+        if (!args.length || !SAFE_GIT_SUBCOMMANDS.has(args[0])) {
+            return JSON.stringify({
+                error: `Git subcommand '${args[0]}' not allowed`,
+            });
+        }
+        try {
+            return gitRun(workspacePath, args);
+        } catch (err) {
+            return JSON.stringify({ error: String(err) });
+        }
+    }
+);
+
+/** Capture a git snapshot of the workspace before agent processing. Returns SHA. */
+ipcMain.handle(
+    'git-snapshot',
+    (_event: Electron.IpcMainInvokeEvent, workspacePath?: string): string => {
+        const root = workspacePath || getWorkspaceRoot();
+        if (!root || !fs.existsSync(root)) return '';
+        try {
+            // git stash create: creates a stash object from dirty state without modifying the stash stack
+            const sha = execSync('git stash create', {
+                cwd: root,
+                stdio: 'pipe',
+                timeout: 10_000,
+            })
+                .toString()
+                .trim();
+            if (sha) return sha;
+            // Working tree is clean — record the current HEAD SHA
+            return gitRun(root, ['rev-parse', 'HEAD']);
+        } catch {
+            return '';
+        }
+    }
+);
+
+/** Restore workspace files to a previously snapshotted git SHA. */
+ipcMain.handle(
+    'git-restore-snapshot',
+    (
+        _event: Electron.IpcMainInvokeEvent,
+        workspacePath: string,
+        sha: string
+    ): Record<string, unknown> => {
+        if (!workspacePath || !fs.existsSync(workspacePath) || !sha) {
+            return { error: 'Invalid workspace or SHA' };
+        }
+        try {
+            gitRun(workspacePath, ['checkout', sha, '--', '.']);
+            return { success: true };
+        } catch (err) {
+            return { error: String(err) };
+        }
+    }
+);
+
+/** Read a file within a given workspace path (security: must be within the path) */
+ipcMain.handle(
+    'read-workspace-file',
+    (
+        _event: Electron.IpcMainInvokeEvent,
+        workspacePath: string,
+        filePath: string
+    ): string => {
+        try {
+            const resolved = path.resolve(workspacePath, filePath);
+            // Ensure we stay within the workspace
+            if (!resolved.startsWith(path.resolve(workspacePath))) {
+                return JSON.stringify({ error: 'Path outside workspace' });
+            }
+            const content = fs.readFileSync(resolved, 'utf-8');
+            return content;
+        } catch (err) {
+            return JSON.stringify({ error: String(err) });
+        }
+    }
+);
+
+/** List files and folders in a directory within a workspace */
+ipcMain.handle(
+    'list-workspace-dir',
+    (
+        _event: Electron.IpcMainInvokeEvent,
+        workspacePath: string,
+        dirPath: string
+    ): Record<string, unknown> => {
+        try {
+            const resolved = path.resolve(workspacePath, dirPath);
+            if (!resolved.startsWith(path.resolve(workspacePath))) {
+                return { error: 'Path outside workspace' };
+            }
+            const entries = fs.readdirSync(resolved, { withFileTypes: true });
+            const items = entries
+                .filter(
+                    (e) => !e.name.startsWith('.') || e.name === '.gitignore'
+                )
+                .map((e) => ({
+                    name: e.name,
+                    type: e.isDirectory() ? 'dir' : 'file',
+                }))
+                .sort((a, b) => {
+                    if (a.type !== b.type) return a.type === 'dir' ? -1 : 1;
+                    return a.name.localeCompare(b.name);
+                });
+            return { items };
+        } catch (err) {
+            return { error: String(err) };
+        }
+    }
+);
+
+/** Write a file within the workspace */
+ipcMain.handle(
+    'write-workspace-file',
+    (
+        _event: Electron.IpcMainInvokeEvent,
+        workspacePath: string,
+        filePath: string,
+        content: string
+    ): Record<string, unknown> => {
+        try {
+            const resolved = path.resolve(workspacePath, filePath);
+            if (!resolved.startsWith(path.resolve(workspacePath))) {
+                return { error: 'Path outside workspace' };
+            }
+            fs.mkdirSync(path.dirname(resolved), { recursive: true });
+            fs.writeFileSync(resolved, content, 'utf-8');
+            return { success: true };
+        } catch (err) {
+            return { error: String(err) };
+        }
     }
 );
 

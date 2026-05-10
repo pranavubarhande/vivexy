@@ -18,7 +18,8 @@ export type {
   TimelineItem,
 } from '@/types/chat';
 
-import { chatApi } from '@/services/chat/chat-api';
+import { chatApi, Checkpoint } from '@/services/chat/chat-api';
+export type { Checkpoint };
 import { artifactApi } from './chat/artifact-api';
 import { streamMessage } from '@/services/chat/stream-api';
 import { attachmentApi } from '@/services/chat/attachment-api';
@@ -56,4 +57,9 @@ export const chatService = {
 
   // Compaction
   compactChat: chatApi.compactChat,
+
+  // Checkpoints
+  getCheckpoints: chatApi.getCheckpoints,
+  createCheckpoint: chatApi.createCheckpoint,
+  restoreCheckpoint: chatApi.restoreCheckpoint,
 };

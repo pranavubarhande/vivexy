@@ -132,7 +132,7 @@ const groupTimelineItems = (
 
 interface UserMessageProps {
   message: Message;
-  onRevert?: (messageId: string) => void;
+  onRevert?: (messageId: string, content: string) => void;
 }
 
 export function UserMessage({ message, onRevert }: UserMessageProps) {
@@ -151,7 +151,7 @@ export function UserMessage({ message, onRevert }: UserMessageProps) {
         </span>
         {!message.id.startsWith('temp-') && onRevert && (
           <button
-            onClick={() => onRevert(message.id)}
+            onClick={() => onRevert(message.id, message.content)}
             title="Revert to this message"
             className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
           >
@@ -281,7 +281,7 @@ export function AssistantMessage({
 interface ChatMessageProps {
   message: Message;
   showReasoning?: boolean;
-  onRevert?: (messageId: string) => void;
+  onRevert?: (messageId: string, content: string) => void;
 }
 
 export function ChatMessage({

@@ -1,5 +1,12 @@
 from app.models.base import db
-from app.models.chat import Artifact, Chat, ChatAttachment, Message, Todo
+from app.models.chat import (
+    Artifact,
+    Chat,
+    ChatAttachment,
+    ChatCheckpoint,
+    Message,
+    Todo,
+)
 from app.models.enums import (
     ArtifactType,
     MessageRole,
@@ -10,6 +17,7 @@ from app.models.enums import (
     TodoPriority,
     TodoStatus,
 )
+from app.models.github import GithubConnection, GithubRepo
 from app.models.job import Job, JobStock
 from app.models.llm import LLMModel
 from app.models.skill import UserSkill

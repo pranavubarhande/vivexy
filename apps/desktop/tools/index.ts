@@ -17,6 +17,11 @@ import {
     createDirectory,
     writeFile,
     updateFile,
+    gitStatus,
+    gitLog,
+    gitDiff,
+    gitBranch,
+    gitCheckout,
 } from './fs-tools';
 
 export type ToolExecutor = (input: Record<string, unknown>) => Promise<string>;
@@ -37,4 +42,9 @@ export const toolRegistry: Record<string, ToolExecutor> = {
     create_directory: createDirectory,
     write_file: writeFile,
     update_file: updateFile,
+    git_status: gitStatus,
+    git_log: gitLog,
+    git_diff: gitDiff,
+    git_branch: gitBranch,
+    git_checkout: gitCheckout,
 };

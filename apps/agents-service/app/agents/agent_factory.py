@@ -319,6 +319,63 @@ def build_mcp_stub_tools(mcp_tools: List[Dict]) -> List[BaseTool]:
     return stubs
 
 
+def _clone_repo_into_sandbox(backend: "DaytonaSandbox", github_context: Dict) -> bool:
+    """Clone the linked GitHub repo into ./repo/ inside the sandbox.
+
+    Returns True on success so the caller can update the system prompt.
+    Uses a shallow clone (--depth 1) for speed.  If ./repo already contains
+    a checkout of the same repo we skip the clone entirely.
+    """
+    # Keys arrive snake_case after the camelCase→snake_case middleware converts the request body
+    full_name = github_context.get("full_name", "") or github_context.get(
+        "fullName", ""
+    )
+    branch = github_context.get("branch", "main")
+    token = github_context.get("access_token", "")
+
+    if not full_name or not token:
+        logger.warning(
+            "_clone_repo_into_sandbox: skipped — full_name=%r token_present=%s",
+            full_name,
+            bool(token),
+        )
+        return False
+
+    logger.info("_clone_repo_into_sandbox: cloning %s @ %s", full_name, branch)
+
+    try:
+        # Check if repo is already cloned (same origin)
+        check = backend.execute(
+            "git -C ./repo remote get-url origin 2>/dev/null || echo NONE"
+        )
+        existing_remote = getattr(check, "output", "NONE").strip()
+        if full_name in existing_remote:
+            # Already cloned — just fetch + checkout the requested branch
+            backend.execute(f"git -C ./repo fetch --depth 1 origin {branch} 2>&1")
+            backend.execute(f"git -C ./repo checkout {branch} 2>&1")
+            logger.info(
+                f"Repo {full_name} already present — updated to branch {branch}"
+            )
+            return True
+
+        # Fresh clone into ./repo/
+        clone_url = f"https://x-access-token:{token}@github.com/{full_name}.git"
+        result = backend.execute(
+            f"git clone --depth 1 --branch {branch} {clone_url} ./repo 2>&1"
+        )
+        exit_code = getattr(result, "exit_code", -1)
+        output = getattr(result, "output", "")
+        if exit_code != 0:
+            logger.warning(f"git clone failed (exit {exit_code}): {output[:500]}")
+            return False
+
+        logger.info(f"Cloned {full_name}@{branch} into sandbox ./repo/")
+        return True
+    except Exception as e:
+        logger.warning(f"_clone_repo_into_sandbox error: {e}")
+        return False
+
+
 def create_agent(
     agent_id: str,
     provider: str,
@@ -330,6 +387,7 @@ def create_agent(
     user_skills: Optional[List[Dict]] = None,
     mcp_tools: Optional[List[Dict]] = None,
     user_api_keys: Optional[Dict[str, str]] = None,
+    github_context: Optional[Dict] = None,
 ):
     """
     Create the single unified LangGraph agent using deepagents.
@@ -397,6 +455,19 @@ def create_agent(
 
         # 4. Restore previous artifacts to the sandbox
         sync_chat_artifacts_to_sandbox(chat_id, backend)
+
+        # 5. Clone GitHub repo into sandbox if a GitHub context is active
+        if (
+            github_context
+            and github_context.get("type") == "github"
+            and github_context.get("access_token")
+            and (github_context.get("full_name") or github_context.get("fullName"))
+        ):
+            cloned = _clone_repo_into_sandbox(backend, github_context)
+            if cloned:
+                github_context = dict(github_context)
+                github_context["cloned"] = True
+
     except Exception as e:
         logger.warning(f"Failed to initialize Daytona sandbox: {e}")
         sandbox = None
@@ -450,6 +521,64 @@ def create_agent(
             f"\n\n## Available MCP Tools (Desktop)\nThe following MCP tools are available "
             f"and will be executed on the desktop client: {', '.join(mcp_names)}"
         )
+
+    # Inject repository context
+    if github_context:
+        ctx_type = github_context.get("type", "github")
+        repo_name = (
+            github_context.get("full_name")
+            or github_context.get("fullName")
+            or github_context.get("repo_name")
+            or github_context.get("repoName", "")
+        )
+        branch = github_context.get("branch", "")
+        remote = github_context.get("remote", "")
+        workspace = github_context.get("workspace_path", "") or github_context.get(
+            "workspacePath", ""
+        )
+        is_cloned = github_context.get("cloned", False)
+
+        ctx_lines = ["## Active Repository Context"]
+        if ctx_type == "local":
+            ctx_lines.append("Type: Local git repository (Desktop)")
+            if workspace:
+                ctx_lines.append(f"Workspace path: {workspace}")
+            if repo_name:
+                ctx_lines.append(f"Repository: {repo_name}")
+            if branch:
+                ctx_lines.append(f"Current branch: **{branch}**")
+            ctx_lines.append(
+                "\nThe user's local workspace IS this repository. "
+                "Use `list_files`, `grep_files`, `read_file`, `git_status`, `git_log`, `git_diff`, "
+                "`git_branch` to explore and understand the code. "
+                "Answer branch/status questions using these tools — do NOT look for the repo in the sandbox."
+            )
+        else:
+            ctx_lines.append("Type: GitHub repository")
+            if repo_name:
+                ctx_lines.append(f"Repository: {repo_name}")
+            if branch:
+                ctx_lines.append(f"Current branch: **{branch}**")
+            if remote:
+                ctx_lines.append(f"Remote: {remote}")
+            if is_cloned or github_context.get("access_token"):
+                ctx_lines.append(
+                    f"\nThe repository has been cloned into `./repo/` inside the sandbox. "
+                    f"Use `execute_code` with paths like `./repo/src/...` to read files, run grep, etc. "
+                    f"You can also run `git -C ./repo log --oneline -10`, `git -C ./repo branch -a`, "
+                    f"`git -C ./repo diff HEAD` etc. inside `execute_code`."
+                )
+            else:
+                ctx_lines.append(
+                    "\nAnswer questions about branch/repo using the context above. "
+                    "The repository is not available locally — use GitHub information only."
+                )
+
+        ctx_lines.append(
+            "\nWhen the user asks 'what branch am I on?', 'show me recent commits', "
+            "'what files changed?' — answer using this repository context and the available tools."
+        )
+        final_prompt += "\n\n" + "\n".join(ctx_lines)
 
     if files:
         parts = []

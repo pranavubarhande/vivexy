@@ -5,6 +5,7 @@
  * The agent can list, search, move, copy, delete files and create directories.
  */
 
+import { execSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import { getWorkspaceRoot, assertWithinWorkspace } from './paths';
@@ -518,5 +519,81 @@ export const updateFile = async (
             success: false,
             error: err instanceof Error ? err.message : String(err),
         });
+    }
+};
+
+// ── git tools ────────────────────────────────────────────────────────
+
+function gitExec(args: string[]): string {
+    const root = getWorkspaceRoot();
+    if (!root) return JSON.stringify({ error: 'No workspace set' });
+    return execSync(
+        `git ${args.map((a) => `"${a.replace(/"/g, '\\"')}"`).join(' ')}`,
+        { cwd: root, stdio: 'pipe', timeout: 10_000 }
+    )
+        .toString()
+        .trim();
+}
+
+export const gitStatus = async (
+    _input: Record<string, unknown>
+): Promise<string> => {
+    try {
+        return gitExec(['status', '--short', '--branch']);
+    } catch (err) {
+        return JSON.stringify({ error: String(err) });
+    }
+};
+
+export const gitLog = async (
+    input: Record<string, unknown>
+): Promise<string> => {
+    try {
+        const n = Number(input.n ?? 20);
+        const args = ['log', '--oneline', `--max-count=${n}`];
+        if (input.branch) args.push(String(input.branch));
+        return gitExec(args);
+    } catch (err) {
+        return JSON.stringify({ error: String(err) });
+    }
+};
+
+export const gitDiff = async (
+    input: Record<string, unknown>
+): Promise<string> => {
+    try {
+        const args = ['diff'];
+        if (input.ref) args.push(String(input.ref));
+        if (input.filepath) args.push('--', String(input.filepath));
+        const out = gitExec(args);
+        return out.length > 8000 ? out.slice(0, 8000) + '\n… (truncated)' : out;
+    } catch (err) {
+        return JSON.stringify({ error: String(err) });
+    }
+};
+
+export const gitBranch = async (
+    input: Record<string, unknown>
+): Promise<string> => {
+    try {
+        const args = input.all ? ['branch', '-a'] : ['branch'];
+        return gitExec(args);
+    } catch (err) {
+        return JSON.stringify({ error: String(err) });
+    }
+};
+
+export const gitCheckout = async (
+    input: Record<string, unknown>
+): Promise<string> => {
+    try {
+        const branch = String(input.branch ?? '');
+        if (!branch) return JSON.stringify({ error: 'branch is required' });
+        const args = input.create
+            ? ['checkout', '-b', branch]
+            : ['checkout', branch];
+        return gitExec(args);
+    } catch (err) {
+        return JSON.stringify({ error: String(err) });
     }
 };

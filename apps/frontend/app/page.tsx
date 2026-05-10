@@ -490,7 +490,13 @@ export default function LandingPage() {
                     <Link href="/contact?interest=request-demo">Contact</Link>
                   </Button>
                   <Button size="sm" asChild>
-                    <Link href="/contact?interest=request-demo">
+                    <Link
+                      href={
+                        process.env.NEXT_PUBLIC_AUTH_ENABLED
+                          ? '/login'
+                          : '/contact?interest=request-demo'
+                      }
+                    >
                       Get started
                     </Link>
                   </Button>

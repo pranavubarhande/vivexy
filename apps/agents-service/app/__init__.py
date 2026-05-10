@@ -12,6 +12,7 @@ from app.routes.approval import bp as approval_bp
 from app.routes.auth import bp as auth_bp
 from app.routes.chat import bp as chat_bp
 from app.routes.connectors import bp as connectors_bp
+from app.routes.github import bp as github_bp
 from app.routes.rag import bp as rag_bp
 from app.routes.skills import bp as skills_bp
 from app.routes.stripe import bp as stripe_bp
@@ -101,6 +102,7 @@ def create_app(config_object=None):
     app.register_blueprint(chat_bp)
     app.register_blueprint(connectors_bp)
     app.register_blueprint(skills_bp)
+    app.register_blueprint(github_bp)
 
     @app.route("/health")
     def _health():

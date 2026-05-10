@@ -1,6 +1,14 @@
 import axiosInstance from '@/services/axiosInstance.service';
 import { Chat, Message } from '@/types/chat';
 
+export interface Checkpoint {
+  id: string;
+  chatId: string;
+  messageId: string;
+  label: string;
+  createdAt: string;
+}
+
 export const chatApi = {
   getChats: async () => {
     const response = await axiosInstance.get<Chat[]>('/chat');
@@ -34,12 +42,48 @@ export const chatApi = {
     return response.data;
   },
 
-  revertToMessage: async (chatId: string, messageId: string) => {
+  revertToMessage: async (
+    chatId: string,
+    messageId: string,
+    deleteSelf = false
+  ) => {
     const response = await axiosInstance.post<{
       success: boolean;
       deletedCount: number;
-    }>(`/chat/${chatId}/messages/${messageId}/revert`);
+      messageContent: string;
+    }>(`/chat/${chatId}/messages/${messageId}/revert`, {
+      delete_self: deleteSelf,
+    });
     return response.data;
+  },
+
+  getCheckpoints: async (chatId: string) => {
+    const res = await axiosInstance.get<Checkpoint[]>(
+      `/chat/${chatId}/checkpoints`
+    );
+    return res.data;
+  },
+
+  createCheckpoint: async (
+    chatId: string,
+    messageId: string,
+    label?: string
+  ) => {
+    const res = await axiosInstance.post<Checkpoint>(
+      `/chat/${chatId}/checkpoints`,
+      { messageId, label }
+    );
+    return res.data;
+  },
+
+  restoreCheckpoint: async (chatId: string, checkpointId: string) => {
+    const res = await axiosInstance.post<{
+      success: boolean;
+      deletedCount: number;
+      checkpointMessageId: string;
+      checkpointMessage: Message;
+    }>(`/chat/${chatId}/checkpoints/${checkpointId}/restore`);
+    return res.data;
   },
 
   compactChat: async (

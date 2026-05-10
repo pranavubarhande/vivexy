@@ -126,6 +126,7 @@ def get_user_chat(chat_id: str, user_id: str) -> Dict[str, Any]:
         "title": chat.title,
         "agentId": chat.agent_id,
         "lastModelId": chat.last_model_id,
+        "githubContext": chat.github_context,
         "createdAt": chat.created_at.isoformat(),
         "updatedAt": chat.updated_at.isoformat(),
         "messages": [_message_to_dict_with_resolved_artifacts(msg) for msg in messages],
@@ -189,15 +190,19 @@ def delete_chat(chat_id: str, user_id: str) -> int:
     return 1
 
 
-def revert_to_message(chat_id: str, message_id: str, user_id: str) -> int:
+def revert_to_message(
+    chat_id: str,
+    message_id: str,
+    user_id: str,
+    delete_self: bool = False,
+) -> dict:
     """
-    Delete all messages created AFTER the given message_id.
+    Revert the conversation to before the given message.
 
-    This effectively reverts the conversation to the state it was in
-    immediately after the specified message was sent. The message itself
-    is kept; only subsequent messages are removed.
+    delete_self=False (default): keeps the pivot message, deletes everything after it.
+    delete_self=True: deletes the pivot message and everything after it.
 
-    Returns the number of deleted messages.
+    Returns { deleted_count, message_content }.
     """
     chat = Chat.query.filter_by(id=chat_id, user_id=user_id).first()
     if not chat:
@@ -207,14 +212,22 @@ def revert_to_message(chat_id: str, message_id: str, user_id: str) -> int:
     if not pivot:
         raise ValueError("Message not found")
 
-    deleted = Message.query.filter(
-        Message.chat_id == chat_id,
-        Message.created_at > pivot.created_at,
-    ).delete(synchronize_session=False)
+    message_content = pivot.content
+
+    if delete_self:
+        deleted = Message.query.filter(
+            Message.chat_id == chat_id,
+            Message.created_at >= pivot.created_at,
+        ).delete(synchronize_session=False)
+    else:
+        deleted = Message.query.filter(
+            Message.chat_id == chat_id,
+            Message.created_at > pivot.created_at,
+        ).delete(synchronize_session=False)
 
     chat.updated_at = datetime.utcnow()
     db.session.commit()
-    return deleted
+    return {"deleted_count": deleted, "message_content": message_content}
 
 
 def get_chat_messages(chat_id: str, user_id: str) -> List[Dict[str, Any]]:
@@ -403,6 +416,116 @@ def get_llm_models() -> List[LLMModelResponse]:
         LLMModel.query.filter_by(is_active=True).order_by(LLMModel.name.asc()).all()
     )
     return [LLMModelResponse.from_orm(model) for model in models]
+
+
+def get_chat_checkpoints(chat_id: str, user_id: str) -> List[Dict]:
+    """Get all checkpoints for a chat."""
+    from app.models.chat import ChatCheckpoint
+
+    get_user_chat(chat_id, user_id)  # verify ownership
+    checkpoints = (
+        ChatCheckpoint.query.filter_by(chat_id=chat_id)
+        .order_by(ChatCheckpoint.created_at.asc())
+        .all()
+    )
+    return [cp.to_dict() for cp in checkpoints]
+
+
+def create_checkpoint(
+    chat_id: str, user_id: str, message_id: str, label: Optional[str] = None
+) -> Dict:
+    """Create a checkpoint at a specific message."""
+    from app.models.chat import ChatCheckpoint
+
+    get_user_chat(chat_id, user_id)  # verify ownership
+    # Ensure message belongs to this chat
+    msg = Message.query.filter_by(id=message_id, chat_id=chat_id).first()
+    if not msg:
+        raise ValueError("Message not found")
+    cp = ChatCheckpoint(
+        chat_id=chat_id,
+        message_id=message_id,
+        label=label or f"Checkpoint at {msg.created_at.strftime('%H:%M')}",
+    )
+    db.session.add(cp)
+    db.session.commit()
+    return cp.to_dict()
+
+
+def create_auto_checkpoint(
+    chat_id: str, user_id: str, message_id: str
+) -> Optional[Dict]:
+    """Create an automatic checkpoint (no duplicate check needed)."""
+    from app.models.chat import ChatCheckpoint
+
+    try:
+        # Check if a checkpoint already exists for this exact message
+        existing = ChatCheckpoint.query.filter_by(
+            chat_id=chat_id, message_id=message_id
+        ).first()
+        if existing:
+            return existing.to_dict()
+        msg = Message.query.filter_by(id=message_id, chat_id=chat_id).first()
+        if not msg:
+            return None
+        cp = ChatCheckpoint(
+            chat_id=chat_id, message_id=message_id, label="Auto checkpoint"
+        )
+        db.session.add(cp)
+        db.session.commit()
+        return cp.to_dict()
+    except Exception as e:
+        db.session.rollback()
+        logger.warning(f"Failed to create auto checkpoint: {e}")
+        return None
+
+
+def restore_checkpoint(chat_id: str, checkpoint_id: str, user_id: str) -> Dict:
+    """Restore chat to a checkpoint — delete all messages after the checkpoint's message."""
+    from app.models.chat import Artifact, ChatCheckpoint, Todo
+
+    get_user_chat(chat_id, user_id)  # verify ownership
+    cp = ChatCheckpoint.query.filter_by(id=checkpoint_id, chat_id=chat_id).first()
+    if not cp:
+        raise ValueError("Checkpoint not found")
+
+    anchor_msg = Message.query.filter_by(id=cp.message_id, chat_id=chat_id).first()
+    if not anchor_msg:
+        raise ValueError("Checkpoint message not found")
+
+    # Get all messages after the checkpoint message (by created_at ordering)
+    messages_to_delete = Message.query.filter(
+        Message.chat_id == chat_id,
+        Message.created_at > anchor_msg.created_at,
+    ).all()
+
+    deleted_ids = [m.id for m in messages_to_delete]
+    deleted_count = len(deleted_ids)
+
+    # Delete artifacts linked to those messages
+    if deleted_ids:
+        Artifact.query.filter(Artifact.message_id.in_(deleted_ids)).delete(
+            synchronize_session=False
+        )
+
+        # Delete checkpoints that reference deleted messages
+        ChatCheckpoint.query.filter(
+            ChatCheckpoint.chat_id == chat_id,
+            ChatCheckpoint.message_id.in_(deleted_ids),
+        ).delete(synchronize_session=False)
+
+    # Delete the messages themselves
+    for msg in messages_to_delete:
+        db.session.delete(msg)
+
+    db.session.commit()
+
+    return {
+        "success": True,
+        "deletedCount": deleted_count,
+        "checkpointMessageId": cp.message_id,
+        "checkpointMessage": anchor_msg.to_dict(),
+    }
 
 
 def create_agent_response(

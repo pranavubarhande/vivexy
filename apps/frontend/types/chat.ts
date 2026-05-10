@@ -32,6 +32,7 @@ export interface Chat {
   updatedAt: string;
   agentId: string | null;
   lastModelId: string | null;
+  githubContext?: GitContext | null;
   _count?: {
     messages: number;
     artifacts: number;
@@ -131,6 +132,18 @@ export interface McpToolSpec {
   inputSchema: Record<string, unknown>;
 }
 
+/** Repository/git context injected into the agent's system prompt. */
+export interface GitContext {
+  /** 'github' for web OAuth repos, 'local' for desktop git workspace */
+  type: 'github' | 'local';
+  /** owner/repo for GitHub, folder name for local */
+  fullName?: string;
+  repoName?: string;
+  branch: string;
+  remote?: string;
+  workspacePath?: string;
+}
+
 export interface StreamMessageParams {
   chatId: string;
   messages: Array<{ role: 'user' | 'assistant'; content: string }>;
@@ -145,6 +158,8 @@ export interface StreamMessageParams {
   userSkills?: UserSkill[];
   /** Available MCP tool definitions from running servers (desktop only) */
   mcpTools?: McpToolSpec[];
+  /** Active repository context — injected into the agent's system prompt */
+  githubContext?: GitContext | null;
 }
 
 export type SSEEvent =

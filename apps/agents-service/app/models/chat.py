@@ -17,6 +17,7 @@ class Chat(db.Model):
     last_model_id = db.Column(db.String, db.ForeignKey("llm_models.id"))
     compact_summary = db.Column(db.Text, nullable=True)
     compact_message_count = db.Column(db.Integer, nullable=True)
+    github_context = db.Column(db.JSON, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
@@ -27,6 +28,9 @@ class Chat(db.Model):
     artifacts = db.relationship("Artifact", backref="chat", lazy=True)
     todos = db.relationship("Todo", backref="chat", lazy=True)
     attachments = db.relationship("ChatAttachment", backref="chat", lazy=True)
+    checkpoints = db.relationship(
+        "ChatCheckpoint", backref="chat", lazy=True, cascade="all, delete-orphan"
+    )
 
 
 class Message(db.Model):
@@ -128,3 +132,22 @@ class ChatAttachment(db.Model):
     mime_type = db.Column(db.String, nullable=False)
     size = db.Column(db.Integer, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class ChatCheckpoint(db.Model):
+    __tablename__ = "chat_checkpoints"
+
+    id = db.Column(db.String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    chat_id = db.Column(db.String, db.ForeignKey("chats.id"), nullable=False)
+    message_id = db.Column(db.String, db.ForeignKey("messages.id"), nullable=False)
+    label = db.Column(db.String)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "chatId": self.chat_id,
+            "messageId": self.message_id,
+            "label": self.label,
+            "createdAt": self.created_at.isoformat(),
+        }

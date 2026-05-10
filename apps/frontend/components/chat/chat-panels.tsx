@@ -8,11 +8,13 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { ArtifactsPanel } from '@/components/chat/artifacts-panel';
+import { GithubReposPanel } from '@/components/chat/github-repos-panel';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { Maximize2, PanelRightClose, File } from 'lucide-react';
+import { Maximize2, PanelRightClose, File, Github } from 'lucide-react';
 import type { Artifact } from '@/services/chat.service';
+import type { GitContext } from '@/types/chat';
 
-type PanelType = 'artifacts' | null;
+export type PanelType = 'artifacts' | 'github' | null;
 
 interface ChatPanelsProps {
   showSidePanel: PanelType;
@@ -22,6 +24,9 @@ interface ChatPanelsProps {
     artifact: Artifact & { language?: string },
     newContent: string
   ) => void;
+  activeGitContext: GitContext | null;
+  onGitContextChange: (ctx: GitContext | null) => void;
+  chatContextLocked?: boolean;
 }
 
 export const ChatPanels = ({
@@ -29,6 +34,9 @@ export const ChatPanels = ({
   setShowSidePanel,
   artifacts,
   onSaveArtifact,
+  activeGitContext,
+  onGitContextChange,
+  chatContextLocked = false,
 }: ChatPanelsProps) => {
   const isMobile = useIsMobile();
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -70,18 +78,33 @@ export const ChatPanels = ({
 
   if (!showSidePanel) return null;
 
-  const panelContent = (
-    <ArtifactsPanel artifacts={artifacts} onSave={onSaveArtifact} />
-  );
+  const panelContent =
+    showSidePanel === 'github' ? (
+      <GithubReposPanel
+        activeContext={activeGitContext}
+        onContextChange={onGitContextChange}
+        locked={chatContextLocked}
+      />
+    ) : (
+      <ArtifactsPanel artifacts={artifacts} onSave={onSaveArtifact} />
+    );
 
   const panelHeader = (
     <div className="flex items-center justify-between px-4 py-3 border-b bg-background/95 backdrop-blur-sm shrink-0">
       <div className="flex items-center gap-2">
-        <File size={15} className="text-primary" />
-        <h3 className="font-semibold text-sm">Artifacts</h3>
-        <span className="text-xs px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
-          {artifacts.length}
-        </span>
+        {showSidePanel === 'github' ? (
+          <Github size={15} className="text-primary" />
+        ) : (
+          <File size={15} className="text-primary" />
+        )}
+        <h3 className="font-semibold text-sm">
+          {showSidePanel === 'github' ? 'GitHub' : 'Artifacts'}
+        </h3>
+        {showSidePanel === 'artifacts' && (
+          <span className="text-xs px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+            {artifacts.length}
+          </span>
+        )}
       </div>
       <div className="flex items-center gap-1">
         {!isMobile && (
@@ -145,7 +168,9 @@ export const ChatPanels = ({
             className="h-[80vh] flex flex-col p-0 rounded-t-2xl"
           >
             <SheetHeader className="sr-only">
-              <SheetTitle>Artifacts</SheetTitle>
+              <SheetTitle>
+                {showSidePanel === 'github' ? 'GitHub' : 'Artifacts'}
+              </SheetTitle>
             </SheetHeader>
             {panelHeader}
             <div className="flex-1 min-h-0 overflow-hidden">{panelContent}</div>

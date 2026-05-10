@@ -224,6 +224,65 @@ def update_file_tool(
     )
 
 
+class GitStatusInput(BaseModel):
+    pass
+
+
+class GitLogInput(BaseModel):
+    n: int = Field(20, description="Number of commits to show.")
+    branch: Optional[str] = Field(
+        None, description="Branch to show log for. Omit for current branch."
+    )
+
+
+class GitDiffInput(BaseModel):
+    ref: Optional[str] = Field(
+        None, description="Commit/branch to diff against. Omit for unstaged changes."
+    )
+    filepath: Optional[str] = Field(
+        None, description="Specific file to diff. Omit for all changes."
+    )
+
+
+class GitBranchInput(BaseModel):
+    all: bool = Field(False, description="Show all branches including remote.")
+
+
+class GitCheckoutInput(BaseModel):
+    branch: str = Field(..., description="Branch name to checkout.")
+    create: bool = Field(False, description="Create a new branch if it doesn't exist.")
+
+
+@tool("git_status", args_schema=GitStatusInput)
+def git_status_tool() -> str:
+    """Show the working tree status of the local git repository."""
+    return _client_interrupt("git_status", {})
+
+
+@tool("git_log", args_schema=GitLogInput)
+def git_log_tool(n: int = 20, branch: Optional[str] = None) -> str:
+    """Show the commit history of the local git repository."""
+    return _client_interrupt("git_log", {"n": n, "branch": branch})
+
+
+@tool("git_diff", args_schema=GitDiffInput)
+def git_diff_tool(ref: Optional[str] = None, filepath: Optional[str] = None) -> str:
+    """Show changes between commits, commit and working tree, etc."""
+    return _client_interrupt("git_diff", {"ref": ref, "filepath": filepath})
+
+
+@tool("git_branch", args_schema=GitBranchInput)
+def git_branch_tool(all: bool = False) -> str:
+    """List git branches in the local repository."""
+    return _client_interrupt("git_branch", {"all": all})
+
+
+@tool("git_checkout", args_schema=GitCheckoutInput)
+def git_checkout_tool(branch: str, create: bool = False) -> str:
+    """Switch to a different branch in the local repository."""
+    return _client_interrupt("git_checkout", {"branch": branch, "create": create})
+
+
 def get_fs_tools():
     """Return all filesystem tools. Only useful when client_tools_enabled is True."""
     return [
@@ -235,4 +294,20 @@ def get_fs_tools():
         create_directory_tool,
         write_file_tool,
         update_file_tool,
+        git_status_tool,
+        git_log_tool,
+        git_diff_tool,
+        git_branch_tool,
+        git_checkout_tool,
+    ]
+
+
+def get_git_tools():
+    """Return only the git tools. Only useful when client_tools_enabled is True."""
+    return [
+        git_status_tool,
+        git_log_tool,
+        git_diff_tool,
+        git_branch_tool,
+        git_checkout_tool,
     ]

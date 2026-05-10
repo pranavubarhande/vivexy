@@ -148,4 +148,90 @@ contextBridge.exposeInMainWorld('electronAPI', {
             toolInput
         );
     },
+
+    /** Detect whether the current workspace is a git repo and return branch/remote info */
+    detectGit: (): Promise<{
+        isGit: boolean;
+        branch?: string;
+        remote?: string;
+        repoName?: string;
+        workspacePath?: string;
+        repos?: Array<{
+            isGit: boolean;
+            branch?: string;
+            remote?: string;
+            repoName?: string;
+            workspacePath?: string;
+        }>;
+    }> => {
+        return ipcRenderer.invoke('git-detect');
+    },
+
+    /** Run a safe read-only git command in the workspace (status/log/diff/branch) */
+    gitExec: (args: string[]): Promise<string> => {
+        return ipcRenderer.invoke('git-exec', args);
+    },
+
+    /** Run a safe git command in a specific workspace path */
+    gitExecAt: (workspacePath: string, args: string[]): Promise<string> => {
+        return ipcRenderer.invoke('git-exec-at', workspacePath, args);
+    },
+
+    /** Read a file within a workspace path */
+    readWorkspaceFile: (
+        workspacePath: string,
+        filePath: string
+    ): Promise<string> => {
+        return ipcRenderer.invoke(
+            'read-workspace-file',
+            workspacePath,
+            filePath
+        );
+    },
+
+    /** List files/folders in a directory within a workspace */
+    listWorkspaceDir: (
+        workspacePath: string,
+        dirPath: string
+    ): Promise<{
+        items?: Array<{ name: string; type: 'file' | 'dir' }>;
+        error?: string;
+    }> => {
+        return ipcRenderer.invoke('list-workspace-dir', workspacePath, dirPath);
+    },
+
+    /** Write a file within a workspace path */
+    writeWorkspaceFile: (
+        workspacePath: string,
+        filePath: string,
+        content: string
+    ): Promise<{ success?: boolean; error?: string }> => {
+        return ipcRenderer.invoke(
+            'write-workspace-file',
+            workspacePath,
+            filePath,
+            content
+        );
+    },
+
+    /** Subscribe to workspace change events from the main process */
+    onWorkspaceChanged: (callback: (newPath: string) => void): (() => void) => {
+        const handler = (_event: Electron.IpcRendererEvent, newPath: string) =>
+            callback(newPath);
+        ipcRenderer.on('workspace-changed', handler);
+        return () => ipcRenderer.removeListener('workspace-changed', handler);
+    },
+
+    /** Capture the current git state as a snapshot object (stash SHA or HEAD SHA). */
+    snapshotGit: (workspacePath?: string): Promise<string> => {
+        return ipcRenderer.invoke('git-snapshot', workspacePath);
+    },
+
+    /** Restore workspace files to a previously captured git snapshot SHA. */
+    restoreGitSnapshot: (
+        workspacePath: string,
+        sha: string
+    ): Promise<{ success?: boolean; error?: string }> => {
+        return ipcRenderer.invoke('git-restore-snapshot', workspacePath, sha);
+    },
 });

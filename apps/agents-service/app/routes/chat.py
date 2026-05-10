@@ -415,8 +415,71 @@ def revert_to_message_endpoint(chat_id, message_id):
     """
     try:
         user = request.user
-        count = revert_to_message(chat_id, message_id, user.id)
-        return jsonify({"success": True, "deletedCount": count})
+        data = request.get_json(silent=True) or {}
+        delete_self = bool(data.get("delete_self", False))
+        result = revert_to_message(
+            chat_id, message_id, user.id, delete_self=delete_self
+        )
+        return jsonify(
+            {
+                "success": True,
+                "deletedCount": result["deleted_count"],
+                "messageContent": result["message_content"],
+            }
+        )
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@bp.route("/<chat_id>/checkpoints", methods=["GET"])
+@auth_middleware
+def get_checkpoints(chat_id):
+    """List all checkpoints for a chat."""
+    try:
+        user = request.user
+        from app.business_logic.chat import get_chat_checkpoints
+
+        checkpoints = get_chat_checkpoints(chat_id, user.id)
+        return jsonify(checkpoints)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@bp.route("/<chat_id>/checkpoints", methods=["POST"])
+@auth_middleware
+def create_new_checkpoint(chat_id):
+    """Create a manual checkpoint at a message."""
+    try:
+        user = request.user
+        data = request.get_json() or {}
+        message_id = data.get("message_id")
+        label = data.get("label")
+        if not message_id:
+            return jsonify({"error": "message_id is required"}), 400
+        from app.business_logic.chat import create_checkpoint
+
+        cp = create_checkpoint(chat_id, user.id, message_id, label)
+        return jsonify(cp), 201
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@bp.route("/<chat_id>/checkpoints/<checkpoint_id>/restore", methods=["POST"])
+@auth_middleware
+def restore_checkpoint_endpoint(chat_id, checkpoint_id):
+    """Restore chat to a checkpoint."""
+    try:
+        user = request.user
+        from app.business_logic.chat import restore_checkpoint
+
+        result = restore_checkpoint(chat_id, checkpoint_id, user.id)
+        return jsonify(result)
     except ValueError as e:
         return jsonify({"error": str(e)}), 404
     except Exception as e:
@@ -981,6 +1044,40 @@ def start_chat_stream():
         )
         user_skills = data.get("user_skills", [])
         mcp_tools = data.get("mcp_tools", [])
+        github_context = data.get("github_context")
+
+        # ── GitHub context handling ─────────────────────────────────────
+        # 1. If the frontend sends a context, lock it to this chat (first message only).
+        # 2. If no context is sent but the chat already has one stored, use that.
+        # 3. Attach the live access token for GitHub-type contexts so the
+        #    agent factory can clone the repo into the sandbox.
+        from app.models.chat import Chat as ChatModel
+
+        chat_record = ChatModel.query.filter_by(id=chat_id).first()
+
+        if github_context:
+            # Lock to chat on first message (don't overwrite if already set)
+            if chat_record and not chat_record.github_context:
+                safe = {k: v for k, v in github_context.items() if k != "access_token"}
+                chat_record.github_context = safe
+                from app.models.base import db as _db
+
+                _db.session.commit()
+        elif chat_record and chat_record.github_context:
+            # No context from frontend — fall back to what's stored on the chat
+            github_context = dict(chat_record.github_context)
+
+        # Attach live access token for GitHub-type contexts
+        if github_context and github_context.get("type") == "github":
+            try:
+                from app.models.github import GithubConnection
+
+                conn = GithubConnection.query.filter_by(user_id=user_id).first()
+                if conn:
+                    github_context = dict(github_context)
+                    github_context["access_token"] = conn.access_token
+            except Exception:
+                logger.warning("Could not attach GitHub access token to context")
 
         try:
             if not client_tools_enabled:
@@ -1082,6 +1179,7 @@ def start_chat_stream():
                 app_context=app_ctx,
                 user_skills=user_skills,
                 mcp_tools=mcp_tools,
+                github_context=github_context,
             )
 
         threading.Thread(target=_run, daemon=True).start()
