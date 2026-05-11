@@ -100,7 +100,7 @@ const TEMPLATE_FEATURES = [
     icon: Globe,
     title: 'Web + Desktop + Mobile',
     description:
-      'One codebase delivers to browser, Windows, macOS, Linux, iOS, Android, and terminal.',
+      'One codebase delivers to browser, Windows, macOS, Linux, iOS, Android.',
     demo: MultiPlatformDemo,
   },
   {

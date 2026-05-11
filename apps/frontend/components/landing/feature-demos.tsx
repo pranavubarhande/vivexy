@@ -1201,12 +1201,11 @@ export function MemoryDemo() {
 }
 
 /* ─── 9. Multi-Platform ───────────────────────────────────────────────── */
-type PlatformKey = 'web' | 'desktop' | 'mobile' | 'terminal';
+type PlatformKey = 'web' | 'desktop' | 'mobile';
 const PLATFORMS: { id: PlatformKey; label: string; icon: typeof Monitor }[] = [
   { id: 'web', label: 'Browser', icon: Globe },
   { id: 'desktop', label: 'Desktop', icon: Monitor },
   { id: 'mobile', label: 'Mobile', icon: Smartphone },
-  { id: 'terminal', label: 'Terminal', icon: Terminal },
 ];
 
 function MiniChat({ compact = false }: { compact?: boolean }) {
@@ -1371,51 +1370,6 @@ export function MultiPlatformDemo() {
                   </div>
                   <div className="bg-muted/30 py-2 flex justify-center border-t border-border">
                     <div className="w-6 h-6 rounded-full border border-border" />
-                  </div>
-                </div>
-              </motion.div>
-            )}
-            {active === 'terminal' && (
-              <motion.div
-                key="terminal"
-                initial={{ opacity: 0, scale: 0.96 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.96 }}
-                className="w-full max-w-sm"
-              >
-                {/* Terminal frame */}
-                <div className="rounded-lg border-2 border-border shadow-md overflow-hidden bg-[#0d1117] font-mono">
-                  <div className="bg-[#161b22] px-3 py-2 flex items-center gap-2 border-b border-white/10">
-                    <div className="flex gap-1">
-                      <div className="w-2 h-2 rounded-full bg-red-500/70" />
-                      <div className="w-2 h-2 rounded-full bg-yellow-500/70" />
-                      <div className="w-2 h-2 rounded-full bg-green-500/70" />
-                    </div>
-                    <span className="text-[9px] text-white/40 mx-auto">
-                      agentis — bash
-                    </span>
-                  </div>
-                  <div className="p-3 space-y-1.5 h-40 text-[9px] leading-relaxed">
-                    <p className="text-white/40">
-                      $ agentis chat --model claude
-                    </p>
-                    <p className="text-green-400">
-                      ✓ Connected to Claude 3.5 Sonnet
-                    </p>
-                    <p className="text-white/40">
-                      You: Summarise last quarter&apos;s filings
-                    </p>
-                    <p className="text-blue-400">
-                      Agent: Analysing 14 documents…
-                    </p>
-                    <p className="text-white/60 pl-2">▸ Revenue up 12% YoY</p>
-                    <p className="text-white/60 pl-2">
-                      ▸ 3 compliance flags detected
-                    </p>
-                    <p className="text-white/40 flex items-center gap-1">
-                      ${' '}
-                      <span className="w-1.5 h-3 bg-white/60 animate-pulse inline-block" />
-                    </p>
                   </div>
                 </div>
               </motion.div>
@@ -1872,7 +1826,7 @@ export const TEMPLATE_FEATURES: {
     icon: Globe,
     title: 'Web + Desktop + Mobile',
     description:
-      'One codebase delivers to browser, Windows, macOS, Linux, iOS, Android, and terminal.',
+      'One codebase delivers to browser, Windows, macOS, Linux, iOS, Android.',
   },
   {
     icon: Database,
