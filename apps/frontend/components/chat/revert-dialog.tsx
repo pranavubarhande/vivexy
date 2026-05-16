@@ -149,7 +149,7 @@ export function RevertDialog({
           <OptionCard
             icon={<MessageSquare size={14} />}
             title="Edit message"
-            description="Remove this message and everything after it. Pre-fill the input so you can edit and resend."
+            description="Remove this message and everything after it."
             onClick={() => onConfirm('messages')}
             loading={isReverting}
           />

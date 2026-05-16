@@ -1,7 +1,6 @@
 'use client';
 
 import { ChatMessage } from '@/components/chat/chat-message';
-import { CheckpointMarker } from '@/components/chat/checkpoint-marker';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Message } from '@/services/chat.service';
 
@@ -10,14 +9,6 @@ interface ChatMessageListProps {
   showReasoning: boolean;
   isLoading?: boolean;
   onRevert: (messageId: string, content: string) => void;
-  checkpoints?: Array<{
-    id: string;
-    label: string;
-    createdAt: string;
-    messageId: string;
-  }>;
-  onRestoreCheckpoint?: (checkpointId: string) => void;
-  isRestoringCheckpoint?: boolean;
 }
 
 function ChatMessageSkeleton() {
@@ -52,16 +43,9 @@ export const ChatMessageList = ({
   showReasoning,
   isLoading = false,
   onRevert,
-  checkpoints,
-  onRestoreCheckpoint,
-  isRestoringCheckpoint,
 }: ChatMessageListProps) => {
   if (isLoading) return <ChatMessageSkeleton />;
   if (messages.length === 0) return null;
-
-  const checkpointByMessageId = new Map(
-    (checkpoints ?? []).map((cp) => [cp.messageId, cp])
-  );
 
   return (
     <>
@@ -72,13 +56,6 @@ export const ChatMessageList = ({
             showReasoning={showReasoning}
             onRevert={onRevert}
           />
-          {message.role === 'user' && checkpointByMessageId.has(message.id) && (
-            <CheckpointMarker
-              checkpoint={checkpointByMessageId.get(message.id)!}
-              onRestore={onRestoreCheckpoint ?? (() => {})}
-              isRestoring={isRestoringCheckpoint}
-            />
-          )}
         </div>
       ))}
       <div className="h-4" />

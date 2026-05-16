@@ -52,11 +52,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       href: ROUTES.teams,
       icon: Users,
     },
-    {
-      label: 'Billing',
-      href: ROUTES.billing,
-      icon: CreditCard,
-    },
+    // Note: Add this when we want to add billing
+    // {
+    //   label: 'Billing',
+    //   href: ROUTES.billing,
+    //   icon: CreditCard,
+    // },
     {
       label: 'Integrations',
       href: ROUTES.connectors,

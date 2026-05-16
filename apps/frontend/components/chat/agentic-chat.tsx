@@ -29,7 +29,7 @@ import {
   Message,
   chatService,
 } from '@/services/chat.service';
-import { File, RotateCcw } from 'lucide-react';
+import { File } from 'lucide-react';
 import type { PanelType } from '@/components/chat/chat-panels';
 
 function GitHubIcon({ size = 16 }: { size?: number }) {
@@ -247,9 +247,6 @@ export const AgenticChat = ({ config, initialChatId }: AgenticChatProps) => {
     isReverting,
     createArtifact,
     isLoadingMessages,
-    checkpoints,
-    restoreCheckpoint,
-    isRestoringCheckpoint,
   } = useChat(chatId || undefined);
 
   // ---- Workspace ----
@@ -619,25 +616,6 @@ export const AgenticChat = ({ config, initialChatId }: AgenticChatProps) => {
     setShowSidePanel((p) => (p === 'github' ? null : 'github'));
   };
 
-  // ---- Checkpoint restore ----
-  const [editingMessageAfterRestore, setEditingMessageAfterRestore] = useState<{
-    id: string;
-    content: string;
-  } | null>(null);
-
-  const handleCheckpointRestore = async (checkpointId: string) => {
-    if (!chatId) return;
-    try {
-      const result = await restoreCheckpoint(checkpointId);
-      setEditingMessageAfterRestore({
-        id: result.checkpointMessageId,
-        content: result.checkpointMessage.content,
-      });
-    } catch (err) {
-      console.error('Failed to restore checkpoint:', err);
-    }
-  };
-
   // ---- Derived ----
   const isEmpty = displayMessages.length === 0 && !isLoadingMessages;
   const [fillValue, setFillValue] = useState<string | undefined>();
@@ -763,9 +741,6 @@ export const AgenticChat = ({ config, initialChatId }: AgenticChatProps) => {
                   showReasoning={config.showReasoning !== false}
                   isLoading={isLoadingMessages}
                   onRevert={handleRevert}
-                  checkpoints={checkpoints}
-                  onRestoreCheckpoint={handleCheckpointRestore}
-                  isRestoringCheckpoint={isRestoringCheckpoint}
                 />
               </div>
             </div>
@@ -778,40 +753,6 @@ export const AgenticChat = ({ config, initialChatId }: AgenticChatProps) => {
                     request={formQuestion}
                     onSubmit={handleFormSubmit}
                   />
-                </div>
-              </div>
-            )}
-
-            {/* Checkpoint restore banner */}
-            {editingMessageAfterRestore && (
-              <div className="px-4 sm:px-6 pb-2">
-                <div className="max-w-3xl mx-auto rounded-xl border border-primary/30 bg-primary/5 p-3 flex items-center gap-3">
-                  <RotateCcw size={14} className="text-primary shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-muted-foreground mb-1">
-                      Restored — edit and resend to branch from this point
-                    </p>
-                    <p className="text-sm truncate">
-                      {editingMessageAfterRestore.content}
-                    </p>
-                  </div>
-                  <div className="flex gap-2 shrink-0">
-                    <button
-                      onClick={() => {
-                        setFillValue(editingMessageAfterRestore.content);
-                        setEditingMessageAfterRestore(null);
-                      }}
-                      className="text-xs px-2.5 py-1 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-                    >
-                      Edit &amp; Resend
-                    </button>
-                    <button
-                      onClick={() => setEditingMessageAfterRestore(null)}
-                      className="text-xs px-2.5 py-1 rounded-lg text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      Dismiss
-                    </button>
-                  </div>
                 </div>
               </div>
             )}
