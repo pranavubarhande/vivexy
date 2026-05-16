@@ -1,5 +1,5 @@
-appId: com.portfolio-helper.desktop
-productName: Portfolio Helper
+appId: com.vivexy.desktop
+productName: Vivexy
 copyright: Copyright © 2026
 
 directories:
@@ -10,10 +10,16 @@ files:
     - 'package.json'
     - '!**/*.ts'
     - '!**/*.map'
+    - '!build/**/*'
+
+extraResources:
+    - from: renderer/
+      to: renderer/
 
 # Unsigned builds — users will see Gatekeeper / SmartScreen warnings on
 # first launch. Upgrade to signing later (Apple Dev $99/yr + Windows EV cert).
 mac:
+    icon: build/icon.icns
     target:
         - target: dmg
           arch:
@@ -26,6 +32,7 @@ dmg:
     writeUpdateInfo: false
 
 win:
+    icon: build/icon.ico
     target:
         - target: nsis
           arch:
@@ -41,6 +48,7 @@ nsis:
     perMachine: false
 
 linux:
+    icon: build/icon.png
     target:
         - target: AppImage
           arch:

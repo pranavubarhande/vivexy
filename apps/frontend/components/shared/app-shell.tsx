@@ -36,9 +36,12 @@ export function MobileSidebarTrigger() {
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
+  const normalizedPath = pathname.replace(/\/$/, '') || '/';
   const noChrome = React.useMemo(
-    () => PUBLIC_ROUTES.includes(pathname) || AUTH_ROUTES.includes(pathname),
-    [pathname]
+    () =>
+      PUBLIC_ROUTES.includes(normalizedPath) ||
+      AUTH_ROUTES.includes(normalizedPath),
+    [normalizedPath]
   );
 
   if (noChrome) return <>{children}</>;

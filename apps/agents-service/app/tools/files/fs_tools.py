@@ -283,6 +283,27 @@ def git_checkout_tool(branch: str, create: bool = False) -> str:
     return _client_interrupt("git_checkout", {"branch": branch, "create": create})
 
 
+class RunCommandInput(BaseModel):
+    command: str = Field(description="Shell command to run in the workspace directory.")
+    cwd: Optional[str] = Field(
+        None,
+        description="Subdirectory to run the command in (relative to workspace root). Defaults to workspace root.",
+    )
+    timeout_ms: Optional[int] = Field(
+        None, description="Timeout in milliseconds (max 120000). Defaults to 30000."
+    )
+
+
+@tool("run_command", args_schema=RunCommandInput)
+def run_command_tool(
+    command: str, cwd: Optional[str] = None, timeout_ms: Optional[int] = None
+) -> str:
+    """Run any shell command in the user's local workspace. Use for file conversions, running scripts, installing packages, compiling code, or any OS-level operation. Returns stdout/stderr."""
+    return _client_interrupt(
+        "run_command", {"command": command, "cwd": cwd, "timeout_ms": timeout_ms}
+    )
+
+
 def get_fs_tools():
     """Return all filesystem tools. Only useful when client_tools_enabled is True."""
     return [
@@ -294,6 +315,7 @@ def get_fs_tools():
         create_directory_tool,
         write_file_tool,
         update_file_tool,
+        run_command_tool,
         git_status_tool,
         git_log_tool,
         git_diff_tool,

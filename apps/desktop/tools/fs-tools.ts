@@ -522,6 +522,44 @@ export const updateFile = async (
     }
 };
 
+// ── run_command ──────────────────────────────────────────────────────
+
+interface RunCommandInput {
+    command: string;
+    cwd?: string;
+    timeout_ms?: number;
+}
+
+export const runCommand = async (
+    input: Record<string, unknown>
+): Promise<string> => {
+    const data = input as unknown as RunCommandInput;
+    const root = getWorkspaceRoot();
+    if (!root) return JSON.stringify({ success: false, error: 'No workspace selected' });
+
+    const workDir = data.cwd ? assertWithinWorkspace(data.cwd) : root;
+    const timeoutMs = Math.min(data.timeout_ms ?? 30_000, 120_000);
+
+    try {
+        const stdout = execSync(data.command, {
+            cwd: workDir,
+            timeout: timeoutMs,
+            encoding: 'utf-8',
+            stdio: 'pipe',
+            maxBuffer: 10 * 1024 * 1024,
+        });
+        return JSON.stringify({ success: true, output: stdout.toString().trim() });
+    } catch (err: unknown) {
+        const e = err as { message?: string; stdout?: Buffer; stderr?: Buffer };
+        return JSON.stringify({
+            success: false,
+            error: e.message ?? String(err),
+            stdout: e.stdout?.toString().trim() ?? '',
+            stderr: e.stderr?.toString().trim() ?? '',
+        });
+    }
+};
+
 // ── git tools ────────────────────────────────────────────────────────
 
 function gitExec(args: string[]): string {

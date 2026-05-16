@@ -5,6 +5,7 @@ name: desktop-release
 #
 # Trigger:
 #   git tag desktop-v0.1.0 && git push --tags
+# Or manually via Actions → Run workflow.
 
 on:
   push:
@@ -34,17 +35,34 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Install workspace dependencies
-        run: npm ci --workspace apps/desktop --include-workspace-root
+      - name: Install frontend dependencies
+        working-directory: apps/frontend
+        run: npm install
 
-      - name: Compile TypeScript
+      - name: Install desktop dependencies
         working-directory: apps/desktop
-        run: npm run build
+        run: npm install
+
+      - name: Build frontend (static export) + Electron main process
+        working-directory: apps/desktop
+        env:
+          # Points the desktop app at your production agents service.
+          # Set this secret in: GitHub → Settings → Secrets → Actions
+          NEXT_PUBLIC_API_URL: ${{ secrets.DESKTOP_API_URL }}
+          NEXT_PUBLIC_APP_URL: ${{ secrets.DESKTOP_APP_URL }}
+          NEXT_PUBLIC_AUTH_ENABLED: ${{ vars.DESKTOP_AUTH_ENABLED || 'true' }}
+          # Stripe — leave empty if not used in desktop
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY }}
+          NEXT_PUBLIC_STRIPE_PAYMENT_LINK_PRO: ${{ vars.STRIPE_PAYMENT_LINK_PRO }}
+          NEXT_PUBLIC_STRIPE_PAYMENT_LINK_ENTERPRISE: ${{ vars.STRIPE_PAYMENT_LINK_ENTERPRISE }}
+          NEXT_PUBLIC_PRO_PRICE_USD: ${{ vars.PRO_PRICE_USD || '29' }}
+          NEXT_PUBLIC_ENTERPRISE_PRICE_USD: ${{ vars.ENTERPRISE_PRICE_USD || '99' }}
+          NEXT_DESKTOP: '1'
+        run: npm run build:all
 
       - name: Build + publish installers
         working-directory: apps/desktop
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # electron-builder refuses to publish without this on macOS; empty disables
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
         run: npx electron-builder --publish always

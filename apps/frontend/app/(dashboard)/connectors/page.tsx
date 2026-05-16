@@ -170,6 +170,9 @@ export default function ConnectorsPage() {
                         src={connector.logo}
                         alt={connector.name}
                         className="h-full w-full object-contain"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
                       />
                     </div>
                     <CardTitle className="text-lg">{connector.name}</CardTitle>

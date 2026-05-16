@@ -71,7 +71,7 @@ const startServer = async (
     });
 
     const client = new Client(
-        { name: 'portfolio-helper-desktop', version: '1.0.0' },
+        { name: 'vivexy-desktop', version: '1.0.0' },
         { capabilities: {} }
     );
 

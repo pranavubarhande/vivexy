@@ -15,8 +15,8 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
-const CONFIG_PATH = path.join(os.homedir(), '.portfolio-helper-config.json');
-export const SKILLS_DIR = path.join(os.homedir(), '.portfolio-helper-skills');
+const CONFIG_PATH = path.join(os.homedir(), '.vivexy-config.json');
+export const SKILLS_DIR = path.join(os.homedir(), '.vivexy-skills');
 export const CONFIG_DIR = os.homedir();
 
 let _cachedRoot: string | null = null;
@@ -78,7 +78,7 @@ export const addRecentWorkspace = (workspacePath: string): void => {
 };
 
 // ── Internal data directory (hidden inside workspace) ────────────────
-const DATA_DIR = '.portfolio-helper';
+const DATA_DIR = '.vivexy';
 
 /** Get the hidden data dir inside the workspace */
 const dataDir = (): string => {
@@ -171,7 +171,7 @@ export const isDataPath = (targetPath: string): boolean => {
  */
 const CHAT_INDEX_PATH = path.join(
     os.homedir(),
-    '.portfolio-helper-chat-index.json'
+    '.vivexy-chat-index.json'
 );
 
 const readChatIndex = (): Record<string, string> => {

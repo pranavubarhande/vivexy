@@ -51,18 +51,23 @@ export const WorkspaceProvider = ({ children }: WorkspaceProviderProps) => {
 
   useEffect(() => {
     const init = async () => {
-      const desktop = platform.isDesktop;
-      setIsDesktop(desktop);
+      try {
+        const desktop = platform.isDesktop;
+        setIsDesktop(desktop);
 
-      if (desktop) {
-        const path = await platform.getWorkspacePath();
-        setWorkspacePath(path);
-        if (path) {
-          const info = await platform.getWorkspaceInfo();
-          setWorkspaceInfo(info);
+        if (desktop) {
+          const path = await platform.getWorkspacePath();
+          setWorkspacePath(path);
+          if (path) {
+            const info = await platform.getWorkspaceInfo();
+            setWorkspaceInfo(info);
+          }
         }
+      } catch (err) {
+        console.error('[WorkspaceProvider] init error:', err);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
 
     init();

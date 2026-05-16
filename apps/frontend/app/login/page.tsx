@@ -1,10 +1,19 @@
-import { redirect } from 'next/navigation';
+'use client';
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { LoginForm } from '@/components/auth/login-form';
 
 export default function LoginPage() {
-  if (process.env.NEXT_PUBLIC_AUTH_ENABLED === 'false') {
-    redirect('/contact?interest=request-demo');
-  }
+  const router = useRouter();
+
+  useEffect(() => {
+    if (process.env.NEXT_PUBLIC_AUTH_ENABLED === 'false') {
+      router.replace('/contact?interest=request-demo');
+    }
+  }, [router]);
+
+  if (process.env.NEXT_PUBLIC_AUTH_ENABLED === 'false') return null;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">

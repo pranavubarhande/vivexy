@@ -4,7 +4,8 @@
   "private": true,
   "packageManager": "npm@10.0.0",
   "workspaces": [
-    "apps/*",
+    "apps/frontend",
+    "apps/agents-service",
     "packages/*"
   ],
   "scripts": {
@@ -24,7 +25,7 @@
     "format": "turbo format",
     "format:check": "turbo format:check",
     "clean": "turbo clean",
-    "prepare": "if [ -z \"$VERCEL\" ]; then husky; fi",
+    "prepare": "if [ -z \"$VERCEL\" ]; then husky || true; fi",
     "test": "turbo test"
   },
   "devDependencies": {

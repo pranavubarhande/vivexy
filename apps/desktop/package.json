@@ -1,6 +1,16 @@
 {
-    "name": "portfolio-helper-desktop",
+    "name": "vivexy-desktop",
     "version": "0.1.0",
+    "description": "Vivexy desktop application",
+    "author": {
+        "name": "Pranav Ubarhande",
+        "email": "pranavubarhande3@gmail.com"
+    },
+    "homepage": "https://github.com/pranavubarhande/portfolio-helper-fe",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/pranavubarhande/portfolio-helper-fe.git"
+    },
     "private": true,
     "main": "dist/main.js",
     "scripts": {
@@ -8,9 +18,14 @@
         "format": "npx prettier --write .",
         "format:check": "npx prettier --check .",
         "build": "tsc && tsc-alias",
+        "build:renderer": "cd ../frontend && NEXT_DESKTOP=1 npx next build && cp -r out/ ../desktop/renderer/",
+        "build:all": "npm run build:renderer && npm run build",
         "start": "electron .",
-        "package": "electron-builder --mac --win --linux",
-        "release": "electron-builder --publish always"
+        "package": "npm run build:all && electron-builder --mac --win --linux",
+        "package:mac": "npm run build:all && electron-builder --mac",
+        "package:win": "npm run build:all && electron-builder --win",
+        "package:linux": "npm run build:all && electron-builder --linux",
+        "release": "npm run build:all && electron-builder --publish always"
     },
     "dependencies": {
         "@modelcontextprotocol/sdk": "^1.29.0",
@@ -21,9 +36,12 @@
     "devDependencies": {
         "@types/pdf-parse": "^1.1.4",
         "concurrently": "^9.2.1",
-        "electron": "^33.2.0",
+        "electron": "33.4.11",
         "electron-builder": "^25.1.8",
         "electronmon": "^2.0.4",
+        "png-to-ico": "^3.0.1",
+        "sharp": "^0.34.5",
+        "to-ico": "^1.1.5",
         "tsc-alias": "^1.8.16",
         "typescript": "^5.7.0"
     }

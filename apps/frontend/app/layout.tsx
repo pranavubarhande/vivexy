@@ -60,7 +60,7 @@ export default function RootLayout({
             </AuthProvider>
           </Providers>
         </ThemeProvider>
-        <Analytics />
+        {process.env.NEXT_DESKTOP !== '1' && <Analytics />}
       </body>
     </html>
   );

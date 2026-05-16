@@ -509,6 +509,23 @@ def create_agent(
     # Generate system prompt
     final_prompt = UNIFIED_SYSTEM_PROMPT
 
+    # Prepend active environment so the agent knows exactly where it's running
+    if client_tools_enabled:
+        env_banner = (
+            "\n\n## Current Environment: 🖥️ Desktop\n"
+            "You are running inside the Electron desktop app. "
+            "Filesystem and git tools operate directly on the user's local machine (workspace folder). "
+            "Code execution (`execute_code`) still runs in the Daytona cloud sandbox — it does NOT see local files unless the user uploads them."
+        )
+    else:
+        env_banner = (
+            "\n\n## Current Environment: 🌐 Web\n"
+            "You are running in a web browser. "
+            "Filesystem and git tools are NOT available. "
+            "All file generation must go through the Daytona sandbox via `execute_code` + `upload_sandbox_file_to_chat`."
+        )
+    final_prompt += env_banner
+
     # Append user-defined skills context
     skills_ctx = build_user_skills_context(user_skills)
     if skills_ctx:

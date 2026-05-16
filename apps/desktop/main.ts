@@ -10,10 +10,23 @@
  *   - Hidden data dir (.portfolio-helper/) stores artifacts and uploaded files
  */
 
-import { app, BrowserWindow, dialog, ipcMain } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, protocol, net } from 'electron';
 import { execSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
+
+// Register before app is ready — required by Electron
+protocol.registerSchemesAsPrivileged([
+    {
+        scheme: 'app',
+        privileges: {
+            secure: true,
+            standard: true,
+            supportFetchAPI: true,
+            corsEnabled: true,
+        },
+    },
+]);
 import {
     getWorkspaceRoot,
     setWorkspaceRoot,
@@ -52,7 +65,7 @@ const createWindow = (): void => {
         height: 900,
         minWidth: 800,
         minHeight: 600,
-        title: 'Portfolio Helper',
+        title: 'Vivexy',
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
             contextIsolation: true,
@@ -60,10 +73,13 @@ const createWindow = (): void => {
         },
     });
 
-    const devUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-    mainWindow.loadURL(devUrl);
+    if (app.isPackaged) {
+        mainWindow.loadURL('app://localhost/');
+    } else {
+        mainWindow.loadURL(process.env.FRONTEND_URL || 'http://localhost:3000');
+    }
 
-    if (process.env.NODE_ENV !== 'production') {
+    if (!app.isPackaged) {
         mainWindow.webContents.openDevTools({ mode: 'detach' });
     }
 
@@ -686,6 +702,23 @@ ipcMain.handle(
 // ── App Lifecycle ─────────────────────────────────────────────────────
 
 app.whenReady().then(async () => {
+    // Serve static Next.js export via app:// so absolute paths like
+    // /_next/static/... resolve correctly (file:// breaks them).
+    if (app.isPackaged) {
+        const rendererDir = path.join(process.resourcesPath, 'renderer');
+        protocol.handle('app', (request) => {
+            const url = new URL(request.url);
+            let filePath = path.join(rendererDir, url.pathname);
+            if (fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()) {
+                filePath = path.join(filePath, 'index.html');
+            }
+            if (!fs.existsSync(filePath)) {
+                filePath = path.join(rendererDir, 'index.html');
+            }
+            return net.fetch(`file://${filePath}`);
+        });
+    }
+
     const root = getWorkspaceRoot();
     if (root) {
         ensureDataDirs();
