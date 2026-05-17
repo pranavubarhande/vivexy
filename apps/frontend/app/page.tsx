@@ -12,11 +12,9 @@ import {
   Lock,
   GitBranch,
   Database,
-  Bot,
   FileText,
   BarChart3,
   Scale,
-  Building2,
   UserCheck,
   ArrowUpRight,
 } from 'lucide-react';
@@ -101,22 +99,6 @@ const workflows = [
       'Audit Trails',
       'Remediation Tracking',
     ],
-  },
-  {
-    id: 'operations',
-    label: 'Operations',
-    icon: Building2,
-    headline: 'Ops that actually scale with your firm',
-    description:
-      'Intelligent onboarding assistants, policy Q&A bots, and smart routing - so your ops team spends time on decisions, not repetition.',
-    steps: [
-      { label: 'Query Intake', type: 'ai', icon: Bot },
-      { label: 'Policy Lookup', type: 'ai', icon: FileText },
-      { label: 'AI Response', type: 'ai', icon: Brain },
-      { label: 'Escalate if Needed', type: 'human', icon: UserCheck },
-      { label: 'Resolution Logged', type: 'ai', icon: Check },
-    ],
-    pills: ['Onboarding Bots', 'Policy Q&A', 'Smart Routing', 'Task Tracking'],
   },
 ];
 

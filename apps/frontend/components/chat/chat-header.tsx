@@ -335,7 +335,7 @@ function ProjectSelectorPill({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-52">
           <DropdownMenuLabel className="text-xs">
-            {chatId ? 'Move to project' : 'Filter chats'}
+            {chatId ? 'Move to project' : 'Filter chats by project'}
           </DropdownMenuLabel>
 
           {/* All chats option */}
