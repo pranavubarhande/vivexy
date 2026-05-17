@@ -20,6 +20,7 @@ from app.models.enums import (
 from app.models.github import GithubConnection, GithubRepo
 from app.models.job import Job, JobStock
 from app.models.llm import LLMModel
+from app.models.project import Project, ProjectChat, ProjectTeam
 from app.models.scheduled_task import ScheduledTask, ScheduledTaskRun
 from app.models.skill import UserSkill
 from app.models.stock import Stock, StockDataBlob, StockNews

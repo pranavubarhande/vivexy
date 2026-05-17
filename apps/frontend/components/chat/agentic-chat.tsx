@@ -17,7 +17,14 @@ import { UploadedFile } from '@/components/chat/file-upload';
 import { RevertDialog, type RevertMode } from '@/components/chat/revert-dialog';
 import { platform } from '@/lib/platform';
 
-import { useChat, useChatHistory, useModels } from '@/hooks/useChat';
+import {
+  useChat,
+  useChatHistory,
+  useChatProject,
+  useModels,
+} from '@/hooks/useChat';
+import { useAddChatToProject } from '@/hooks/useProjects';
+import { NO_PROJECT_FILTER } from '@/components/chat/chat-header';
 import { useChatStream } from '@/hooks/use-chat-stream';
 import { useWorkspace } from '@/components/desktop/workspace-provider';
 import { useAuthSafe } from '@/components/shared/auth-provider';
@@ -73,11 +80,13 @@ export interface AgenticChatConfig {
   showReasoning?: boolean;
   className?: string;
   basePath?: string;
+  hideChatHeader?: boolean;
 }
 
 interface AgenticChatProps {
   config: AgenticChatConfig;
   initialChatId?: string;
+  onChatCreated?: (chatId: string) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -193,7 +202,11 @@ function ChatInputToolbar({
 // Component
 // ---------------------------------------------------------------------------
 
-export const AgenticChat = ({ config, initialChatId }: AgenticChatProps) => {
+export const AgenticChat = ({
+  config,
+  initialChatId,
+  onChatCreated,
+}: AgenticChatProps) => {
   // ---- Chat ID ----
   // Initialized from prop (passed by server component from searchParams).
   // After that, chatId is managed imperatively.
@@ -248,6 +261,34 @@ export const AgenticChat = ({ config, initialChatId }: AgenticChatProps) => {
     createArtifact,
     isLoadingMessages,
   } = useChat(chatId || undefined);
+
+  // ---- Selected project (persisted to localStorage) ----
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
+    () => {
+      if (typeof window === 'undefined') return null;
+      return localStorage.getItem('ph-selected-project');
+    }
+  );
+  const addChatToProject = useAddChatToProject();
+  const { data: chatProject } = useChatProject(chatId ?? undefined);
+
+  // When an existing chat is loaded, sync its project into state
+  // Skip if the user has explicitly chosen the 'no project' filter view
+  useEffect(() => {
+    if (!chatId || chatProject === undefined) return;
+    if (selectedProjectId === NO_PROJECT_FILTER) return;
+    const pid = chatProject?.id ?? null;
+    setSelectedProjectId(pid);
+    if (pid) localStorage.setItem('ph-selected-project', pid);
+    else localStorage.removeItem('ph-selected-project');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chatId, chatProject]);
+
+  const handleProjectChange = useCallback((projectId: string | null) => {
+    setSelectedProjectId(projectId);
+    if (projectId) localStorage.setItem('ph-selected-project', projectId);
+    else localStorage.removeItem('ph-selected-project');
+  }, []);
 
   // ---- Workspace ----
   const { refreshWorkspaceInfo, workspacePath } = useWorkspace();
@@ -414,6 +455,9 @@ export const AgenticChat = ({ config, initialChatId }: AgenticChatProps) => {
     files?: UploadedFile[],
     rawFiles?: File[]
   ) => {
+    // Clear any pending fill-value so it doesn't re-populate after the component re-mounts
+    setFillValue(undefined);
+
     // Intercept /compact command
     const compactMatch = content.trim().match(/^\/compact\s*(.*)?$/i);
     if (compactMatch) {
@@ -464,6 +508,15 @@ export const AgenticChat = ({ config, initialChatId }: AgenticChatProps) => {
       onChatCreated: (id) => {
         setChatId(id);
         if (effectiveGitContext) lockContextToChat(id, effectiveGitContext);
+        // Auto-assign to the currently selected project (normal chat page only, not the 'none' sentinel)
+        if (
+          !config.hideChatHeader &&
+          selectedProjectId &&
+          selectedProjectId !== NO_PROJECT_FILTER
+        ) {
+          addChatToProject.mutate({ projectId: selectedProjectId, chatId: id });
+        }
+        onChatCreated?.(id);
       },
       onUserMessageReady: (userMessageId) => {
         if (pendingSnapshotRef.current) {
@@ -666,15 +719,19 @@ export const AgenticChat = ({ config, initialChatId }: AgenticChatProps) => {
 
       {/* Main chat */}
       <div className="flex-1 flex flex-col min-w-0">
-        <ChatHeader
-          chats={chats}
-          chatId={chatId}
-          isStreaming={isStreaming}
-          basePath={config.basePath}
-          onChatSelect={handleChatSelect}
-          onChatDelete={handleChatDelete}
-          onNewChat={handleNewChat}
-        />
+        {!config.hideChatHeader && (
+          <ChatHeader
+            chats={chats}
+            chatId={chatId}
+            isStreaming={isStreaming}
+            basePath={config.basePath}
+            onChatSelect={handleChatSelect}
+            onChatDelete={handleChatDelete}
+            onNewChat={handleNewChat}
+            selectedProjectId={selectedProjectId}
+            onProjectChange={handleProjectChange}
+          />
+        )}
 
         {isEmpty ? (
           /* ── Empty state: greeting + single bordered box ── */

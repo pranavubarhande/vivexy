@@ -1,6 +1,15 @@
 import axiosInstance from '@/services/axiosInstance.service';
 import { Chat, Message } from '@/types/chat';
 
+export interface ChatProject {
+  id: string;
+  name: string;
+  color: string | null;
+  description: string | null;
+  ownerId: string;
+  createdAt: string;
+}
+
 export interface Checkpoint {
   id: string;
   chatId: string;
@@ -84,6 +93,21 @@ export const chatApi = {
       checkpointMessage: Message;
     }>(`/chat/${chatId}/checkpoints/${checkpointId}/restore`);
     return res.data;
+  },
+
+  renameChat: async (chatId: string, title: string) => {
+    const response = await axiosInstance.patch<{ id: string; title: string }>(
+      `/chat/${chatId}`,
+      { title }
+    );
+    return response.data;
+  },
+
+  getChatProject: async (chatId: string) => {
+    const response = await axiosInstance.get<{ project: ChatProject | null }>(
+      `/chat/${chatId}/project`
+    );
+    return response.data.project;
   },
 
   compactChat: async (

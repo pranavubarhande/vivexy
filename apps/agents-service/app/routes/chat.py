@@ -235,6 +235,73 @@ def get_chat(chat_id):
         return jsonify({"error": str(e)}), 500
 
 
+@bp.route("/<chat_id>", methods=["PATCH"])
+@auth_middleware
+def rename_chat(chat_id):
+    """Rename a chat.
+    ---
+    tags:
+      - Chat
+    security:
+      - BearerAuth: []
+    """
+    try:
+        from app.models.base import db
+        from app.models.chat import Chat as ChatModel
+
+        user = request.user
+        data = request.get_json() or {}
+        chat = ChatModel.query.filter_by(id=chat_id, user_id=user.id).first()
+        if not chat:
+            return jsonify({"error": "Chat not found"}), 404
+        if "title" in data:
+            chat.title = data["title"]
+        db.session.commit()
+        return jsonify({"id": chat.id, "title": chat.title})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@bp.route("/<chat_id>/project", methods=["GET"])
+@auth_middleware
+def get_chat_project(chat_id):
+    """Get the project this chat belongs to (if any).
+    ---
+    tags:
+      - Chat
+    security:
+      - BearerAuth: []
+    """
+    try:
+        from app.models.chat import Chat as ChatModel
+        from app.models.project import Project, ProjectChat
+
+        user = request.user
+        chat = ChatModel.query.filter_by(id=chat_id, user_id=user.id).first()
+        if not chat:
+            return jsonify({"error": "Chat not found"}), 404
+        link = ProjectChat.query.filter_by(chat_id=chat_id).first()
+        if not link:
+            return jsonify({"project": None})
+        project = Project.query.get(link.project_id)
+        if not project:
+            return jsonify({"project": None})
+        return jsonify(
+            {
+                "project": {
+                    "id": project.id,
+                    "name": project.name,
+                    "color": project.color,
+                    "description": project.description,
+                    "ownerId": project.owner_id,
+                    "createdAt": project.created_at.isoformat(),
+                }
+            }
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @bp.route("/<chat_id>/messages", methods=["GET"])
 @auth_middleware
 def get_messages(chat_id):

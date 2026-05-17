@@ -62,4 +62,8 @@ export const chatService = {
   getCheckpoints: chatApi.getCheckpoints,
   createCheckpoint: chatApi.createCheckpoint,
   restoreCheckpoint: chatApi.restoreCheckpoint,
+
+  // Chat metadata
+  renameChat: chatApi.renameChat,
+  getChatProject: chatApi.getChatProject,
 };

@@ -8,6 +8,7 @@ import {
   LLMModel,
   Checkpoint,
 } from '@/services/chat.service';
+import type { ChatProject } from '@/services/chat/chat-api';
 import { toast } from 'sonner';
 import { artifactApi } from '@/services/chat/artifact-api';
 import { platform } from '@/lib/platform';
@@ -286,5 +287,35 @@ export const useXlsxContent = (chatId?: string, artifactId?: string) => {
     enabled: !!chatId && !!artifactId,
     staleTime: 5 * 60_000,
     retry: 1,
+  });
+};
+
+// ---------------------------------------------------------------------------
+// Chat project membership
+// ---------------------------------------------------------------------------
+export const useChatProject = (chatId?: string) => {
+  return useQuery<ChatProject | null>({
+    queryKey: ['chat-project', chatId],
+    queryFn: () => chatService.getChatProject(chatId!),
+    enabled: !!chatId,
+    staleTime: 30_000,
+  });
+};
+
+// ---------------------------------------------------------------------------
+// Rename chat
+// ---------------------------------------------------------------------------
+export const useRenameChat = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ chatId, title }: { chatId: string; title: string }) =>
+      chatService.renameChat(chatId, title),
+    onSuccess: (_, { chatId, title }) => {
+      // Optimistically update the chat list cache so the dropdown reflects the rename immediately
+      qc.setQueryData<Chat[]>(chatKeys.list(), (prev = []) =>
+        prev.map((c) => (c.id === chatId ? { ...c, title } : c))
+      );
+      qc.invalidateQueries({ queryKey: chatKeys.detail(chatId) });
+    },
   });
 };

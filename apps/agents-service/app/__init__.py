@@ -13,6 +13,7 @@ from app.routes.auth import bp as auth_bp
 from app.routes.chat import bp as chat_bp
 from app.routes.connectors import bp as connectors_bp
 from app.routes.github import bp as github_bp
+from app.routes.projects import bp as projects_bp
 from app.routes.rag import bp as rag_bp
 from app.routes.scheduled_tasks import bp as scheduled_tasks_bp
 from app.routes.skills import bp as skills_bp
@@ -105,6 +106,7 @@ def create_app(config_object=None):
     app.register_blueprint(skills_bp)
     app.register_blueprint(github_bp)
     app.register_blueprint(scheduled_tasks_bp)
+    app.register_blueprint(projects_bp)
 
     @app.route("/health")
     def _health():

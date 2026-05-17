@@ -24,6 +24,8 @@ describe('ChatHeader Component', () => {
     onChatSelect: vi.fn(),
     onChatDelete: vi.fn(),
     onNewChat: vi.fn(),
+    selectedProjectId: null,
+    onProjectChange: vi.fn(),
   };
 
   it('should render correctly', () => {
