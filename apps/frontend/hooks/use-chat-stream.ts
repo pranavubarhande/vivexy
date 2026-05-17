@@ -7,7 +7,7 @@ import {
   type StreamMessageParams,
   type TimelineItem,
 } from '@/services/chat.service';
-import type { GitContext } from '@/types/chat';
+import type { GitContext, MessageAttachment } from '@/types/chat';
 import { platform } from '@/lib/platform';
 import { UploadedFile } from '@/components/chat/file-upload';
 import { ApprovalRequest } from '@/components/chat/approval-dialog';
@@ -161,6 +161,18 @@ export const useChatStream = (deps: StreamDeps) => {
       const allFileIds: string[] = files?.map((f) => f.id) ?? [];
       let finalRawFiles = rawFiles;
 
+      // Collect attachment metadata for the temp user message shown during streaming
+      const tempAttachments: MessageAttachment[] =
+        files?.map((f) => ({
+          id: f.id,
+          chatId: targetChatId,
+          messageId: null,
+          filename: f.filename,
+          mimeType: f.mimeType,
+          size: f.size,
+          createdAt: new Date().toISOString(),
+        })) ?? [];
+
       if (platform.isDesktop && rawFiles && rawFiles.length > 0) {
         try {
           for (const file of rawFiles) {
@@ -169,6 +181,15 @@ export const useChatStream = (deps: StreamDeps) => {
               file
             );
             allFileIds.push(uploaded.id);
+            tempAttachments.push({
+              id: uploaded.id,
+              chatId: targetChatId,
+              messageId: null,
+              filename: uploaded.filename,
+              mimeType: uploaded.mimeType,
+              size: uploaded.size,
+              createdAt: new Date().toISOString(),
+            });
           }
           finalRawFiles = [];
         } catch (err) {
@@ -176,6 +197,19 @@ export const useChatStream = (deps: StreamDeps) => {
           toast.error('Failed to upload one or more files to workspace.');
           return;
         }
+      } else if (rawFiles?.length) {
+        // Web: backend will upload these; show placeholder chips during streaming
+        rawFiles.forEach((file, i) => {
+          tempAttachments.push({
+            id: `temp-attach-${Date.now()}-${i}`,
+            chatId: targetChatId,
+            messageId: null,
+            filename: file.name,
+            mimeType: file.type,
+            size: file.size,
+            createdAt: new Date().toISOString(),
+          });
+        });
       }
 
       const userMsg: Message = {
@@ -183,6 +217,7 @@ export const useChatStream = (deps: StreamDeps) => {
         role: 'user',
         content,
         createdAt: new Date().toISOString(),
+        attachments: tempAttachments.length > 0 ? tempAttachments : undefined,
       };
       const assistantMsg: Message = {
         id: `temp-assistant-${Date.now()}`,

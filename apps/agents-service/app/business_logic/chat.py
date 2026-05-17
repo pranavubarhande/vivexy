@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import logging
 import os
 from datetime import datetime
@@ -22,9 +23,15 @@ from app.tools.chat.chat_tools import generate_chat_title_func
 
 logger = logging.getLogger(__name__)
 
+# MIME types treated as images — sent as inline base64 to vision-capable models
+# instead of being text-extracted.
+IMAGE_MIMES = {"image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"}
+
 
 def build_file_contexts(chat_id: str, file_ids: list) -> list:
-    """Extract text from S3-stored attachments and build FileContext objects."""
+    """Extract text from S3-stored attachments and build FileContext objects.
+    Image files are skipped here — use build_image_contexts() for those.
+    """
     if file_ids:
         attachments = ChatAttachment.query.filter(
             ChatAttachment.id.in_(file_ids),
@@ -43,6 +50,8 @@ def build_file_contexts(chat_id: str, file_ids: list) -> list:
     for att in attachments:
         if not att.s3_key:
             continue
+        if att.mime_type in IMAGE_MIMES:
+            continue  # handled by build_image_contexts
         local_path = s3.download_file(att.s3_key)
         if not local_path:
             continue
@@ -65,6 +74,58 @@ def build_file_contexts(chat_id: str, file_ids: list) -> list:
                 pass
 
     return contexts
+
+
+def build_image_contexts(chat_id: str, file_ids: list) -> list:
+    """Download image attachments from S3 and return them as LangChain-compatible
+    image_url content blocks (base64 data URIs) ready to inject into a user message.
+
+    Works for both regular chat (scoped to chat_id) and cross-chat scenarios
+    (scheduled tasks) where file_ids may belong to different chats.
+    """
+    if not file_ids:
+        return []
+
+    # Try chat-scoped lookup first; fall back to ID-only for cross-chat (scheduled tasks).
+    if chat_id:
+        attachments = ChatAttachment.query.filter(
+            ChatAttachment.id.in_(file_ids),
+            ChatAttachment.chat_id == chat_id,
+        ).all()
+        if not attachments:
+            attachments = ChatAttachment.query.filter(
+                ChatAttachment.id.in_(file_ids)
+            ).all()
+    else:
+        attachments = ChatAttachment.query.filter(ChatAttachment.id.in_(file_ids)).all()
+
+    s3 = S3Service()
+    image_parts = []
+
+    for att in attachments:
+        if att.mime_type not in IMAGE_MIMES or not att.s3_key:
+            continue
+        local_path = s3.download_file(att.s3_key)
+        if not local_path:
+            continue
+        try:
+            with open(local_path, "rb") as f:
+                b64 = base64.b64encode(f.read()).decode()
+            image_parts.append(
+                {
+                    "type": "image_url",
+                    "image_url": {"url": f"data:{att.mime_type};base64,{b64}"},
+                }
+            )
+        except Exception:
+            logger.warning("Failed to encode image attachment id=%s", att.id)
+        finally:
+            try:
+                os.unlink(local_path)
+            except Exception:
+                pass
+
+    return image_parts
 
 
 def _message_to_dict_with_resolved_artifacts(msg: Message) -> Dict[str, Any]:
@@ -239,6 +300,7 @@ def get_chat_messages(chat_id: str, user_id: str) -> List[Dict[str, Any]]:
     messages = (
         Message.query.filter_by(chat_id=chat_id)
         .options(joinedload(Message.artifacts))
+        .options(joinedload(Message.attachments))
         .order_by(Message.created_at.asc())
         .all()
     )

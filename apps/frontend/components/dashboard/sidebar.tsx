@@ -27,6 +27,7 @@ import {
   Blocks,
   FolderOpen,
   ChevronRight,
+  CalendarClock,
 } from 'lucide-react';
 import { NavUser } from './nav-user';
 import {
@@ -62,6 +63,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       label: 'Integrations',
       href: ROUTES.connectors,
       icon: Blocks,
+    },
+    {
+      label: 'Scheduled Tasks',
+      href: ROUTES.scheduledTasks,
+      icon: CalendarClock,
     },
   ];
 

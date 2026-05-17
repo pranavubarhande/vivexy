@@ -12,6 +12,16 @@
       "cache": false,
       "persistent": true
     },
+    "dev:worker": {
+      "dependsOn": ["install"],
+      "cache": false,
+      "persistent": true
+    },
+    "dev:scheduler": {
+      "dependsOn": ["install"],
+      "cache": false,
+      "persistent": true
+    },
     "install": {
       "cache": false
     },

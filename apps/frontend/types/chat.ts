@@ -58,6 +58,16 @@ export type TimelineItem =
   | { type: 'content'; text: string }
   | { type: 'chart'; spec: Record<string, unknown>; title: string };
 
+export interface MessageAttachment {
+  id: string;
+  chatId: string;
+  messageId: string | null;
+  filename: string;
+  mimeType: string;
+  size: number;
+  createdAt: string;
+}
+
 export interface Message {
   id: string;
   role: 'user' | 'assistant';
@@ -66,6 +76,7 @@ export interface Message {
   timeline?: TimelineItem[];
   artifacts?: Artifact[];
   todos?: InlineTodo[];
+  attachments?: MessageAttachment[];
   createdAt: string;
   isStreaming?: boolean;
 }

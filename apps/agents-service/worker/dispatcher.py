@@ -13,7 +13,7 @@ from typing import Any, Dict, List, Optional
 
 import pika
 
-from configs import CHAT_QUEUE, RAG_QUEUE
+from configs import CHAT_QUEUE, RAG_QUEUE, SCHEDULED_TASK_QUEUE
 from worker.broker import get_channel
 
 logger = logging.getLogger(__name__)
@@ -30,6 +30,7 @@ def dispatch_chat_job(
     file_context_dicts: List[Dict[str, Any]],
     client_tools_enabled: bool,
     saved_user_message: Dict[str, Any],
+    user_skills: Optional[List[Dict[str, Any]]] = None,
 ) -> bool:
     """
     Publish a chat job to RabbitMQ.
@@ -52,6 +53,7 @@ def dispatch_chat_job(
             "file_context_dicts": file_context_dicts,
             "client_tools_enabled": client_tools_enabled,
             "saved_user_message": saved_user_message,
+            "user_skills": user_skills or [],
         }
     )
 
@@ -62,6 +64,31 @@ def dispatch_chat_job(
         properties=pika.BasicProperties(delivery_mode=2),
     )
     logger.info("Dispatched chat job for chat_id=%s", chat_id)
+    return True
+
+
+def dispatch_scheduled_task_job(*, task_id: str, user_id: str) -> bool:
+    """
+    Push a minimal scheduled-task job to the dedicated queue.
+
+    The message intentionally carries only task_id + user_id.  All heavy
+    work (create chat, fetch skills, S3 reads, run agent) happens inside
+    the consumer so the scheduler stays fast and crash-safe.
+
+    Returns True if enqueued, False if RabbitMQ is unavailable.
+    """
+    channel = get_channel()
+    if channel is None:
+        return False
+
+    body = json.dumps({"task_id": task_id, "user_id": user_id})
+    channel.basic_publish(
+        exchange="",
+        routing_key=SCHEDULED_TASK_QUEUE,
+        body=body,
+        properties=pika.BasicProperties(delivery_mode=2),  # persistent
+    )
+    logger.info("Enqueued scheduled task job task_id=%s", task_id)
     return True
 
 

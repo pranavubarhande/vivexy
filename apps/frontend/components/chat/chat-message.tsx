@@ -6,17 +6,35 @@ import { StepItem } from './reasoning-display';
 import { InlineArtifactCard } from './inline-artifact-card';
 import { InlineTodoList } from './inline-todo-list';
 import { CHARTJS_IFRAME } from './artifact-content';
-import React, { useMemo } from 'react';
-import { RotateCcw, Copy, Check } from 'lucide-react';
+import React, { useMemo, useState, useEffect } from 'react';
+import {
+  RotateCcw,
+  Copy,
+  Check,
+  Paperclip,
+  Loader2,
+  Download,
+  FileText,
+} from 'lucide-react';
 import {
   Message,
   Artifact,
   TimelineItem,
   ReasoningStep,
 } from '@/services/chat.service';
+import type { MessageAttachment } from '@/types/chat';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 
 // ---------------------------------------------------------------------------
-// Shared helper
+// Shared helpers
 // ---------------------------------------------------------------------------
 
 const formatTime = (iso: string) => {
@@ -25,6 +43,12 @@ const formatTime = (iso: string) => {
     hour: '2-digit',
     minute: '2-digit',
   });
+};
+
+const formatSize = (bytes: number): string => {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
 // ---------------------------------------------------------------------------
@@ -41,7 +65,6 @@ const buildTimelineFromReasoning = (
     for (const step of reasoning) {
       timeline.push({ type: 'step', step });
 
-      // Reconstruct inline charts from saved render_chart tool call outputs
       const tc = step.toolCalls?.[0];
       if (tc?.tool === 'render_chart' && tc.output) {
         try {
@@ -68,7 +91,7 @@ const buildTimelineFromReasoning = (
 };
 
 // ---------------------------------------------------------------------------
-// Group consecutive step items into ToolCallGroup chunks
+// Group consecutive step items
 // ---------------------------------------------------------------------------
 
 interface ContentItem {
@@ -127,6 +150,209 @@ const groupTimelineItems = (
 };
 
 // ---------------------------------------------------------------------------
+// Attachment chip (inline button, replaces old anchor)
+// ---------------------------------------------------------------------------
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+
+function AttachmentChip({
+  att,
+  onClick,
+}: {
+  att: MessageAttachment;
+  onClick: () => void;
+}) {
+  const isTemp =
+    att.id.startsWith('temp-attach-') || att.id.startsWith('temp-');
+  const isImage = att.mimeType?.startsWith('image/');
+  const ext = att.filename.split('.').pop()?.toUpperCase() ?? 'FILE';
+  const contentUrl = `${API_URL}/chat/${att.chatId}/attachments/${att.id}/content`;
+
+  if (isImage) {
+    return (
+      <button
+        type="button"
+        onClick={isTemp ? undefined : onClick}
+        disabled={isTemp}
+        className={cn(
+          'relative h-14 w-20 rounded-lg overflow-hidden border border-border/60 bg-muted shrink-0 transition-opacity',
+          isTemp
+            ? 'opacity-60 cursor-default'
+            : 'hover:opacity-90 cursor-pointer'
+        )}
+        title={isTemp ? 'Uploading…' : att.filename}
+      >
+        {isTemp ? (
+          <div className="w-full h-full flex items-center justify-center">
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={contentUrl}
+            alt={att.filename}
+            className="w-full h-full object-cover"
+          />
+        )}
+      </button>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={isTemp ? undefined : onClick}
+      disabled={isTemp}
+      className={cn(
+        'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border/60 bg-background/60 text-xs shrink-0 transition-colors',
+        isTemp
+          ? 'opacity-60 cursor-default'
+          : 'hover:bg-muted/60 cursor-pointer'
+      )}
+      title={isTemp ? 'Uploading…' : att.filename}
+    >
+      {isTemp ? (
+        <Loader2 className="h-3 w-3 animate-spin text-muted-foreground shrink-0" />
+      ) : (
+        <Paperclip className="h-3 w-3 text-muted-foreground shrink-0" />
+      )}
+      <span className="font-medium truncate max-w-[100px]">{att.filename}</span>
+      <span className="text-muted-foreground shrink-0">
+        {isTemp ? '…' : ext}
+      </span>
+    </button>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Attachment modal (preview or download)
+// ---------------------------------------------------------------------------
+
+function AttachmentModal({
+  att,
+  onClose,
+}: {
+  att: MessageAttachment;
+  onClose: () => void;
+}) {
+  const isImage = att.mimeType?.startsWith('image/');
+  const isPdf = att.mimeType === 'application/pdf';
+  const isText =
+    att.mimeType?.startsWith('text/') || att.mimeType === 'application/json';
+  const contentUrl = `${API_URL}/chat/${att.chatId}/attachments/${att.id}/content`;
+  const ext = att.filename.split('.').pop()?.toUpperCase() ?? 'FILE';
+
+  const [textContent, setTextContent] = useState<string | null>(null);
+  const [textLoading, setTextLoading] = useState(false);
+  const [textError, setTextError] = useState(false);
+
+  useEffect(() => {
+    if (!isText) return;
+    setTextLoading(true);
+    fetch(contentUrl)
+      .then((r) => r.text())
+      .then((t) => setTextContent(t))
+      .catch(() => setTextError(true))
+      .finally(() => setTextLoading(false));
+  }, [contentUrl, isText]);
+
+  const canPreview = isImage || isPdf || isText;
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent
+        className={cn(
+          'flex flex-col gap-0 p-0 overflow-hidden',
+          isPdf || isText ? 'max-w-4xl h-[85vh]' : 'max-w-3xl'
+        )}
+      >
+        {/* Header */}
+        <DialogHeader className="px-5 pt-5 pb-3 border-b shrink-0">
+          <DialogTitle className="truncate pr-6 text-base">
+            {att.filename}
+          </DialogTitle>
+          <DialogDescription className="text-xs">
+            {ext} · {formatSize(att.size)}
+          </DialogDescription>
+        </DialogHeader>
+
+        {/* Content area */}
+        <div
+          className={cn(
+            'flex-1 overflow-auto min-h-0',
+            isImage && 'flex items-center justify-center bg-muted/30 p-4',
+            isPdf && 'p-0',
+            isText && 'p-4'
+          )}
+        >
+          {isImage && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={contentUrl}
+              alt={att.filename}
+              className="max-w-full max-h-full object-contain rounded-lg shadow-sm"
+            />
+          )}
+
+          {isPdf && (
+            <iframe
+              src={contentUrl}
+              className="w-full h-full border-0"
+              title={att.filename}
+            />
+          )}
+
+          {isText && (
+            <>
+              {textLoading && (
+                <div className="flex items-center justify-center h-32 text-muted-foreground gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span className="text-sm">Loading…</span>
+                </div>
+              )}
+              {textError && (
+                <div className="flex flex-col items-center justify-center h-32 text-muted-foreground gap-2">
+                  <FileText className="h-8 w-8" />
+                  <span className="text-sm">Could not load file content</span>
+                </div>
+              )}
+              {textContent !== null && (
+                <pre className="text-xs font-mono whitespace-pre-wrap wrap-break-word leading-relaxed text-foreground">
+                  {textContent}
+                </pre>
+              )}
+            </>
+          )}
+
+          {!canPreview && (
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-3">
+              <FileText className="h-14 w-14 opacity-40" />
+              <p className="text-sm font-medium">
+                Preview not available for {ext} files
+              </p>
+              <p className="text-xs">Download the file to open it.</p>
+            </div>
+          )}
+        </div>
+
+        {/* Footer — always show download */}
+        <DialogFooter className="px-5 py-3 border-t shrink-0">
+          <Button variant="outline" size="sm" onClick={onClose}>
+            Close
+          </Button>
+          <Button asChild size="sm">
+            <a href={contentUrl} download={att.filename}>
+              <Download className="h-3.5 w-3.5 mr-1.5" />
+              Download
+            </a>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // User message
 // ---------------------------------------------------------------------------
 
@@ -136,15 +362,35 @@ interface UserMessageProps {
 }
 
 export function UserMessage({ message, onRevert }: UserMessageProps) {
+  const [modalAtt, setModalAtt] = useState<MessageAttachment | null>(null);
+  const attachments = message.attachments ?? [];
+
   return (
     <div className="space-y-2 items-end flex flex-col max-w-[85%]">
-      <div className="rounded-2xl px-4 py-3 shadow-sm bg-muted text-foreground border border-border/40">
-        <MessageStream
-          content={message.content}
-          role={message.role}
-          isStreaming={message.isStreaming}
-        />
-      </div>
+      {/* Text bubble */}
+      {message.content && (
+        <div className="rounded-2xl px-4 py-3 shadow-sm bg-muted text-foreground border border-border/40">
+          <MessageStream
+            content={message.content}
+            role={message.role}
+            isStreaming={message.isStreaming}
+          />
+        </div>
+      )}
+
+      {/* Attachments — all in one row below the bubble, right-aligned */}
+      {attachments.length > 0 && (
+        <div className="flex gap-1.5 flex-wrap justify-end max-w-full">
+          {attachments.map((att) => (
+            <AttachmentChip
+              key={att.id}
+              att={att}
+              onClick={() => setModalAtt(att)}
+            />
+          ))}
+        </div>
+      )}
+
       <div className="flex items-center gap-2 px-2 opacity-0 group-hover:opacity-100 transition-opacity">
         <span className="text-[10px] text-muted-foreground">
           {formatTime(message.createdAt)}
@@ -160,6 +406,11 @@ export function UserMessage({ message, onRevert }: UserMessageProps) {
           </button>
         )}
       </div>
+
+      {/* Modal */}
+      {modalAtt && (
+        <AttachmentModal att={modalAtt} onClose={() => setModalAtt(null)} />
+      )}
     </div>
   );
 }
@@ -185,7 +436,6 @@ export function AssistantMessage({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Reconstruct timeline from persisted reasoning if not already present
   const effectiveTimeline = useMemo(() => {
     if (message.timeline && message.timeline.length > 0) {
       return message.timeline;
@@ -196,7 +446,6 @@ export function AssistantMessage({
     return null;
   }, [message.timeline, message.reasoning, message.content]);
 
-  // Group consecutive steps into collapsible groups
   const groupedItems = useMemo(() => {
     if (!effectiveTimeline) return null;
     return groupTimelineItems(effectiveTimeline, message.isStreaming);
@@ -209,7 +458,6 @@ export function AssistantMessage({
           <InlineTodoList todos={message.todos} />
         )}
         {showReasoning && groupedItems ? (
-          // Interleaved: render grouped steps and content chunks
           <>
             {groupedItems.map((item, i) => {
               if (item.kind === 'step') {
@@ -242,7 +490,6 @@ export function AssistantMessage({
             })}
           </>
         ) : (
-          // Fallback: no reasoning at all — just render content
           <MessageStream
             content={message.content}
             role={message.role}
@@ -275,7 +522,7 @@ export function AssistantMessage({
 }
 
 // ---------------------------------------------------------------------------
-// Container that picks the right message type
+// Container
 // ---------------------------------------------------------------------------
 
 interface ChatMessageProps {

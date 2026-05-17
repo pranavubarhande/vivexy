@@ -36,6 +36,7 @@ def run_agent_job(
     file_context_dicts: List[Dict[str, Any]],
     client_tools_enabled: bool,
     saved_user_message: Dict[str, Any],
+    user_skills: Optional[List[Dict[str, Any]]] = None,
 ) -> None:
     """
     Run the agent synchronously and publish each event to Redis.
@@ -53,6 +54,7 @@ def run_agent_job(
         model_id,
         chat_id,
         client_tools_enabled=client_tools_enabled,
+        user_skills=user_skills or [],
     )
 
     loop = asyncio.new_event_loop()

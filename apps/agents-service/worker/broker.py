@@ -9,7 +9,13 @@ from typing import Optional
 
 import pika
 
-from configs import CHAT_QUEUE, RABBITMQ_URL, RAG_QUEUE, USE_RABBITMQ
+from configs import (
+    CHAT_QUEUE,
+    RABBITMQ_URL,
+    RAG_QUEUE,
+    SCHEDULED_TASK_QUEUE,
+    USE_RABBITMQ,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +45,7 @@ def get_channel():
         channel = conn.channel()
         channel.queue_declare(queue=CHAT_QUEUE, durable=True)
         channel.queue_declare(queue=RAG_QUEUE, durable=True)
+        channel.queue_declare(queue=SCHEDULED_TASK_QUEUE, durable=True)
         return channel
     except Exception as e:
         logger.warning("Failed to get RabbitMQ channel: %s", e)

@@ -14,6 +14,7 @@ from configs.worker_config import (
     RABBITMQ_URL,
     RAG_QUEUE,
     REDIS_URL,
+    SCHEDULED_TASK_QUEUE,
     USE_RABBITMQ,
     USE_REDIS_STREAM,
 )
@@ -25,6 +26,7 @@ __all__ = [
     "RAG_QUEUE",
     "RABBITMQ_URL",
     "REDIS_URL",
+    "SCHEDULED_TASK_QUEUE",
     "USE_RABBITMQ",
     "USE_REDIS_STREAM",
 ]

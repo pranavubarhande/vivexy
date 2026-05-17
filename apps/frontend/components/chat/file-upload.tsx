@@ -88,9 +88,14 @@ export function FileUpload({
       }
 
       if (validFiles.length > 0) {
-        const updatedFiles = [...files, ...validFiles];
-        setFiles(updatedFiles);
-        onFilesSelected(validFiles);
+        const existingKeys = new Set(files.map((f) => `${f.name}:${f.size}`));
+        const deduped = validFiles.filter(
+          (f) => !existingKeys.has(`${f.name}:${f.size}`)
+        );
+        if (deduped.length > 0) {
+          setFiles([...files, ...deduped]);
+          onFilesSelected(deduped);
+        }
       }
     },
     [files, maxFiles, validateFile, onFilesSelected]

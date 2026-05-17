@@ -12,6 +12,9 @@ REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379")
 # Queue names (single source of truth; re-exported from app.constants.queues)
 CHAT_QUEUE = "chat_jobs"
 RAG_QUEUE = "rag_jobs"
+SCHEDULED_TASK_QUEUE = (
+    "scheduled_task_jobs"  # dedicated queue — never starves real-time chat
+)
 
 # Consumer prefetch
 PREFETCH_COUNT = 1

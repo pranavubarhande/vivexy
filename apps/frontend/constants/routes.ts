@@ -12,6 +12,7 @@ export const ROUTES = {
   integrations: '/integrations',
   insights: '/insights',
   chat: (chatId?: string) => (chatId ? `/chat/${chatId}` : '/chat'),
+  scheduledTasks: '/scheduled-tasks',
 } as const;
 
 // Publicly accessible informational pages (no auth required, even if logged in)

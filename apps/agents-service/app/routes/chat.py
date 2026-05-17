@@ -35,6 +35,7 @@ from app.business_logic.artifacts import (
 from app.business_logic.attachments import create_attachment, get_chat_attachments
 from app.business_logic.chat import (
     build_file_contexts,
+    build_image_contexts,
     create_chat,
     create_message,
     get_chat_messages,
@@ -1039,6 +1040,7 @@ def start_chat_stream():
                     file_ids.append(str(attachment["id"]))
 
         file_contexts = []
+        image_contexts = []
         client_tools_enabled = (
             request.headers.get("X-Client-Tools", "").lower() == "true"
         )
@@ -1082,6 +1084,7 @@ def start_chat_stream():
         try:
             if not client_tools_enabled:
                 file_contexts = build_file_contexts(chat_id, file_ids)
+                image_contexts = build_image_contexts(chat_id, file_ids)
         except Exception:
             logger.exception("Failed to build file contexts")
 
@@ -1147,6 +1150,23 @@ def start_chat_stream():
             user_id,
             skip_auto_response=True,
         )
+
+        # Link uploaded files to this user message so they appear in chat history
+        if file_ids:
+            from app.models.base import db as _db
+            from app.models.chat import ChatAttachment as _CA
+
+            msg_id = (
+                saved_user_message.get("id")
+                if isinstance(saved_user_message, dict)
+                else getattr(saved_user_message, "id", None)
+            )
+            if msg_id:
+                _CA.query.filter(_CA.id.in_(file_ids), _CA.chat_id == chat_id).update(
+                    {"message_id": msg_id}, synchronize_session=False
+                )
+                _db.session.commit()
+
         update_chat(
             chat_id,
             {"last_model_id": model_db_id, "agent_id": DEFAULT_AGENT_ID},
@@ -1174,6 +1194,7 @@ def start_chat_stream():
                 model_db_id=model_db_id,
                 model_provider=model_provider,
                 file_contexts=file_contexts,
+                image_contexts=image_contexts,
                 client_tools_enabled=client_tools_enabled,
                 saved_user_message=saved_user_message,
                 app_context=app_ctx,
@@ -1304,6 +1325,34 @@ def post_tool_result(chat_id):
         success = resolve_client_tool(request_id, result)
         return jsonify({"success": success})
     except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@bp.route("/<chat_id>/attachments/<attachment_id>/content", methods=["GET"])
+def get_attachment_content(chat_id, attachment_id):
+    # No auth_middleware — browser <img> tags can't send Authorization headers.
+    # Security: chat_id + attachment_id are UUID v4 values (~2^128 space),
+    # making enumeration attacks infeasible. The endpoint is read-only.
+    """Serve raw attachment content from S3 (used for image previews in chat)."""
+    try:
+        from app.models.chat import ChatAttachment
+
+        att = ChatAttachment.query.filter_by(id=attachment_id, chat_id=chat_id).first()
+        if not att:
+            return jsonify({"error": "Attachment not found"}), 404
+
+        s3 = S3Service()
+        raw = s3.get_file_content(att.s3_key)
+        if raw is None:
+            return jsonify({"error": "Failed to fetch from S3"}), 502
+
+        response = make_response(raw)
+        response.headers["Content-Type"] = att.mime_type or "application/octet-stream"
+        response.headers["Content-Disposition"] = f'inline; filename="{att.filename}"'
+        response.headers["Cache-Control"] = "private, max-age=3600"
+        return response
+    except Exception as e:
+        logger.exception("get_attachment_content error")
         return jsonify({"error": str(e)}), 500
 
 

@@ -60,6 +60,7 @@ def run_agent_stream(
     user_skills: Optional[List[Dict[str, Any]]] = None,
     mcp_tools: Optional[List[Dict[str, Any]]] = None,
     github_context: Optional[Dict[str, Any]] = None,
+    image_contexts: Optional[List[Dict[str, Any]]] = None,
 ) -> Generator[str, None, None]:
     """
     Generator that drives the agent and yields SSE-formatted strings.
@@ -157,6 +158,19 @@ def run_agent_stream(
         inputs, config, seen_message_ids = _get_history_context(
             agent, chat_id, messages
         )
+
+        # 1b. Inject image parts into the last user message for vision-capable models.
+        # We patch the message in `inputs` (the in-memory graph state), not in the DB,
+        # so the base64 payload never bloats the message history.
+        if image_contexts:
+            msgs = list(inputs.get("messages", []))
+            if msgs:
+                last = dict(msgs[-1])
+                text = last.get("content", "")
+                last["content"] = [
+                    {"type": "text", "text": text if isinstance(text, str) else ""}
+                ] + image_contexts
+                inputs = {**inputs, "messages": [*msgs[:-1], last]}
 
         try:
             while True:

@@ -450,6 +450,10 @@ export const handleStreamEvent = (
           });
         }
         refetchHistory();
+        // Re-fetch messages so server-linked attachment data appears
+        cache.qc.invalidateQueries({
+          queryKey: chatKeys.messages(targetChatId),
+        });
       }, 100);
       break;
     }

@@ -46,6 +46,12 @@ class Message(db.Model):
 
     # Relations
     artifacts = db.relationship("Artifact", backref="message", lazy=True)
+    attachments = db.relationship(
+        "ChatAttachment",
+        backref="message",
+        lazy=True,
+        foreign_keys="ChatAttachment.message_id",
+    )
 
     def to_dict(self):
         return {
@@ -56,6 +62,7 @@ class Message(db.Model):
             "modelId": self.model_id,
             "reasoning": self.reasoning,
             "createdAt": self.created_at.isoformat(),
+            "attachments": [a.to_dict() for a in self.attachments],
             "artifacts": [
                 {
                     "id": a.id,
@@ -127,11 +134,24 @@ class ChatAttachment(db.Model):
 
     id = db.Column(db.String, primary_key=True, default=lambda: str(uuid.uuid4()))
     chat_id = db.Column(db.String, db.ForeignKey("chats.id"), nullable=False)
+    # nullable — set after the user message is created
+    message_id = db.Column(db.String, db.ForeignKey("messages.id"), nullable=True)
     filename = db.Column(db.String, nullable=False)
     s3_key = db.Column(db.String, nullable=False)
     mime_type = db.Column(db.String, nullable=False)
     size = db.Column(db.Integer, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "chatId": self.chat_id,
+            "messageId": self.message_id,
+            "filename": self.filename,
+            "mimeType": self.mime_type,
+            "size": self.size,
+            "createdAt": self.created_at.isoformat() if self.created_at else None,
+        }
 
 
 class ChatCheckpoint(db.Model):
