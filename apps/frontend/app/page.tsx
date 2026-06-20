@@ -17,6 +17,7 @@ import {
   Scale,
   UserCheck,
   ArrowUpRight,
+  Layers,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -38,27 +39,6 @@ const stagger = { animate: { transition: { staggerChildren: 0.08 } } };
 /* ─── data ───────────────────────────────────────────────────────────── */
 const workflows = [
   {
-    id: 'legal',
-    label: 'Legal',
-    icon: Scale,
-    headline: 'From clause to courtroom-ready',
-    description:
-      'AI agents that review contracts, surface risks, generate briefs, and keep counsel in control at every checkpoint.',
-    steps: [
-      { label: 'Upload Contract', type: 'ai', icon: FileText },
-      { label: 'Extract Clauses', type: 'ai', icon: Brain },
-      { label: 'Flag Risks', type: 'ai', icon: Shield },
-      { label: 'Counsel Review', type: 'human', icon: UserCheck },
-      { label: 'Brief Generated', type: 'ai', icon: FileText },
-    ],
-    pills: [
-      'Contract Analysis',
-      'Case Research',
-      'Brief Drafting',
-      'Compliance Audit',
-    ],
-  },
-  {
     id: 'financial',
     label: 'Financial',
     icon: BarChart3,
@@ -74,9 +54,45 @@ const workflows = [
     ],
     pills: [
       'Portfolio Analysis',
-      'Risk Assessment',
-      'Reg Compliance',
-      'Exec Reporting',
+      'Financial Statement Analyzer',
+      'Earnings Call Intelligence',
+      'Due Diligence',
+      'Invoice & AP Automation',
+      'Cash Flow Forecasting',
+      'Tax Research',
+      'Budget vs. Actuals',
+      'M&A Valuation',
+      'FX Risk Monitoring',
+      'Vendor Spend Analytics',
+      'Financial Report Writer',
+    ],
+  },
+  {
+    id: 'legal',
+    label: 'Legal',
+    icon: Scale,
+    headline: 'From clause to courtroom-ready',
+    description:
+      'AI agents that review contracts, surface risks, generate briefs, and keep counsel in control at every checkpoint.',
+    steps: [
+      { label: 'Upload Contract', type: 'ai', icon: FileText },
+      { label: 'Extract Clauses', type: 'ai', icon: Brain },
+      { label: 'Flag Risks', type: 'ai', icon: Shield },
+      { label: 'Counsel Review', type: 'human', icon: UserCheck },
+      { label: 'Brief Generated', type: 'ai', icon: FileText },
+    ],
+    pills: [
+      'Contract Review',
+      'Contract Drafting',
+      'Contract Lifecycle',
+      'Legal Research',
+      'Litigation Support',
+      'IP Portfolio',
+      'Legal Spend Management',
+      'Employment Law',
+      'Regulatory Filing',
+      'Privacy & Data Rights',
+      'Corporate Governance',
     ],
   },
   {
@@ -94,11 +110,37 @@ const workflows = [
       { label: 'Audit Trail', type: 'ai', icon: Lock },
     ],
     pills: [
-      'Policy Mapping',
-      'Gap Analysis',
-      'Audit Trails',
-      'Remediation Tracking',
+      'KYC/AML Screening',
+      'Transaction Monitoring',
+      'Regulatory Change Monitoring',
+      'Policy Management',
+      'Compliance Training',
+      'Audit Management',
+      'Risk Assessment',
+      'Third-Party Risk',
+      'Regulatory Reporting',
+      'Whistleblower Hotline',
+      'Data Governance & Lineage',
+      'Trade Sanctions Screening',
+      'Incident Response',
+      'ESG Reporting',
     ],
+  },
+  {
+    id: 'cross-functional',
+    label: 'Cross-functional',
+    icon: Layers,
+    headline: 'Agents that work across every team',
+    description:
+      'Deal desk, board reporting, and regulatory intelligence agents that cut across Legal, Finance, and Compliance to accelerate firm-wide decisions.',
+    steps: [
+      { label: 'Gather Data', type: 'ai', icon: Database },
+      { label: 'Analyse Deal', type: 'ai', icon: BarChart3 },
+      { label: 'Flag Deviations', type: 'ai', icon: Shield },
+      { label: 'Exec Review', type: 'human', icon: UserCheck },
+      { label: 'Board Pack Out', type: 'ai', icon: FileText },
+    ],
+    pills: ['Deal Desk', 'Board Reporting', 'Regulatory Intelligence'],
   },
 ];
 
