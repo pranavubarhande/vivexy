@@ -64,13 +64,7 @@ function getGreeting() {
 // Types
 // ---------------------------------------------------------------------------
 
-interface AgentSummary {
-  id: string;
-  name: string;
-  description: string;
-  icon: string;
-  color: string;
-}
+import type { AgentSummary } from '@/types/agent';
 
 export interface AgenticChatConfig {
   availableAgents: AgentSummary[];
@@ -766,25 +760,6 @@ export const AgenticChat = ({
                   showSidePanel={showSidePanel}
                   onToggleGithub={toggleGithubPanel}
                 />
-              </div>
-
-              {/* Suggestion chips */}
-              <div className="flex flex-wrap gap-2 justify-center mt-4">
-                {[
-                  'Analyze a stock',
-                  'Summarize a document',
-                  'Draft a report',
-                  'Research a company',
-                  'Explain a concept',
-                ].map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => setFillValue(s)}
-                    className="text-xs px-3 py-1.5 rounded-full border border-border bg-background hover:bg-muted hover:border-primary/30 transition-colors text-muted-foreground hover:text-foreground"
-                  >
-                    {s}
-                  </button>
-                ))}
               </div>
             </div>
           </div>

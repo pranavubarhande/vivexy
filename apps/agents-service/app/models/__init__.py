@@ -7,6 +7,7 @@ from app.models.chat import (
     Message,
     Todo,
 )
+from app.models.deployed_agent import DeployedAgent
 from app.models.enums import (
     ArtifactType,
     MessageRole,

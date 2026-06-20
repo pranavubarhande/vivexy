@@ -16,6 +16,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from app.agents.config import (
     AGENT_METADATA,
     DEFAULT_AGENT_ID,
+    SYSTEM_PROMPTS,
     UNIFIED_SYSTEM_PROMPT,
     AgentConfig,
     FileContext,
@@ -199,6 +200,70 @@ def get_document_tools(chat_id: str) -> List[BaseTool]:
     )
     tools.extend(
         safe_import_tool("app.tools.rag.rag_tools", "get_rag_tools", [chat_id])
+    )
+    return tools
+
+
+def get_legal_tools() -> List[BaseTool]:
+    tools = []
+    for module_path, func_name, args in [
+        ("app.tools.legal.contract_tools", "get_contract_tools", []),
+        ("app.tools.legal.legal_research_tools", "get_legal_research_tools", []),
+    ]:
+        tools.extend(safe_import_tool(module_path, func_name, *args))
+    return tools
+
+
+def get_compliance_tools() -> List[BaseTool]:
+    tools = []
+    for module_path, func_name, args in [
+        ("app.tools.compliance.sanctions_tools", "get_sanctions_tools", []),
+        ("app.tools.compliance.regulatory_feed_tools", "get_regulatory_feed_tools", []),
+        ("app.tools.compliance.audit_tools", "get_audit_tools", []),
+    ]:
+        tools.extend(safe_import_tool(module_path, func_name, *args))
+    return tools
+
+
+def get_market_data_tools() -> List[BaseTool]:
+    tools = []
+    for module_path, func_name, args in [
+        ("app.tools.finance.market_data_tools", "get_market_data_tools", []),
+    ]:
+        tools.extend(safe_import_tool(module_path, func_name, *args))
+    return tools
+
+
+def get_sec_edgar_tools() -> List[BaseTool]:
+    tools = []
+    tools.extend(
+        safe_import_tool("app.tools.finance.sec_edgar_tools", "get_sec_edgar_tools")
+    )
+    return tools
+
+
+def get_legal_db_tools() -> List[BaseTool]:
+    tools = []
+    tools.extend(
+        safe_import_tool("app.tools.legal.legal_db_tools", "get_legal_db_tools")
+    )
+    return tools
+
+
+def get_reg_feeds_tools() -> List[BaseTool]:
+    tools = []
+    tools.extend(
+        safe_import_tool(
+            "app.tools.compliance.regulatory_feed_tools", "get_regulatory_feed_tools"
+        )
+    )
+    return tools
+
+
+def get_workflow_tools() -> List[BaseTool]:
+    tools = []
+    tools.extend(
+        safe_import_tool("app.tools.shared.workflow_tools", "get_workflow_tools")
     )
     return tools
 
@@ -398,9 +463,45 @@ def create_agent(
     user_skills = user_skills or []
     mcp_tools = mcp_tools or []
 
-    # 1. Base tools for the main agent
-    tools = get_base_tools(chat_id)
-    tools.extend(get_composio_tools(chat_id, user_id))
+    # 1. Assemble tools based on agent's declared tool groups
+    meta = AGENT_METADATA.get(agent_id, AGENT_METADATA[DEFAULT_AGENT_ID])
+    tool_groups = meta.get("tools", ["base"])
+
+    _TOOL_LOADERS = {
+        "base": lambda: get_base_tools(chat_id),
+        "finance": get_finance_tools,
+        "legal": get_legal_tools,
+        "compliance": get_compliance_tools,
+        "document": lambda: get_document_tools(chat_id),
+        "market_data": get_market_data_tools,
+        "sec_edgar": get_sec_edgar_tools,
+        "legal_db": get_legal_db_tools,
+        "reg_feeds": get_reg_feeds_tools,
+        "workflow": get_workflow_tools,
+        "sanctions": lambda: [
+            t
+            for t in safe_import_tool(
+                "app.tools.compliance.sanctions_tools", "get_sanctions_tools"
+            )
+        ],
+    }
+
+    tools: List[BaseTool] = []
+    seen_names: set = set()
+
+    for group in tool_groups:
+        loader = _TOOL_LOADERS.get(group)
+        new_tools = loader() if loader else []
+        for t in new_tools:
+            if t.name not in seen_names:
+                tools.append(t)
+                seen_names.add(t.name)
+
+    # Always add Composio tools for the user's connected accounts
+    for t in get_composio_tools(chat_id, user_id):
+        if t.name not in seen_names:
+            tools.append(t)
+            seen_names.add(t.name)
 
     # Optional client filesystem execution tools
     if client_tools_enabled:
@@ -506,8 +607,8 @@ def create_agent(
     prefix = _provider_prefix.get(ag_config.provider, ag_config.provider)
     provider_str = f"{prefix}:{ag_config.model}"
 
-    # Generate system prompt
-    final_prompt = UNIFIED_SYSTEM_PROMPT
+    # Generate system prompt — use agent-specific prompt if defined
+    final_prompt = SYSTEM_PROMPTS.get(agent_id, UNIFIED_SYSTEM_PROMPT)
 
     # Prepend active environment so the agent knows exactly where it's running
     if client_tools_enabled:

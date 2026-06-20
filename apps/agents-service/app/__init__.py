@@ -8,6 +8,7 @@ from flask_cors import CORS
 from sentry_sdk.integrations.flask import FlaskIntegration
 
 from app.models import db
+from app.routes.agents import bp as agents_bp
 from app.routes.approval import bp as approval_bp
 from app.routes.auth import bp as auth_bp
 from app.routes.chat import bp as chat_bp
@@ -103,6 +104,7 @@ def create_app(config_object=None):
     app.register_blueprint(rag_bp)
     app.register_blueprint(chat_bp)
     app.register_blueprint(connectors_bp)
+    app.register_blueprint(agents_bp)
     app.register_blueprint(skills_bp)
     app.register_blueprint(github_bp)
     app.register_blueprint(scheduled_tasks_bp)

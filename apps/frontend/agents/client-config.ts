@@ -1,19 +1,15 @@
-export interface AgentSummary {
-  id: string;
-  name: string;
-  description: string;
-  icon: string;
-  color: string;
-}
+export type { AgentSummary } from '@/types/agent';
+import type { AgentSummary } from '@/types/agent';
+import { Bot } from 'lucide-react';
 
-/** Single unified agent used by chat (no agent selection UI). */
+/** Base agents always available in chat regardless of deployed catalogue agents. */
 export const AGENT_SUMMARIES: AgentSummary[] = [
   {
     id: 'assistant',
     name: 'Portfolio Assistant',
     description:
       'Your AI assistant for portfolio tasks: stocks, documents, tasks, and files.',
-    icon: '🤖',
+    icon: Bot,
     color: '#6366f1',
   },
 ];
