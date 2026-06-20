@@ -27,5 +27,6 @@ from app.models.skill import UserSkill
 from app.models.stock import Stock, StockDataBlob, StockNews
 from app.models.subscription import Invoice, StripeEventLog, Subscription
 from app.models.team import Team, TeamInvite, TeamMember
+from app.models.token_usage import TokenUsage
 from app.models.user import User
 from app.models.user_api_key import UserApiKey

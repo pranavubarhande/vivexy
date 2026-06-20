@@ -37,9 +37,11 @@ from app.constants.stream_events import (
     STREAM_EVENT_REASONING,
     STREAM_EVENT_START,
     STREAM_EVENT_TOOL_CALL,
+    STREAM_EVENT_USAGE,
 )
 from app.models.chat import Message as DBMessage
 from app.models.llm import LLMModel
+from app.models.token_usage import TokenUsage
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -96,6 +98,13 @@ def run_agent_stream(
         reasoning_steps: List[Dict] = []
         tool_call_count = 0
         CHECKPOINT_INTERVAL = 5
+        total_usage: Dict[str, int] = {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "total_tokens": 0,
+        }
+        usage_payload: Optional[Dict[str, Any]] = None
+        assistant_message: Dict[str, Any] = {}
 
         # 0. Auto-compaction check
         try:
@@ -195,16 +204,20 @@ def run_agent_stream(
                             message_content = getattr(message, "content", "")
 
                             # Handle different message types specifically
-                            if message_type == "ai" and message_content:
-                                content_str = _extract_text(message_content)
-                                if content_str:
-                                    full_content += content_str
-                                    yield _sse(
-                                        {
-                                            "type": STREAM_EVENT_CONTENT,
-                                            "data": content_str,
-                                        }
-                                    )
+                            if message_type == "ai":
+                                if message_content:
+                                    content_str = _extract_text(message_content)
+                                    if content_str:
+                                        full_content += content_str
+                                        yield _sse(
+                                            {
+                                                "type": STREAM_EVENT_CONTENT,
+                                                "data": content_str,
+                                            }
+                                        )
+                                # Accumulate token usage from ALL AI messages (including
+                                # tool-calling messages that have no text content).
+                                _accumulate_usage(message, total_usage)
 
                             elif message_type == "tool":
                                 yield from _handle_tool_outcome(
@@ -339,6 +352,18 @@ def run_agent_stream(
                 link_artifacts_to_message(chat_id, assistant_message["id"], user_id)
             except Exception as e:
                 logger.warning("link_artifacts_to_message failure: %s", e)
+
+            # Persist token usage and compute cost
+            usage_payload = _save_token_usage(
+                user_id=user_id,
+                message_id=assistant_message["id"],
+                model_db_id=model_db_id,
+                model_provider=model_provider,
+                usage=total_usage,
+            )
+
+        if usage_payload and (usage_payload["totalTokens"] > 0):
+            yield _sse({"type": STREAM_EVENT_USAGE, "data": usage_payload})
 
         yield _sse(
             {
@@ -623,6 +648,112 @@ def _cleanup_sandbox(agent: Any):
             sandbox.stop()
         except Exception:
             pass
+
+
+def _accumulate_usage(message: Any, total_usage: Dict[str, int]) -> None:
+    """Extract token counts from an AIMessage and add them to the running total.
+
+    Tries `usage_metadata` first (LangChain standard), then falls back to
+    `response_metadata` where some providers (e.g. Gemini) also store usage.
+    """
+    # Standard LangChain attribute (present on most providers)
+    usage_meta = getattr(message, "usage_metadata", None)
+    if usage_meta and isinstance(usage_meta, dict) and any(usage_meta.values()):
+        total_usage["input_tokens"] += usage_meta.get("input_tokens", 0)
+        total_usage["output_tokens"] += usage_meta.get("output_tokens", 0)
+        # Some providers omit total_tokens; compute it as a fallback
+        total_usage["total_tokens"] += usage_meta.get("total_tokens", 0) or (
+            usage_meta.get("input_tokens", 0) + usage_meta.get("output_tokens", 0)
+        )
+        return
+
+    # Fallback: response_metadata (Gemini / older providers)
+    resp_meta = getattr(message, "response_metadata", None) or {}
+    token_meta = resp_meta.get("usage_metadata") or resp_meta.get("token_counts") or {}
+    if token_meta and isinstance(token_meta, dict):
+        # Gemini keys: prompt_token_count, candidates_token_count, total_token_count
+        inp = (
+            token_meta.get("input_tokens") or token_meta.get("prompt_token_count") or 0
+        )
+        out = (
+            token_meta.get("output_tokens")
+            or token_meta.get("candidates_token_count")
+            or 0
+        )
+        tot = (
+            token_meta.get("total_tokens")
+            or token_meta.get("total_token_count")
+            or (inp + out)
+        )
+        total_usage["input_tokens"] += inp
+        total_usage["output_tokens"] += out
+        total_usage["total_tokens"] += tot
+
+
+def _save_token_usage(
+    *,
+    user_id: str,
+    message_id: str,
+    model_db_id: Optional[str],
+    model_provider: str,
+    usage: Dict[str, int],
+) -> Optional[Dict[str, Any]]:
+    """Persist token counts + computed cost. Returns a dict for the SSE payload."""
+    try:
+        from app.models.base import db as _db
+
+        input_tokens = usage.get("input_tokens", 0)
+        output_tokens = usage.get("output_tokens", 0)
+        total_tokens = usage.get("total_tokens", 0) or (input_tokens + output_tokens)
+
+        model_name = None
+        input_cost_usd = 0.0
+        output_cost_usd = 0.0
+
+        if model_db_id:
+            model_record = LLMModel.query.filter_by(id=model_db_id).first()
+            if model_record:
+                model_name = model_record.name
+                if model_record.input_cost:
+                    input_cost_usd = (
+                        input_tokens / 1_000_000
+                    ) * model_record.input_cost
+                if model_record.output_cost:
+                    output_cost_usd = (
+                        output_tokens / 1_000_000
+                    ) * model_record.output_cost
+
+        total_cost_usd = input_cost_usd + output_cost_usd
+
+        record = TokenUsage(
+            user_id=user_id,
+            message_id=message_id,
+            model_id=model_db_id,
+            model_name=model_name,
+            provider=model_provider,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            total_tokens=total_tokens,
+            input_cost_usd=input_cost_usd,
+            output_cost_usd=output_cost_usd,
+            total_cost_usd=total_cost_usd,
+        )
+        _db.session.add(record)
+        _db.session.commit()
+
+        return {
+            "inputTokens": input_tokens,
+            "outputTokens": output_tokens,
+            "totalTokens": total_tokens,
+            "inputCostUsd": round(input_cost_usd, 6),
+            "outputCostUsd": round(output_cost_usd, 6),
+            "totalCostUsd": round(total_cost_usd, 6),
+            "modelName": model_name,
+            "provider": model_provider,
+        }
+    except Exception as e:
+        logger.warning("Failed to save token usage: %s", e)
+        return None
 
 
 def _sse(data: Dict[str, Any]) -> str:

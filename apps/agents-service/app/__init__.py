@@ -20,6 +20,7 @@ from app.routes.scheduled_tasks import bp as scheduled_tasks_bp
 from app.routes.skills import bp as skills_bp
 from app.routes.stripe import bp as stripe_bp
 from app.routes.teams import bp as teams_bp
+from app.routes.usage import bp as usage_bp
 from app.routes.users import bp as users_bp
 from app.utils.casing import camel_to_snake, snake_to_camel
 from configs import Config
@@ -109,6 +110,7 @@ def create_app(config_object=None):
     app.register_blueprint(github_bp)
     app.register_blueprint(scheduled_tasks_bp)
     app.register_blueprint(projects_bp)
+    app.register_blueprint(usage_bp)
 
     @app.route("/health")
     def _health():

@@ -37,6 +37,9 @@ export const STREAM_EVENT_CHART = 'chart_render' as const;
 // Compaction
 export const STREAM_EVENT_COMPACT = 'compact' as const;
 
+// Token usage (emitted before done)
+export const STREAM_EVENT_USAGE = 'usage' as const;
+
 // Error
 export const STREAM_EVENT_ERROR = 'error' as const;
 
@@ -61,4 +64,5 @@ export type StreamEventType =
   | typeof STREAM_EVENT_FILE_VERSION
   | typeof STREAM_EVENT_CHART
   | typeof STREAM_EVENT_COMPACT
+  | typeof STREAM_EVENT_USAGE
   | typeof STREAM_EVENT_ERROR;

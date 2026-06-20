@@ -15,6 +15,7 @@ import {
   Loader2,
   Download,
   FileText,
+  Zap,
 } from 'lucide-react';
 import {
   Message,
@@ -22,7 +23,7 @@ import {
   TimelineItem,
   ReasoningStep,
 } from '@/services/chat.service';
-import type { MessageAttachment } from '@/types/chat';
+import type { MessageAttachment, TokenUsageData } from '@/types/chat';
 import {
   Dialog,
   DialogContent,
@@ -243,12 +244,11 @@ function AttachmentModal({
   const ext = att.filename.split('.').pop()?.toUpperCase() ?? 'FILE';
 
   const [textContent, setTextContent] = useState<string | null>(null);
-  const [textLoading, setTextLoading] = useState(false);
+  const [textLoading, setTextLoading] = useState(isText);
   const [textError, setTextError] = useState(false);
 
   useEffect(() => {
     if (!isText) return;
-    setTextLoading(true);
     fetch(contentUrl)
       .then((r) => r.text())
       .then((t) => setTextContent(t))
@@ -391,7 +391,7 @@ export function UserMessage({ message, onRevert }: UserMessageProps) {
         </div>
       )}
 
-      <div className="flex items-center gap-2 px-2 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="flex items-center gap-2 px-2">
         <span className="text-[10px] text-muted-foreground">
           {formatTime(message.createdAt)}
         </span>
@@ -504,7 +504,7 @@ export function AssistantMessage({
           </div>
         )}
       </div>
-      <div className="flex items-center gap-2 px-2 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="flex items-center gap-2 px-2">
         <span className="text-[10px] text-muted-foreground">
           {formatTime(message.createdAt)}
         </span>
@@ -516,8 +516,52 @@ export function AssistantMessage({
           {copied ? <Check size={11} /> : <Copy size={11} />}
           {copied ? 'Copied' : 'Copy'}
         </button>
+        {message.tokenUsage && !message.isStreaming && (
+          <TokenUsagePill usage={message.tokenUsage} />
+        )}
       </div>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Token usage pill
+// ---------------------------------------------------------------------------
+
+function fmtTokens(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
+  return String(n);
+}
+
+function fmtCost(n: number): string {
+  if (n === 0) return '';
+  if (n < 0.0001) return '<$0.0001';
+  if (n < 0.01) return `$${n.toFixed(4)}`;
+  return `$${n.toFixed(3)}`;
+}
+
+function TokenUsagePill({ usage }: { usage: TokenUsageData }) {
+  const costStr = fmtCost(usage.totalCostUsd);
+  const title = [
+    `Input: ${fmtTokens(usage.inputTokens)} tokens`,
+    `Output: ${fmtTokens(usage.outputTokens)} tokens`,
+    `Total: ${fmtTokens(usage.totalTokens)} tokens`,
+    costStr ? `Cost: ${costStr}` : '',
+    usage.modelName ? `Model: ${usage.modelName}` : '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
+  return (
+    <span
+      title={title}
+      className="inline-flex items-center gap-1 text-[10px] text-muted-foreground/70 hover:text-muted-foreground transition-colors cursor-default select-none"
+    >
+      <Zap size={9} className="shrink-0" />
+      {fmtTokens(usage.totalTokens)}
+      {costStr && <span className="text-muted-foreground/50">· {costStr}</span>}
+    </span>
   );
 }
 

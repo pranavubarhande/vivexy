@@ -16,6 +16,7 @@ from app.constants.stream_events import (
     STREAM_EVENT_REASONING,
 )
 from app.models import Chat, ChatAttachment, LLMModel, Message, db
+from app.models.token_usage import TokenUsage
 from app.schemas import ChatCreate, ChatResponse, LLMModelResponse, MessageRole
 from app.services.file_processor import FileProcessor
 from app.services.s3_service import S3Service
@@ -128,11 +129,15 @@ def build_image_contexts(chat_id: str, file_ids: list) -> list:
     return image_parts
 
 
-def _message_to_dict_with_resolved_artifacts(msg: Message) -> Dict[str, Any]:
+def _message_to_dict_with_resolved_artifacts(
+    msg: Message, usage_by_message_id: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
     """Build message dict with artifact content resolved from DB or S3."""
     d = msg.to_dict()
     for i, a in enumerate(msg.artifacts):
         d["artifacts"][i]["content"] = resolve_artifact_content(a)
+    if usage_by_message_id and msg.id in usage_by_message_id:
+        d["tokenUsage"] = usage_by_message_id[msg.id]
     return d
 
 
@@ -305,7 +310,31 @@ def get_chat_messages(chat_id: str, user_id: str) -> List[Dict[str, Any]]:
         .all()
     )
 
-    return [_message_to_dict_with_resolved_artifacts(msg) for msg in messages]
+    # Fetch token usage for all assistant messages in one query
+    message_ids = [m.id for m in messages]
+    usage_records = (
+        TokenUsage.query.filter(TokenUsage.message_id.in_(message_ids)).all()
+        if message_ids
+        else []
+    )
+    usage_by_message_id = {
+        r.message_id: {
+            "inputTokens": r.input_tokens,
+            "outputTokens": r.output_tokens,
+            "totalTokens": r.total_tokens,
+            "inputCostUsd": r.input_cost_usd,
+            "outputCostUsd": r.output_cost_usd,
+            "totalCostUsd": r.total_cost_usd,
+            "modelName": r.model_name,
+            "provider": r.provider,
+        }
+        for r in usage_records
+    }
+
+    return [
+        _message_to_dict_with_resolved_artifacts(msg, usage_by_message_id)
+        for msg in messages
+    ]
 
 
 def create_message(

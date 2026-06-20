@@ -32,6 +32,7 @@ import {
   STREAM_EVENT_TASK_STARTED,
   STREAM_EVENT_TODO,
   STREAM_EVENT_TOOL_CALL,
+  STREAM_EVENT_USAGE,
 } from '@/constants/stream-events';
 import { chatKeys } from '@/hooks/useChat';
 import { platform } from '@/lib/platform';
@@ -423,6 +424,11 @@ export const handleStreamEvent = (
     case STREAM_EVENT_TODO: {
       const todoData = event.data as unknown as InlineTodo;
       upsertTodoOnMessage(todoData);
+      break;
+    }
+
+    case STREAM_EVENT_USAGE: {
+      updateStreaming({ tokenUsage: event.data });
       break;
     }
 

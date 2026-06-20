@@ -22,12 +22,12 @@ import {
 import {
   LayoutDashboard,
   Users,
-  CreditCard,
   MessageSquare,
   Blocks,
   FolderOpen,
   ChevronRight,
   CalendarClock,
+  Coins,
 } from 'lucide-react';
 import { NavUser } from './nav-user';
 import {
@@ -68,6 +68,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       label: 'Scheduled Tasks',
       href: ROUTES.scheduledTasks,
       icon: CalendarClock,
+    },
+    {
+      label: 'Cost Manager',
+      href: ROUTES.costManager,
+      icon: Coins,
     },
   ];
 

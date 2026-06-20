@@ -36,5 +36,8 @@ STREAM_EVENT_CHART = "chart_render"
 # Compaction
 STREAM_EVENT_COMPACT = "compact"
 
+# Token usage (emitted before done)
+STREAM_EVENT_USAGE = "usage"
+
 # Error
 STREAM_EVENT_ERROR = "error"

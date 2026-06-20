@@ -23,6 +23,7 @@ import {
   STREAM_EVENT_TODO,
   STREAM_EVENT_TOOL_CALL,
   STREAM_EVENT_START,
+  STREAM_EVENT_USAGE,
 } from '@/constants/stream-events';
 
 export interface Chat {
@@ -68,6 +69,17 @@ export interface MessageAttachment {
   createdAt: string;
 }
 
+export interface TokenUsageData {
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  inputCostUsd: number;
+  outputCostUsd: number;
+  totalCostUsd: number;
+  modelName: string | null;
+  provider: string | null;
+}
+
 export interface Message {
   id: string;
   role: 'user' | 'assistant';
@@ -79,6 +91,7 @@ export interface Message {
   attachments?: MessageAttachment[];
   createdAt: string;
   isStreaming?: boolean;
+  tokenUsage?: TokenUsageData;
 }
 
 export interface Artifact {
@@ -247,6 +260,10 @@ export type SSEEvent =
   | {
       type: typeof STREAM_EVENT_COMPACT;
       data: { message: string; compactedCount: number };
+    }
+  | {
+      type: typeof STREAM_EVENT_USAGE;
+      data: TokenUsageData;
     }
   | {
       type: typeof STREAM_EVENT_DONE;
