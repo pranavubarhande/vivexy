@@ -1,4 +1,4 @@
-# Portfolio Helper Monorepo
+# Vivexy AI workspace template 
 
 A scalable SaaS application for AI agentic workflows, built as a polyglot monorepo.
 
