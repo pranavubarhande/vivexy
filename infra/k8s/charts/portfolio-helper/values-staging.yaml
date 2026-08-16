@@ -1,0 +1,50 @@
+# Staging overlay — real HA topology (so it actually exercises repmgr/pgpool/
+# quorum queues/KEDA before prod) but at roughly half prod's scale/resources.
+
+frontend:
+  replicaCount: 1
+  autoscaling:
+    minReplicas: 1
+    maxReplicas: 4
+  env:
+    NEXT_PUBLIC_APP_URL: "https://staging.example.com"
+    NEXTAUTH_URL: "https://staging.example.com"
+    NEXT_PUBLIC_API_URL: "https://api-staging.example.com"
+
+agents:
+  replicaCount: 1
+  autoscaling:
+    minReplicas: 1
+    maxReplicas: 6
+  env:
+    CORS_ORIGINS: "https://staging.example.com"
+
+worker:
+  replicaCount: 1
+  keda:
+    minReplicaCount: 1
+    maxReplicaCount: 6
+
+scheduler:
+  replicaCount: 2 # keep >1 even in staging to exercise SELECT FOR UPDATE SKIP LOCKED
+
+ingress:
+  clusterIssuer: letsencrypt-staging # cert-manager staging issuer — untrusted cert, avoids LE rate limits
+  frontendHost: staging.example.com
+  apiHost: api-staging.example.com
+
+postgresql-ha:
+  pgpool:
+    replicaCount: 1
+  postgresqlReplicas:
+    replicaCount: 1
+
+redis:
+  replica:
+    replicaCount: 1
+
+rabbitmq:
+  replicaCount: 3 # keep the real cluster size — this is what quorum queues need to mean anything
+
+minio:
+  replicas: 4

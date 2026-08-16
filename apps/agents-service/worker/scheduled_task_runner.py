@@ -34,7 +34,7 @@ def run_scheduled_task(task_id: str) -> None:
         create_chat,
         create_message,
     )
-    from app.business_logic.streaming import run_agent_stream
+    from app.business_logic.streaming import NoopAppContext, run_agent_stream
     from app.models.base import db
     from app.models.scheduled_task import ScheduledTask, ScheduledTaskRun
     from app.models.skill import UserSkill
@@ -100,13 +100,6 @@ def run_scheduled_task(task_id: str) -> None:
         # inside an app context (either the consumer's or the scheduler's
         # fallback thread context), so we pass a noop to avoid pushing a second
         # scoped DB session that would detach our ORM objects.
-        class _NoopCtx:
-            def push(self):
-                pass
-
-            def pop(self, exc=None):
-                pass
-
         for _ in run_agent_stream(
             chat_id=chat_id,
             user_id=task.user_id,
@@ -118,7 +111,7 @@ def run_scheduled_task(task_id: str) -> None:
             image_contexts=image_contexts,
             client_tools_enabled=False,
             saved_user_message=saved_msg,
-            app_context=_NoopCtx(),
+            app_context=NoopAppContext(),
             user_skills=user_skills,
             github_context=task.github_context,
         ):

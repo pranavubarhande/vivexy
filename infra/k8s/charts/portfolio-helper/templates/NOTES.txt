@@ -1,0 +1,19 @@
+Portfolio Helper deployed as release {{ .Release.Name }} in namespace {{ .Release.Namespace }}.
+
+Frontend:  http{{ if .Values.ingress.clusterIssuer }}s{{ end }}://{{ .Values.ingress.frontendHost }}
+API:       http{{ if .Values.ingress.clusterIssuer }}s{{ end }}://{{ .Values.ingress.apiHost }}
+
+Check rollout status:
+  kubectl -n {{ .Release.Namespace }} get pods
+  kubectl -n {{ .Release.Namespace }} logs -l app.kubernetes.io/name=portfolio-helper-agents -f
+  kubectl -n {{ .Release.Namespace }} logs -l app.kubernetes.io/name=portfolio-helper-worker -f
+
+Check the migration Job if the release is stuck pending:
+  kubectl -n {{ .Release.Namespace }} logs job/{{ .Release.Name }}-migrations-{{ .Release.Revision }}
+
+Check KEDA's view of the worker queues:
+  kubectl -n {{ .Release.Namespace }} get scaledobject {{ .Release.Name }}-worker -o yaml
+
+See infra/k8s/README.md for prerequisites (cluster add-ons, the
+data-credentials/agents-secrets/frontend-secrets Secrets) if this is a
+first-time install.

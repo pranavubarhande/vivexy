@@ -16,6 +16,10 @@ SCHEDULED_TASK_QUEUE = (
     "scheduled_task_jobs"  # dedicated queue — never starves real-time chat
 )
 
+# Dead-letter exchange: chat_jobs/rag_jobs messages that fail processing land
+# here (via a per-queue .dlq) instead of being silently ack-and-dropped.
+DLX_EXCHANGE = "jobs.dlx"
+
 # Consumer prefetch
 PREFETCH_COUNT = 1
 

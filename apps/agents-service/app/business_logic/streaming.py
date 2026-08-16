@@ -761,6 +761,22 @@ def _sse(data: Dict[str, Any]) -> str:
     return f"data: {json.dumps(data)}\n\n"
 
 
+class NoopAppContext:
+    """
+    Stand-in for a Flask app context when the caller is already running
+    inside one it doesn't want ``run_agent_stream`` to pop (e.g. a worker
+    process that pushes a single app context once at startup). Passing a
+    real ``app.app_context()`` here would push a second scoped DB session
+    and detach any ORM objects loaded under the outer context.
+    """
+
+    def push(self):
+        pass
+
+    def pop(self, exc=None):
+        pass
+
+
 def run_agent_stream_to_redis(*, stream_id: str, r, stream_key: str, **kwargs) -> None:
     """Thread target: runs agent stream and publishes each event to a Redis stream."""
     try:

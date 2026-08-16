@@ -1,0 +1,36 @@
+# cert-manager ClusterIssuers for Let's Encrypt. Apply once per cluster,
+# after cert-manager itself is installed (see README.md in this directory).
+# EMAIL must be set to a real address you control — Let's Encrypt uses it
+# for expiry notices.
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: CHANGE_ME@example.com
+    privateKeySecretRef:
+      name: letsencrypt-prod-account-key
+    solvers:
+      - http01:
+          ingress:
+            ingressClassName: nginx
+---
+# Staging issuer — same flow, untrusted cert, no rate limits. Use this
+# ingress.clusterIssuer for values-staging.yaml so repeated test deploys
+# don't burn into Let's Encrypt's production rate limit.
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-staging
+spec:
+  acme:
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    email: CHANGE_ME@example.com
+    privateKeySecretRef:
+      name: letsencrypt-staging-account-key
+    solvers:
+      - http01:
+          ingress:
+            ingressClassName: nginx

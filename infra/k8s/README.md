@@ -1,0 +1,165 @@
+# Kubernetes deploy — portfolio-helper
+
+Replaces the old `infra/aws` (Terraform/ECS), `infra/coolify`, and
+`infra/free` (Koyeb) paths. Postgres, Redis, RabbitMQ, and object storage
+(MinIO) now run **inside** the cluster as Helm-managed dependencies of the
+`portfolio-helper` chart, rather than as external managed cloud services —
+see the chart's `Chart.yaml`/`values.yaml` for the specific subcharts and
+the tradeoffs of that choice (documented inline, including the Redis
+Sentinel caveat).
+
+## 0. Prerequisites
+
+1. A Kubernetes cluster (any — kind/k3d locally, EKS, GKE, AKS, a bare-metal
+   cluster) with a default `StorageClass` that dynamically provisions
+   `ReadWriteOnce` PVs — required for Postgres/Redis/RabbitMQ/MinIO
+   persistence.
+2. Cluster add-ons installed once — see `bootstrap/README.md`
+   (ingress-nginx, cert-manager, KEDA).
+3. `helm` (v3.14+) and `kubectl` pointed at the target cluster.
+
+## 1. Create the namespace and secrets
+
+Nothing in this chart's `values-*.yaml` files contains a secret — every
+secret is a Kubernetes `Secret` created out-of-band and referenced by name
+(`secrets.dataCredentials` / `secrets.agents` / `secrets.frontend` in
+`values.yaml`). Create the namespace first:
+
+```bash
+kubectl create namespace portfolio-helper
+```
+
+### `data-credentials` — shared by the app containers AND the postgresql-ha/
+redis/rabbitmq/minio subcharts (see `values.yaml`'s comments on how each
+subchart's `existingSecret`/`secretKeys` wiring points back at this same
+Secret, so the password only needs to be generated once).
+
+```bash
+PG_PW=$(openssl rand -hex 20)
+REDIS_PW=$(openssl rand -hex 20)
+RABBITMQ_PW=$(openssl rand -hex 20)
+MINIO_USER=portfoliohelper
+MINIO_PW=$(openssl rand -hex 20)
+
+kubectl -n portfolio-helper create secret generic data-credentials \
+  --from-literal=postgres-password="$PG_PW" \
+  --from-literal=redis-password="$REDIS_PW" \
+  --from-literal=rabbitmq-password="$RABBITMQ_PW" \
+  --from-literal=rabbitmq-url="amqp://user:${RABBITMQ_PW}@RELEASE_NAME-rabbitmq:5672/" \
+  --from-literal=minio-root-user="$MINIO_USER" \
+  --from-literal=minio-root-password="$MINIO_PW"
+```
+
+Replace `RELEASE_NAME` in `rabbitmq-url` with whatever you pass as the Helm
+release name in step 3 (e.g. `portfolio-helper`) — KEDA's `TriggerAuthentication`
+reads this key directly to poll RabbitMQ queue depth, so it needs the fully
+composed connection string, not just the password.
+
+### `agents-secrets` — everything `apps/agents-service/.env.example` lists as
+a secret (JWT_SECRET_KEY, SECRET_KEY, per-provider `*_API_KEY`,
+`PINECONE_API_KEY`, `DAYTONA_API_KEY`, `COMPOSIO_API_KEY`, `SENTRY_DSN`,
+`EXA_API_KEY`, etc — anything you'd normally put in `.env`, minus
+`DATABASE_URL`/`REDIS_URL`/`RABBITMQ_URL`/AWS S3 creds, which the chart
+composes for you from `data-credentials` + known in-cluster service names,
+see `templates/_helpers.tpl`):
+
+```bash
+kubectl -n portfolio-helper create secret generic agents-secrets \
+  --from-literal=JWT_SECRET_KEY="$(openssl rand -hex 32)" \
+  --from-literal=SECRET_KEY="$(openssl rand -hex 32)" \
+  --from-literal=OPENAI_API_KEY="..." \
+  --from-literal=ANTHROPIC_API_KEY="..." \
+  --from-literal=GOOGLE_AI_API_KEY="..." \
+  --from-literal=GROQ_API_KEY="..." \
+  --from-literal=PINECONE_API_KEY="..." \
+  --from-literal=EXA_API_KEY="..." \
+  --from-literal=DAYTONA_API_KEY="..." \
+  --from-literal=COMPOSIO_API_KEY="..." \
+  --from-literal=SENTRY_DSN="..."
+```
+
+### `frontend-secrets` — from `apps/frontend/.env.example`:
+
+```bash
+kubectl -n portfolio-helper create secret generic frontend-secrets \
+  --from-literal=NEXTAUTH_SECRET="$(openssl rand -hex 32)" \
+  --from-literal=JWT_SECRET="$(openssl rand -hex 32)" \
+  --from-literal=STRIPE_SECRET_KEY="..." \
+  --from-literal=STRIPE_WEBHOOK_SECRET="..." \
+  --from-literal=NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY="..."
+```
+
+### `ghcr-credentials` — image pull secret for the private GHCR images built
+by `.github/workflows/build-and-push.yml`:
+
+```bash
+kubectl -n portfolio-helper create secret docker-registry ghcr-credentials \
+  --docker-server=ghcr.io \
+  --docker-username=<gh-username> \
+  --docker-password=<gh-pat-with-read:packages>
+```
+
+## 2. Fetch chart dependencies
+
+```bash
+cd charts/portfolio-helper
+helm dependency update
+```
+
+**Before your first install**, verify the pinned Bitnami/MinIO chart
+versions in `Chart.yaml` are still resolvable and double-check the
+`existingSecret`/`secretKeys` field names referenced in `values.yaml`
+against `helm show values` for whatever version actually resolves —
+Bitnami's chart distribution and internal schemas have shifted more than
+once; the versions and field paths here were current at time of writing but
+are exactly the kind of third-party detail worth a quick sanity check
+before a real deploy, not something to trust blindly from a comment.
+
+```bash
+helm show values oci://registry-1.docker.io/bitnamicharts/postgresql-ha --version <resolved-version>
+helm show values oci://registry-1.docker.io/bitnamicharts/redis --version <resolved-version>
+helm show values oci://registry-1.docker.io/bitnamicharts/rabbitmq --version <resolved-version>
+```
+
+## 3. Install / upgrade
+
+```bash
+# Local dev (kind/k3d):
+helm upgrade --install portfolio-helper . \
+  -f values.yaml -f values-dev.yaml \
+  --set image.owner=<your-ghcr-owner> \
+  -n portfolio-helper --create-namespace --wait --timeout 10m
+
+# Staging / prod: same shape, different values file + real image tag (CI
+# passes --set image.tag=$IMAGE_TAG — see ../../.github/workflows/deploy-k8s.yml)
+helm upgrade --install portfolio-helper . \
+  -f values.yaml -f values-prod.yaml \
+  --set image.owner=<your-ghcr-owner> \
+  --set image.tag=<sha-or-tag> \
+  -n portfolio-helper --create-namespace --wait --timeout 10m
+```
+
+`--wait` blocks until the pre-upgrade Alembic migration Job succeeds and all
+Deployments report ready — a failed migration fails the whole `helm upgrade`
+instead of rolling forward broken code against an unmigrated schema.
+
+## 4. Validate
+
+```bash
+kubectl -n portfolio-helper get pods
+kubectl -n portfolio-helper get scaledobject
+kubectl -n portfolio-helper get ingress
+```
+
+Then the specific chaos checks this whole migration exists to satisfy:
+
+- **Kill a worker pod mid-generation**, confirm RabbitMQ redelivers the
+  message to another worker pod (`kubectl -n portfolio-helper delete pod
+  -l app.kubernetes.io/name=portfolio-helper-worker --wait=false` while a
+  chat is streaming).
+- **Scale `agents` to 3+ replicas**, confirm SSE streaming and the
+  approval/client-tool flow still work when dispatch and consumption land
+  on different pods (they should — see `app/agents/pubsub.py` and
+  `app/business_logic/streaming.py`).
+- **Kill the Postgres primary pod**, confirm `postgresql-ha`'s repmgr
+  promotes a standby and pgpool keeps routing traffic.

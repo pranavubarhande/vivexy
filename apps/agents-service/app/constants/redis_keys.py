@@ -11,9 +11,6 @@ REDIS_CHANNEL_APPROVAL = "approval_channel:{request_id}"
 REDIS_KEY_CLIENT_TOOL = "client_tool:{request_id}"
 REDIS_CHANNEL_CLIENT_TOOL = "client_tool_channel:{request_id}"
 
-# SSE stream (worker -> web)
-REDIS_CHANNEL_CHAT_STREAM = "chat:stream:{chat_id}"
-
 # Redis stream for pub/sub SSE relay
 REDIS_KEY_STREAM_TOKEN = (
     "stream_token:{stream_id}"  # TTL 120s — one-time EventSource auth
