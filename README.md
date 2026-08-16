@@ -1,4 +1,4 @@
-# Vivexy AI workspace template 
+# Vivexy AI OS Template 
 
 A scalable SaaS application for AI agentic workflows, built as a polyglot monorepo.
 
