@@ -1,4 +1,7 @@
-# Vivexy AI OS Template 
+# Vivexy AI OS Template
+
+[![Build and Push](https://github.com/pranavubarhande/vivexy/actions/workflows/build-and-push.yml/badge.svg)](https://github.com/pranavubarhande/vivexy/actions/workflows/build-and-push.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 A scalable SaaS application for AI agentic workflows, built as a polyglot monorepo.
 
@@ -7,8 +10,8 @@ A scalable SaaS application for AI agentic workflows, built as a polyglot monore
 This monorepo contains:
 
 - **Frontend**: Next.js application (apps/frontend)
+- **Desktop**: Electron app wrapping the frontend build (apps/desktop)
 - **Backend Services**: Flask-based AI agents service (apps/agents-service)
-- **Shared Packages**: Common TypeScript/Python utilities (packages/)
 - **Infrastructure**: Docker, deployment configs (infra/)
 
 ## Tech Stack
@@ -182,8 +185,6 @@ vivexy/
 │       ├── alembic/              # Database migrations
 │       │   └── versions/         # Migration scripts
 │       └── scripts/              # Seed scripts (seed_llm_models.py)
-├── packages/                     # Shared packages
-│   └── shared-types/             # TypeScript types
 ├── infra/                        # Deployment infrastructure
 │   ├── docker/                   # Production Dockerfiles
 │   └── k8s/                      # Helm chart + cluster bootstrap docs
@@ -236,8 +237,6 @@ pre-upgrade hook) on every push to `main`.
 
 For local development, see the Quick Start section above — use `npm run dev` with Postgres/Redis running natively.
 
-For local development, see the Quick Start section above — use `npm run dev` with Postgres/Redis running natively.
-
 ## Code Quality & Formatting
 
 This monorepo uses automated code formatting and pre-commit hooks to maintain consistent code quality.
@@ -272,3 +271,15 @@ uv run black .        # Format Python code
 uv run isort .        # Sort imports
 uv run flake8 .       # Lint Python code
 ```
+
+## Contributing
+
+Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for community guidelines.
+
+## Security
+
+To report a vulnerability, see [SECURITY.md](SECURITY.md).
+
+## License
+
+MIT — see [LICENSE](LICENSE).
