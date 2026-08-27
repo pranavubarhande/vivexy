@@ -1,6 +1,6 @@
 # Cluster bootstrap (one-time, per cluster)
 
-These are cluster-scoped add-ons the `portfolio-helper` app chart depends on
+These are cluster-scoped add-ons the `vivexy` app chart depends on
 but does not install itself — CRDs and cluster-wide operators don't belong
 inside an application chart's lifecycle (installing/upgrading/uninstalling
 the app release shouldn't touch them). Run this once per cluster, before the

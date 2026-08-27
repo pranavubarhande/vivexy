@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { platform } from '@/lib/platform';
 import type { GitContext } from '@/types/chat';
 
-const STORAGE_KEY = 'portfolio-helper-git-context';
+const STORAGE_KEY = 'vivexy-git-context';
 
 function loadCached(): GitContext | null {
   if (typeof window === 'undefined') return null;

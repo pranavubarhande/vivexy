@@ -96,9 +96,7 @@ class AsyncPubSubStore:
         """Signal a waiting generator with a result payload (possibly on another pod)."""
         r = _get_redis()
         if r is None:
-            logger.error(
-                "Cannot resolve event %s — Redis is unavailable", request_id
-            )
+            logger.error("Cannot resolve event %s — Redis is unavailable", request_id)
             return False
 
         try:

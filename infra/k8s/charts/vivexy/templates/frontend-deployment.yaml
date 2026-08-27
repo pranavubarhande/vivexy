@@ -3,25 +3,25 @@ kind: Deployment
 metadata:
   name: {{ .Release.Name }}-frontend
   labels:
-    {{- include "portfolio-helper.labels" . | nindent 4 }}
-    {{- include "portfolio-helper.selectorLabels" (dict "component" "frontend" "root" $) | nindent 4 }}
+    {{- include "vivexy.labels" . | nindent 4 }}
+    {{- include "vivexy.selectorLabels" (dict "component" "frontend" "root" $) | nindent 4 }}
 spec:
   {{- if not .Values.frontend.autoscaling.enabled }}
   replicas: {{ .Values.frontend.replicaCount }}
   {{- end }}
   selector:
     matchLabels:
-      {{- include "portfolio-helper.selectorLabels" (dict "component" "frontend" "root" $) | nindent 6 }}
+      {{- include "vivexy.selectorLabels" (dict "component" "frontend" "root" $) | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "portfolio-helper.selectorLabels" (dict "component" "frontend" "root" $) | nindent 8 }}
+        {{- include "vivexy.selectorLabels" (dict "component" "frontend" "root" $) | nindent 8 }}
     spec:
       imagePullSecrets:
         {{- toYaml .Values.imagePullSecrets | nindent 8 }}
       containers:
         - name: frontend
-          image: {{ include "portfolio-helper.frontendImage" . }}
+          image: {{ include "vivexy.frontendImage" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http
@@ -47,10 +47,10 @@ kind: Service
 metadata:
   name: {{ .Release.Name }}-frontend
   labels:
-    {{- include "portfolio-helper.labels" . | nindent 4 }}
+    {{- include "vivexy.labels" . | nindent 4 }}
 spec:
   selector:
-    {{- include "portfolio-helper.selectorLabels" (dict "component" "frontend" "root" $) | nindent 4 }}
+    {{- include "vivexy.selectorLabels" (dict "component" "frontend" "root" $) | nindent 4 }}
   ports:
     - name: http
       port: 80
@@ -62,7 +62,7 @@ kind: HorizontalPodAutoscaler
 metadata:
   name: {{ .Release.Name }}-frontend
   labels:
-    {{- include "portfolio-helper.labels" . | nindent 4 }}
+    {{- include "vivexy.labels" . | nindent 4 }}
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
@@ -85,10 +85,10 @@ kind: PodDisruptionBudget
 metadata:
   name: {{ .Release.Name }}-frontend
   labels:
-    {{- include "portfolio-helper.labels" . | nindent 4 }}
+    {{- include "vivexy.labels" . | nindent 4 }}
 spec:
   minAvailable: {{ .Values.frontend.podDisruptionBudget.minAvailable }}
   selector:
     matchLabels:
-      {{- include "portfolio-helper.selectorLabels" (dict "component" "frontend" "root" $) | nindent 6 }}
+      {{- include "vivexy.selectorLabels" (dict "component" "frontend" "root" $) | nindent 6 }}
 {{- end }}

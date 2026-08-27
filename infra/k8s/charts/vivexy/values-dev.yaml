@@ -1,8 +1,8 @@
 # Local dev overlay — small footprint for kind/k3d. No HA: single replica of
 # everything, minimal resource requests, small PVCs. Use with:
 #   helm dependency update
-#   helm upgrade --install portfolio-helper . -f values.yaml -f values-dev.yaml \
-#     -n portfolio-helper --create-namespace
+#   helm upgrade --install vivexy . -f values.yaml -f values-dev.yaml \
+#     -n vivexy --create-namespace
 
 image:
   tag: latest
@@ -15,9 +15,9 @@ frontend:
   podDisruptionBudget:
     enabled: false
   env:
-    NEXT_PUBLIC_APP_URL: "http://portfolio-helper.local"
-    NEXTAUTH_URL: "http://portfolio-helper.local"
-    NEXT_PUBLIC_API_URL: "http://api.portfolio-helper.local"
+    NEXT_PUBLIC_APP_URL: "http://vivexy.local"
+    NEXTAUTH_URL: "http://vivexy.local"
+    NEXT_PUBLIC_API_URL: "http://api.vivexy.local"
 
 agents:
   replicaCount: 1
@@ -26,7 +26,7 @@ agents:
   podDisruptionBudget:
     enabled: false
   env:
-    CORS_ORIGINS: "http://portfolio-helper.local"
+    CORS_ORIGINS: "http://vivexy.local"
     DB_POOL_SIZE: "5"
     DB_POOL_MAX_OVERFLOW: "5"
 
@@ -44,8 +44,8 @@ ingress:
   enabled: true
   className: nginx
   clusterIssuer: "" # no cert-manager in dev — plain HTTP
-  frontendHost: portfolio-helper.local
-  apiHost: api.portfolio-helper.local
+  frontendHost: vivexy.local
+  apiHost: api.vivexy.local
 
 networkPolicy:
   enabled: false

@@ -4,7 +4,7 @@ kind: Job
 metadata:
   name: {{ .Release.Name }}-migrations-{{ .Release.Revision }}
   labels:
-    {{- include "portfolio-helper.labels" . | nindent 4 }}
+    {{- include "vivexy.labels" . | nindent 4 }}
   annotations:
     # Runs before every install/upgrade and blocks the rest of the rollout
     # (via --wait in CI) until it exits 0 — the k8s equivalent of
@@ -20,20 +20,20 @@ spec:
   template:
     metadata:
       labels:
-        {{- include "portfolio-helper.selectorLabels" (dict "component" "migrations" "root" $) | nindent 8 }}
+        {{- include "vivexy.selectorLabels" (dict "component" "migrations" "root" $) | nindent 8 }}
     spec:
       restartPolicy: Never
       imagePullSecrets:
         {{- toYaml .Values.imagePullSecrets | nindent 8 }}
       containers:
         - name: migrations
-          image: {{ include "portfolio-helper.agentsImage" . }}
+          image: {{ include "vivexy.agentsImage" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           command: ["/bin/sh", "-c"]
           args:
             - |
               set -e
-              {{- include "portfolio-helper.composeConnectionUrls" . | nindent 14 }}
+              {{- include "vivexy.composeConnectionUrls" . | nindent 14 }}
               exec uv run alembic upgrade head
           envFrom:
             - configMapRef:

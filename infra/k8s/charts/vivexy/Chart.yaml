@@ -1,7 +1,7 @@
 apiVersion: v2
-name: portfolio-helper
+name: vivexy
 description: >-
-  Umbrella chart for the Portfolio Helper platform — frontend, agents API,
+  Umbrella chart for the Vivexy platform — frontend, agents API,
   chat/RAG/scheduled-task workers, scheduler, and in-cluster Postgres/Redis/
   RabbitMQ/MinIO. Deploys as one `helm upgrade --install` release per
   environment (see ../../values-*.yaml note in README.md).

@@ -6,10 +6,10 @@
         "name": "Pranav Ubarhande",
         "email": "pranavubarhande3@gmail.com"
     },
-    "homepage": "https://github.com/pranavubarhande/portfolio-helper-fe",
+    "homepage": "https://github.com/pranavubarhande/vivexy",
     "repository": {
         "type": "git",
-        "url": "https://github.com/pranavubarhande/portfolio-helper-fe.git"
+        "url": "https://github.com/pranavubarhande/vivexy.git"
     },
     "private": true,
     "main": "dist/main.js",

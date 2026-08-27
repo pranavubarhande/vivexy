@@ -34,7 +34,13 @@ from app.agents.config import FileContext
 from app.business_logic.attachments import _try_index_attachment
 from app.business_logic.streaming import NoopAppContext, run_agent_stream_to_redis
 from app.constants.redis_keys import REDIS_STREAM_CHAT
-from configs import CHAT_QUEUE, PREFETCH_COUNT, RAG_QUEUE, REDIS_URL, SCHEDULED_TASK_QUEUE
+from configs import (
+    CHAT_QUEUE,
+    PREFETCH_COUNT,
+    RAG_QUEUE,
+    REDIS_URL,
+    SCHEDULED_TASK_QUEUE,
+)
 from worker.broker import get_connection
 
 logger = logging.getLogger(__name__)

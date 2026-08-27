@@ -3,12 +3,12 @@ kind: ConfigMap
 metadata:
   name: {{ .Release.Name }}-agents-config
   labels:
-    {{- include "portfolio-helper.labels" . | nindent 4 }}
+    {{- include "vivexy.labels" . | nindent 4 }}
 data:
   {{- range $k, $v := .Values.agents.env }}
   {{ $k }}: {{ $v | quote }}
   {{- end }}
-  AWS_S3_ENDPOINT_URL: {{ include "portfolio-helper.minioEndpoint" . | quote }}
+  AWS_S3_ENDPOINT_URL: {{ include "vivexy.minioEndpoint" . | quote }}
   AWS_S3_BUCKET_NAME: {{ (first .Values.minio.buckets).name | quote }}
   AWS_S3_REGION: "us-east-1"
 ---
@@ -17,7 +17,7 @@ kind: ConfigMap
 metadata:
   name: {{ .Release.Name }}-frontend-config
   labels:
-    {{- include "portfolio-helper.labels" . | nindent 4 }}
+    {{- include "vivexy.labels" . | nindent 4 }}
 data:
   {{- range $k, $v := .Values.frontend.env }}
   {{ $k }}: {{ $v | quote }}

@@ -1,9 +1,9 @@
-# Kubernetes deploy — portfolio-helper
+# Kubernetes deploy — vivexy
 
 Replaces the old `infra/aws` (Terraform/ECS), `infra/coolify`, and
 `infra/free` (Koyeb) paths. Postgres, Redis, RabbitMQ, and object storage
 (MinIO) now run **inside** the cluster as Helm-managed dependencies of the
-`portfolio-helper` chart, rather than as external managed cloud services —
+`vivexy` chart, rather than as external managed cloud services —
 see the chart's `Chart.yaml`/`values.yaml` for the specific subcharts and
 the tradeoffs of that choice (documented inline, including the Redis
 Sentinel caveat).
@@ -26,7 +26,7 @@ secret is a Kubernetes `Secret` created out-of-band and referenced by name
 `values.yaml`). Create the namespace first:
 
 ```bash
-kubectl create namespace portfolio-helper
+kubectl create namespace vivexy
 ```
 
 ### `data-credentials` — shared by the app containers AND the postgresql-ha/
@@ -38,10 +38,10 @@ Secret, so the password only needs to be generated once).
 PG_PW=$(openssl rand -hex 20)
 REDIS_PW=$(openssl rand -hex 20)
 RABBITMQ_PW=$(openssl rand -hex 20)
-MINIO_USER=portfoliohelper
+MINIO_USER=vivexy
 MINIO_PW=$(openssl rand -hex 20)
 
-kubectl -n portfolio-helper create secret generic data-credentials \
+kubectl -n vivexy create secret generic data-credentials \
   --from-literal=postgres-password="$PG_PW" \
   --from-literal=redis-password="$REDIS_PW" \
   --from-literal=rabbitmq-password="$RABBITMQ_PW" \
@@ -51,7 +51,7 @@ kubectl -n portfolio-helper create secret generic data-credentials \
 ```
 
 Replace `RELEASE_NAME` in `rabbitmq-url` with whatever you pass as the Helm
-release name in step 3 (e.g. `portfolio-helper`) — KEDA's `TriggerAuthentication`
+release name in step 3 (e.g. `vivexy`) — KEDA's `TriggerAuthentication`
 reads this key directly to poll RabbitMQ queue depth, so it needs the fully
 composed connection string, not just the password.
 
@@ -64,7 +64,7 @@ composes for you from `data-credentials` + known in-cluster service names,
 see `templates/_helpers.tpl`):
 
 ```bash
-kubectl -n portfolio-helper create secret generic agents-secrets \
+kubectl -n vivexy create secret generic agents-secrets \
   --from-literal=JWT_SECRET_KEY="$(openssl rand -hex 32)" \
   --from-literal=SECRET_KEY="$(openssl rand -hex 32)" \
   --from-literal=OPENAI_API_KEY="..." \
@@ -81,7 +81,7 @@ kubectl -n portfolio-helper create secret generic agents-secrets \
 ### `frontend-secrets` — from `apps/frontend/.env.example`:
 
 ```bash
-kubectl -n portfolio-helper create secret generic frontend-secrets \
+kubectl -n vivexy create secret generic frontend-secrets \
   --from-literal=NEXTAUTH_SECRET="$(openssl rand -hex 32)" \
   --from-literal=JWT_SECRET="$(openssl rand -hex 32)" \
   --from-literal=STRIPE_SECRET_KEY="..." \
@@ -93,7 +93,7 @@ kubectl -n portfolio-helper create secret generic frontend-secrets \
 by `.github/workflows/build-and-push.yml`:
 
 ```bash
-kubectl -n portfolio-helper create secret docker-registry ghcr-credentials \
+kubectl -n vivexy create secret docker-registry ghcr-credentials \
   --docker-server=ghcr.io \
   --docker-username=<gh-username> \
   --docker-password=<gh-pat-with-read:packages>
@@ -102,7 +102,7 @@ kubectl -n portfolio-helper create secret docker-registry ghcr-credentials \
 ## 2. Fetch chart dependencies
 
 ```bash
-cd charts/portfolio-helper
+cd charts/vivexy
 helm dependency update
 ```
 
@@ -125,18 +125,18 @@ helm show values oci://registry-1.docker.io/bitnamicharts/rabbitmq --version <re
 
 ```bash
 # Local dev (kind/k3d):
-helm upgrade --install portfolio-helper . \
+helm upgrade --install vivexy . \
   -f values.yaml -f values-dev.yaml \
   --set image.owner=<your-ghcr-owner> \
-  -n portfolio-helper --create-namespace --wait --timeout 10m
+  -n vivexy --create-namespace --wait --timeout 10m
 
 # Staging / prod: same shape, different values file + real image tag (CI
 # passes --set image.tag=$IMAGE_TAG — see ../../.github/workflows/deploy-k8s.yml)
-helm upgrade --install portfolio-helper . \
+helm upgrade --install vivexy . \
   -f values.yaml -f values-prod.yaml \
   --set image.owner=<your-ghcr-owner> \
   --set image.tag=<sha-or-tag> \
-  -n portfolio-helper --create-namespace --wait --timeout 10m
+  -n vivexy --create-namespace --wait --timeout 10m
 ```
 
 `--wait` blocks until the pre-upgrade Alembic migration Job succeeds and all
@@ -146,16 +146,16 @@ instead of rolling forward broken code against an unmigrated schema.
 ## 4. Validate
 
 ```bash
-kubectl -n portfolio-helper get pods
-kubectl -n portfolio-helper get scaledobject
-kubectl -n portfolio-helper get ingress
+kubectl -n vivexy get pods
+kubectl -n vivexy get scaledobject
+kubectl -n vivexy get ingress
 ```
 
 Then the specific chaos checks this whole migration exists to satisfy:
 
 - **Kill a worker pod mid-generation**, confirm RabbitMQ redelivers the
-  message to another worker pod (`kubectl -n portfolio-helper delete pod
-  -l app.kubernetes.io/name=portfolio-helper-worker --wait=false` while a
+  message to another worker pod (`kubectl -n vivexy delete pod
+  -l app.kubernetes.io/name=vivexy-worker --wait=false` while a
   chat is streaming).
 - **Scale `agents` to 3+ replicas**, confirm SSE streaming and the
   approval/client-tool flow still work when dispatch and consumption land

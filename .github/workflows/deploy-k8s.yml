@@ -33,9 +33,9 @@ permissions:
 
 env:
   GHCR_OWNER: ${{ github.repository_owner }}
-  CHART_PATH: infra/k8s/charts/portfolio-helper
-  NAMESPACE: portfolio-helper
-  RELEASE_NAME: portfolio-helper
+  CHART_PATH: infra/k8s/charts/vivexy
+  NAMESPACE: vivexy
+  RELEASE_NAME: vivexy
 
 jobs:
   deploy:

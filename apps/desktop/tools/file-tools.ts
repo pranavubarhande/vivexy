@@ -2,7 +2,7 @@
  * Client-side file tools.
  *
  * Reads and analyzes files from the local filesystem instead of S3.
- * Files are stored under ~/PortfolioHelper/files/{chatId}/.
+ * Files are stored under ~/Vivexy/files/{chatId}/.
  */
 
 import * as fs from 'fs';

@@ -23,7 +23,7 @@ export interface McpServerConfig {
 }
 
 /**
- * A skill is stored as a folder on disk: ~/.portfolio-helper-skills/{name}/
+ * A skill is stored as a folder on disk: ~/.vivexy-skills/{name}/
  *   SKILL.md  — main entry file (instructions + frontmatter)
  *   *.md      — optional supporting reference files
  */

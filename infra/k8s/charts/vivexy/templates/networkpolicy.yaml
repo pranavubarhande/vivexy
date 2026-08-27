@@ -14,7 +14,7 @@ kind: NetworkPolicy
 metadata:
   name: {{ .Release.Name }}-default-deny-ingress
   labels:
-    {{- include "portfolio-helper.labels" . | nindent 4 }}
+    {{- include "vivexy.labels" . | nindent 4 }}
 spec:
   podSelector: {}
   policyTypes: [Ingress]
@@ -24,11 +24,11 @@ kind: NetworkPolicy
 metadata:
   name: {{ .Release.Name }}-allow-ingress-to-frontend
   labels:
-    {{- include "portfolio-helper.labels" . | nindent 4 }}
+    {{- include "vivexy.labels" . | nindent 4 }}
 spec:
   podSelector:
     matchLabels:
-      {{- include "portfolio-helper.selectorLabels" (dict "component" "frontend" "root" $) | nindent 6 }}
+      {{- include "vivexy.selectorLabels" (dict "component" "frontend" "root" $) | nindent 6 }}
   policyTypes: [Ingress]
   ingress:
     - from:
@@ -41,11 +41,11 @@ kind: NetworkPolicy
 metadata:
   name: {{ .Release.Name }}-allow-ingress-to-agents
   labels:
-    {{- include "portfolio-helper.labels" . | nindent 4 }}
+    {{- include "vivexy.labels" . | nindent 4 }}
 spec:
   podSelector:
     matchLabels:
-      {{- include "portfolio-helper.selectorLabels" (dict "component" "agents" "root" $) | nindent 6 }}
+      {{- include "vivexy.selectorLabels" (dict "component" "agents" "root" $) | nindent 6 }}
   policyTypes: [Ingress]
   ingress:
     - from:

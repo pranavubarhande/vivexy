@@ -43,8 +43,8 @@ brew install uv
 1. **Clone and setup**:
 
    ```bash
-   git clone https://github.com/pranavubarhande/portfolio-helper-fe.git
-   cd portfolio-helper-fe
+   git clone https://github.com/pranavubarhande/vivexy.git
+   cd vivexy
    ```
 
 2. **Install dependencies**:
@@ -163,7 +163,7 @@ uv run alembic history
 ## Project Structure
 
 ```
-portfolio-helper-fe/
+vivexy/
 ├── apps/                         # Applications
 │   ├── frontend/                 # Next.js UI
 │   │   ├── components/           # React components
@@ -198,20 +198,20 @@ portfolio-helper-fe/
 ### Root .env
 
 ```
-DATABASE_URL=postgresql://user:password@localhost:5432/portfolio_helper
+DATABASE_URL=postgresql://user:password@localhost:5432/vivexy
 ```
 
 ### Frontend .env.local
 
 ```
 NEXT_PUBLIC_API_URL=http://localhost:5000
-DATABASE_URL=postgresql://user:password@localhost:5432/portfolio_helper
+DATABASE_URL=postgresql://user:password@localhost:5432/vivexy
 ```
 
 ### Agents Service .env
 
 ```
-DATABASE_URL=postgresql://user:password@localhost:5432/portfolio_helper
+DATABASE_URL=postgresql://user:password@localhost:5432/vivexy
 OPENAI_API_KEY=your_key
 ANTHROPIC_API_KEY=your_key
 GOOGLE_AI_API_KEY=your_key
@@ -223,7 +223,7 @@ REDIS_URL=redis://localhost:6379
 
 Deploys to any Kubernetes cluster (kind/k3d locally, EKS, GKE, AKS, a bare-metal
 cluster — nothing is cloud-specific) via the Helm chart in
-[infra/k8s/charts/portfolio-helper](infra/k8s/charts/portfolio-helper). Postgres,
+[infra/k8s/charts/vivexy](infra/k8s/charts/vivexy). Postgres,
 Redis, RabbitMQ, and object storage (MinIO) run in-cluster as chart dependencies —
 see [infra/k8s/README.md](infra/k8s/README.md) for prerequisites, secrets setup,
 and install/upgrade instructions, and [infra/k8s/bootstrap/README.md](infra/k8s/bootstrap/README.md)

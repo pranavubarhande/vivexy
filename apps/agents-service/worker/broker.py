@@ -56,7 +56,9 @@ def get_connection() -> Optional[pika.BlockingConnection]:
 
 def _declare_topology(channel) -> None:
     """Declare the dead-letter exchange plus all durable/quorum queues."""
-    channel.exchange_declare(exchange=DLX_EXCHANGE, exchange_type="fanout", durable=True)
+    channel.exchange_declare(
+        exchange=DLX_EXCHANGE, exchange_type="fanout", durable=True
+    )
 
     for queue in (CHAT_QUEUE, RAG_QUEUE, SCHEDULED_TASK_QUEUE):
         args = dict(_QUEUE_ARGS)

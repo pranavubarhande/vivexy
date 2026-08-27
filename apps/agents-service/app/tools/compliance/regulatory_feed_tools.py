@@ -30,7 +30,7 @@ def _parse_feed(url: str, source_name: str, limit: int = 5) -> list:
             url,
             timeout=15,
             follow_redirects=True,
-            headers={"User-Agent": "portfolio-helper research@example.com"},
+            headers={"User-Agent": "vivexy research@example.com"},
         )
         resp.raise_for_status()
         root = ElementTree.fromstring(resp.content)

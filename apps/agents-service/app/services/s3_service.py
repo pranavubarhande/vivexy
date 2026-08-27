@@ -36,7 +36,7 @@ class S3Service:
             (
                 Config.AWS_S3_BUCKET_NAME
                 if hasattr(Config, "AWS_S3_BUCKET_NAME")
-                else "portfolio-helper-files"
+                else "vivexy-files"
             ),
         )
         self.region = os.getenv(

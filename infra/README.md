@@ -10,5 +10,5 @@
 The previous AWS Terraform (ECS/RDS/ElastiCache/Amazon MQ), Coolify
 docker-compose, and Koyeb deployment paths have been retired in favor of the
 Kubernetes chart in `k8s/` — Postgres, Redis, RabbitMQ, and object storage
-now run in-cluster (via `k8s/charts/portfolio-helper`'s Helm dependencies)
+now run in-cluster (via `k8s/charts/vivexy`'s Helm dependencies)
 rather than as external managed cloud services.

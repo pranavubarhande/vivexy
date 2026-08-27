@@ -4,7 +4,7 @@ kind: Ingress
 metadata:
   name: {{ .Release.Name }}
   labels:
-    {{- include "portfolio-helper.labels" . | nindent 4 }}
+    {{- include "vivexy.labels" . | nindent 4 }}
   annotations:
     {{- if .Values.ingress.clusterIssuer }}
     cert-manager.io/cluster-issuer: {{ .Values.ingress.clusterIssuer }}

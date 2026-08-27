@@ -1,7 +1,7 @@
 [project]
 name = "agents-service"
 version = "0.1.0"
-description = "AI Agents service for portfolio helper"
+description = "AI Agents service for Vivexy"
 authors = [{name = "Pranav Ubarhande", email = "pranavubarhande@gmail.com"}]
 requires-python = ">=3.11"
 dependencies = [

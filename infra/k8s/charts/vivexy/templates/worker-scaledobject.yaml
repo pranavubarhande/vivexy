@@ -14,7 +14,7 @@ kind: ScaledObject
 metadata:
   name: {{ .Release.Name }}-worker
   labels:
-    {{- include "portfolio-helper.labels" . | nindent 4 }}
+    {{- include "vivexy.labels" . | nindent 4 }}
 spec:
   scaleTargetRef:
     name: {{ .Release.Name }}-worker

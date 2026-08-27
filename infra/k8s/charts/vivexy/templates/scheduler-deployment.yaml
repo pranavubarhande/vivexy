@@ -3,8 +3,8 @@ kind: Deployment
 metadata:
   name: {{ .Release.Name }}-scheduler
   labels:
-    {{- include "portfolio-helper.labels" . | nindent 4 }}
-    {{- include "portfolio-helper.selectorLabels" (dict "component" "scheduler" "root" $) | nindent 4 }}
+    {{- include "vivexy.labels" . | nindent 4 }}
+    {{- include "vivexy.selectorLabels" (dict "component" "scheduler" "root" $) | nindent 4 }}
 spec:
   # Safe to run >1 replica: worker/scheduler.py claims due tasks with
   # `SELECT ... FOR UPDATE SKIP LOCKED`, so concurrent schedulers never
@@ -12,23 +12,23 @@ spec:
   replicas: {{ .Values.scheduler.replicaCount }}
   selector:
     matchLabels:
-      {{- include "portfolio-helper.selectorLabels" (dict "component" "scheduler" "root" $) | nindent 6 }}
+      {{- include "vivexy.selectorLabels" (dict "component" "scheduler" "root" $) | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "portfolio-helper.selectorLabels" (dict "component" "scheduler" "root" $) | nindent 8 }}
+        {{- include "vivexy.selectorLabels" (dict "component" "scheduler" "root" $) | nindent 8 }}
     spec:
       imagePullSecrets:
         {{- toYaml .Values.imagePullSecrets | nindent 8 }}
       containers:
         - name: scheduler
-          image: {{ include "portfolio-helper.agentsImage" . }}
+          image: {{ include "vivexy.agentsImage" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           command: ["/bin/sh", "-c"]
           args:
             - |
               set -e
-              {{- include "portfolio-helper.composeConnectionUrls" . | nindent 14 }}
+              {{- include "vivexy.composeConnectionUrls" . | nindent 14 }}
               exec python -m worker.scheduler
           envFrom:
             - configMapRef:
@@ -53,9 +53,9 @@ kind: PodDisruptionBudget
 metadata:
   name: {{ .Release.Name }}-scheduler
   labels:
-    {{- include "portfolio-helper.labels" . | nindent 4 }}
+    {{- include "vivexy.labels" . | nindent 4 }}
 spec:
   minAvailable: 1
   selector:
     matchLabels:
-      {{- include "portfolio-helper.selectorLabels" (dict "component" "scheduler" "root" $) | nindent 6 }}
+      {{- include "vivexy.selectorLabels" (dict "component" "scheduler" "root" $) | nindent 6 }}

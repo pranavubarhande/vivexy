@@ -1,7 +1,7 @@
-# Default values for the portfolio-helper umbrella chart.
+# Default values for the vivexy umbrella chart.
 # Override per-environment via values-dev.yaml / values-staging.yaml / values-prod.yaml:
-#   helm upgrade --install portfolio-helper . -f values.yaml -f values-prod.yaml \
-#     --set image.tag=$IMAGE_TAG -n portfolio-helper --create-namespace
+#   helm upgrade --install vivexy . -f values.yaml -f values-prod.yaml \
+#     --set image.tag=$IMAGE_TAG -n vivexy --create-namespace
 
 # ---------------------------------------------------------------------------
 # Images
@@ -9,8 +9,8 @@
 image:
   registry: ghcr.io
   owner: CHANGE_ME # GHCR owner/org — e.g. the repo owner from build-and-push.yml
-  agentsRepository: portfolio-helper-agents
-  frontendRepository: portfolio-helper-frontend
+  agentsRepository: vivexy-agents
+  frontendRepository: vivexy-frontend
   tag: latest # overridden by CI: --set image.tag=sha-<commit>
   pullPolicy: IfNotPresent
 
@@ -142,8 +142,8 @@ ingress:
   clusterIssuer: letsencrypt-prod # cert-manager ClusterIssuer, see bootstrap/
   frontendHost: CHANGE_ME.example.com
   apiHost: CHANGE_ME-api.example.com
-  tlsSecretFrontend: portfolio-helper-frontend-tls
-  tlsSecretApi: portfolio-helper-api-tls
+  tlsSecretFrontend: vivexy-frontend-tls
+  tlsSecretApi: vivexy-api-tls
 
 networkPolicy:
   enabled: true
@@ -166,8 +166,8 @@ networkPolicy:
 postgresql-ha:
   enabled: true
   postgresql:
-    username: portfoliohelper
-    database: portfolio_helper
+    username: vivexy
+    database: vivexy
     existingSecret: data-credentials
     # Most Bitnami charts let you point the "which key in existingSecret"
     # lookup at your own key name instead of their internal default — this
@@ -252,6 +252,6 @@ minio:
     enabled: true
     size: 50Gi
   buckets:
-    - name: portfolio-helper-uploads
+    - name: vivexy-uploads
       policy: none
       purge: false

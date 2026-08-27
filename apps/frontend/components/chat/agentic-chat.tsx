@@ -302,9 +302,7 @@ export const AgenticChat = ({
   >(() => {
     if (typeof window === 'undefined') return {};
     try {
-      return JSON.parse(
-        localStorage.getItem('portfolio-helper-chat-contexts') ?? '{}'
-      );
+      return JSON.parse(localStorage.getItem('vivexy-chat-contexts') ?? '{}');
     } catch {
       return {};
     }
@@ -317,10 +315,7 @@ export const AgenticChat = ({
         if (prev[id]) return prev; // already locked — never overwrite
         const next = { ...prev, [id]: ctx };
         try {
-          localStorage.setItem(
-            'portfolio-helper-chat-contexts',
-            JSON.stringify(next)
-          );
+          localStorage.setItem('vivexy-chat-contexts', JSON.stringify(next));
         } catch {
           /* ignore */
         }

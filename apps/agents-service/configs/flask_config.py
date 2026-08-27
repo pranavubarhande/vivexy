@@ -15,7 +15,7 @@ class Config:
     # Database
     SQLALCHEMY_DATABASE_URI = os.getenv(
         "DATABASE_URL",
-        "postgresql://postgres:pranav@localhost:5432/portfolio_helper_llm?schema=public",
+        "postgresql://postgres:pranav@localhost:5432/vivexy?schema=public",
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     # Bounded pool per process, not SQLAlchemy's defaults: each pod runs
@@ -56,7 +56,7 @@ class Config:
     # AWS S3 Configuration
     AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
     AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
-    AWS_S3_BUCKET_NAME = os.getenv("AWS_S3_BUCKET_NAME", "portfolio-helper-files")
+    AWS_S3_BUCKET_NAME = os.getenv("AWS_S3_BUCKET_NAME", "vivexy-files")
     AWS_S3_REGION = os.getenv("AWS_S3_REGION", "us-east-1")
 
     # RAG Configuration

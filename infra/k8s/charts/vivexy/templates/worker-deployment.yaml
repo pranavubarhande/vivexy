@@ -3,19 +3,19 @@ kind: Deployment
 metadata:
   name: {{ .Release.Name }}-worker
   labels:
-    {{- include "portfolio-helper.labels" . | nindent 4 }}
-    {{- include "portfolio-helper.selectorLabels" (dict "component" "worker" "root" $) | nindent 4 }}
+    {{- include "vivexy.labels" . | nindent 4 }}
+    {{- include "vivexy.selectorLabels" (dict "component" "worker" "root" $) | nindent 4 }}
 spec:
   {{- if not .Values.worker.keda.enabled }}
   replicas: {{ .Values.worker.replicaCount }}
   {{- end }}
   selector:
     matchLabels:
-      {{- include "portfolio-helper.selectorLabels" (dict "component" "worker" "root" $) | nindent 6 }}
+      {{- include "vivexy.selectorLabels" (dict "component" "worker" "root" $) | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "portfolio-helper.selectorLabels" (dict "component" "worker" "root" $) | nindent 8 }}
+        {{- include "vivexy.selectorLabels" (dict "component" "worker" "root" $) | nindent 8 }}
     spec:
       # Paired with worker/consumer.py's SIGTERM handler (stop consuming NEW
       # messages, let the in-flight job finish and ack/nack normally) — this
@@ -28,13 +28,13 @@ spec:
         {{- toYaml .Values.imagePullSecrets | nindent 8 }}
       containers:
         - name: worker
-          image: {{ include "portfolio-helper.agentsImage" . }}
+          image: {{ include "vivexy.agentsImage" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           command: ["/bin/sh", "-c"]
           args:
             - |
               set -e
-              {{- include "portfolio-helper.composeConnectionUrls" . | nindent 14 }}
+              {{- include "vivexy.composeConnectionUrls" . | nindent 14 }}
               exec python -m worker.consumer
           envFrom:
             - configMapRef:

@@ -25,10 +25,10 @@ jobs:
       matrix:
         include:
           - service: frontend
-            image: portfolio-helper-frontend
+            image: vivexy-frontend
             dockerfile: infra/docker/frontend.Dockerfile
           - service: agents-service
-            image: portfolio-helper-agents
+            image: vivexy-agents
             dockerfile: infra/docker/agents-service.Dockerfile
 
     steps:

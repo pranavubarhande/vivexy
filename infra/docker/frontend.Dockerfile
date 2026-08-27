@@ -17,7 +17,7 @@ COPY --from=deps /repo/node_modules ./node_modules
 COPY --from=deps /repo/apps/frontend/node_modules ./apps/frontend/node_modules
 COPY package.json package-lock.json turbo.json ./
 COPY apps/frontend ./apps/frontend
-RUN npx turbo run build --filter=portfolio-helper-frontend
+RUN npx turbo run build --filter=vivexy-frontend
 
 FROM node:20-alpine AS runner
 WORKDIR /app

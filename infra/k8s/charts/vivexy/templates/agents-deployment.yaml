@@ -3,31 +3,31 @@ kind: Deployment
 metadata:
   name: {{ .Release.Name }}-agents
   labels:
-    {{- include "portfolio-helper.labels" . | nindent 4 }}
-    {{- include "portfolio-helper.selectorLabels" (dict "component" "agents" "root" $) | nindent 4 }}
+    {{- include "vivexy.labels" . | nindent 4 }}
+    {{- include "vivexy.selectorLabels" (dict "component" "agents" "root" $) | nindent 4 }}
 spec:
   {{- if not .Values.agents.autoscaling.enabled }}
   replicas: {{ .Values.agents.replicaCount }}
   {{- end }}
   selector:
     matchLabels:
-      {{- include "portfolio-helper.selectorLabels" (dict "component" "agents" "root" $) | nindent 6 }}
+      {{- include "vivexy.selectorLabels" (dict "component" "agents" "root" $) | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "portfolio-helper.selectorLabels" (dict "component" "agents" "root" $) | nindent 8 }}
+        {{- include "vivexy.selectorLabels" (dict "component" "agents" "root" $) | nindent 8 }}
     spec:
       imagePullSecrets:
         {{- toYaml .Values.imagePullSecrets | nindent 8 }}
       containers:
         - name: agents
-          image: {{ include "portfolio-helper.agentsImage" . }}
+          image: {{ include "vivexy.agentsImage" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           command: ["/bin/sh", "-c"]
           args:
             - |
               set -e
-              {{- include "portfolio-helper.composeConnectionUrls" . | nindent 14 }}
+              {{- include "vivexy.composeConnectionUrls" . | nindent 14 }}
               exec gunicorn --bind 0.0.0.0:5000 --workers 2 --threads 4 --timeout 120 --access-logfile - wsgi:app
           ports:
             - name: http
@@ -69,10 +69,10 @@ kind: Service
 metadata:
   name: {{ .Release.Name }}-agents
   labels:
-    {{- include "portfolio-helper.labels" . | nindent 4 }}
+    {{- include "vivexy.labels" . | nindent 4 }}
 spec:
   selector:
-    {{- include "portfolio-helper.selectorLabels" (dict "component" "agents" "root" $) | nindent 4 }}
+    {{- include "vivexy.selectorLabels" (dict "component" "agents" "root" $) | nindent 4 }}
   ports:
     - name: http
       port: 80
@@ -84,7 +84,7 @@ kind: HorizontalPodAutoscaler
 metadata:
   name: {{ .Release.Name }}-agents
   labels:
-    {{- include "portfolio-helper.labels" . | nindent 4 }}
+    {{- include "vivexy.labels" . | nindent 4 }}
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
@@ -107,10 +107,10 @@ kind: PodDisruptionBudget
 metadata:
   name: {{ .Release.Name }}-agents
   labels:
-    {{- include "portfolio-helper.labels" . | nindent 4 }}
+    {{- include "vivexy.labels" . | nindent 4 }}
 spec:
   minAvailable: {{ .Values.agents.podDisruptionBudget.minAvailable }}
   selector:
     matchLabels:
-      {{- include "portfolio-helper.selectorLabels" (dict "component" "agents" "root" $) | nindent 6 }}
+      {{- include "vivexy.selectorLabels" (dict "component" "agents" "root" $) | nindent 6 }}
 {{- end }}
