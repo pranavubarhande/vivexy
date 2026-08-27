@@ -396,39 +396,62 @@ def run_agent_stream(
             full_content = "*Paused after a long task sequence. Send a follow-up message to continue.*"
         else:
             logger.exception("Streaming error")
-            yield _sse(
-                {"type": STREAM_EVENT_ERROR, "data": {"message": _friendly_error(e)}}
-            )
+            message, code = _friendly_error(e)
+            error_data: Dict[str, Any] = {"message": message}
+            if code:
+                error_data["code"] = code
+            yield _sse({"type": STREAM_EVENT_ERROR, "data": error_data})
     finally:
         yield "data: [DONE]\n\n"
         app_context.pop()
 
 
-def _friendly_error(exc: Exception) -> str:
+def _friendly_error(exc: Exception) -> Tuple[str, Optional[str]]:
+    """Returns (message, code). code is set when the chat UI should offer a
+    fix-it action (e.g. a button to Settings → API Keys) instead of just
+    displaying the text."""
     raw = str(exc)
     exc_type = type(exc).__name__
+    lower = raw.lower()
 
     if "GraphRecursionError" in exc_type or "Recursion limit" in raw:
         return (
             "The agent reached its maximum step limit for this task. "
-            "The work completed so far is saved. You can continue by sending a follow-up message."
+            "The work completed so far is saved. You can continue by sending a follow-up message.",
+            None,
         )
     if "does not support tools" in raw:
         model = raw.split("/")[-1].split(" ")[0] if "/" in raw else "This model"
-        return f"Model '{model}' does not support tool calling. Please choose a model that supports tools (e.g. llama3.1:8b, mistral:7b)."
-    if "model" in raw.lower() and "not found" in raw.lower():
-        return f"Model not found in Ollama. Run `ollama pull <model>` to download it first. ({raw})"
-    if (
-        "api key" in raw.lower()
-        or "authentication" in raw.lower()
-        or "unauthorized" in raw.lower()
-    ):
-        return "Invalid or missing API key for this provider. Check your key in Settings → API Keys."
-    if "rate limit" in raw.lower() or "429" in raw:
-        return "Rate limit exceeded for this model. Please wait a moment and try again."
-    if "context length" in raw.lower() or "maximum context" in raw.lower():
-        return "The conversation is too long for this model's context window. Start a new chat."
-    return raw
+        return (
+            f"Model '{model}' does not support tool calling. Please choose a model that supports tools (e.g. llama3.1:8b, mistral:7b).",
+            None,
+        )
+    if "model" in lower and "not found" in lower:
+        return (
+            f"Model not found in Ollama. Run `ollama pull <model>` to download it first. ({raw})",
+            None,
+        )
+    if "api key" in lower or "authentication" in lower or "unauthorized" in lower:
+        return (
+            "Invalid or missing API key for this provider. Add your own key in Settings → API Keys.",
+            "api_key",
+        )
+    if "quota" in lower or "insufficient" in lower or "credit balance" in lower:
+        return (
+            "This model is out of usage on the shared key. Add your own API key in Settings → API Keys to keep going.",
+            "usage_limit",
+        )
+    if "rate limit" in lower or "429" in raw:
+        return (
+            "Rate limit exceeded for this model. Please wait a moment and try again.",
+            None,
+        )
+    if "context length" in lower or "maximum context" in lower:
+        return (
+            "The conversation is too long for this model's context window. Start a new chat.",
+            None,
+        )
+    return (raw, None)
 
 
 def _get_history_context(

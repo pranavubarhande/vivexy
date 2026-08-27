@@ -482,13 +482,18 @@ export const handleStreamEvent = (
     }
 
     case STREAM_EVENT_ERROR: {
+      const errorData = event.data as { message?: string; code?: string };
       const errorMessage =
-        (event.data as { message?: string })?.message ||
-        'An unexpected error occurred.';
+        errorData?.message || 'An unexpected error occurred.';
       console.error('Stream error event:', errorMessage);
+      const needsApiKey =
+        errorData?.code === 'api_key' || errorData?.code === 'usage_limit';
       updateStreaming({
         content: `**Error:** ${errorMessage}`,
         isStreaming: false,
+        errorAction: needsApiKey
+          ? { label: 'Configure API Key', href: '/settings?tab=api-keys' }
+          : undefined,
       });
       break;
     }
