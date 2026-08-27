@@ -1,7 +1,7 @@
 # Vivexy AI OS Template
 
 [![Build and Push](https://github.com/pranavubarhande/vivexy/actions/workflows/build-and-push.yml/badge.svg)](https://github.com/pranavubarhande/vivexy/actions/workflows/build-and-push.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
 A scalable SaaS application for AI agentic workflows, built as a polyglot monorepo.
 
@@ -282,4 +282,4 @@ To report a vulnerability, see [SECURITY.md](SECURITY.md).
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+Apache License 2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE).
