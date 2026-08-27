@@ -7,7 +7,7 @@
  * Workspace model (Claude Code-style):
  *   - User selects a project folder on first launch
  *   - All agent file operations are sandboxed to this folder
- *   - Hidden data dir (.portfolio-helper/) stores artifacts and uploaded files
+ *   - Hidden data dir (.vivexy/) stores artifacts and uploaded files
  */
 
 import { app, BrowserWindow, dialog, ipcMain, protocol, net } from 'electron';
@@ -220,7 +220,7 @@ ipcMain.handle('get-workspace-info', (): Record<string, unknown> | null => {
 /**
  * List saved artifacts for a specific chat using the manifest.
  * Artifacts are stored in the workspace root (or a user-specified
- * subfolder) and tracked via .portfolio-helper/manifests/{chatId}.json.
+ * subfolder) and tracked via .vivexy/manifests/{chatId}.json.
  */
 ipcMain.handle(
     'list-artifacts',

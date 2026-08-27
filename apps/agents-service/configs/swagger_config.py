@@ -5,8 +5,8 @@ Swagger / OpenAPI configuration for flasgger.
 SWAGGER_TEMPLATE = {
     "swagger": "2.0",
     "info": {
-        "title": "Portfolio Helper - Agents Service API",
-        "description": "Backend API for the Portfolio Helper AI agents platform. "
+        "title": "Vivexy - Agents Service API",
+        "description": "Backend API for the Vivexy AI agents platform. "
         "Provides endpoints for authentication, chat, streaming, "
         "teams, connectors, skills, and more.",
         "version": "1.0.0",

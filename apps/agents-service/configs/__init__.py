@@ -10,6 +10,7 @@ load_dotenv()
 from configs.flask_config import Config
 from configs.worker_config import (
     CHAT_QUEUE,
+    DLX_EXCHANGE,
     PREFETCH_COUNT,
     RABBITMQ_URL,
     RAG_QUEUE,
@@ -22,6 +23,7 @@ from configs.worker_config import (
 __all__ = [
     "Config",
     "CHAT_QUEUE",
+    "DLX_EXCHANGE",
     "PREFETCH_COUNT",
     "RAG_QUEUE",
     "RABBITMQ_URL",

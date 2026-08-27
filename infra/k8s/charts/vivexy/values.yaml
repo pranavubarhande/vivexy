@@ -1,0 +1,257 @@
+# Default values for the vivexy umbrella chart.
+# Override per-environment via values-dev.yaml / values-staging.yaml / values-prod.yaml:
+#   helm upgrade --install vivexy . -f values.yaml -f values-prod.yaml \
+#     --set image.tag=$IMAGE_TAG -n vivexy --create-namespace
+
+# ---------------------------------------------------------------------------
+# Images
+# ---------------------------------------------------------------------------
+image:
+  registry: ghcr.io
+  owner: CHANGE_ME # GHCR owner/org — e.g. the repo owner from build-and-push.yml
+  agentsRepository: vivexy-agents
+  frontendRepository: vivexy-frontend
+  tag: latest # overridden by CI: --set image.tag=sha-<commit>
+  pullPolicy: IfNotPresent
+
+imagePullSecrets:
+  - name: ghcr-credentials # kubectl create secret docker-registry ghcr-credentials ...
+
+# ---------------------------------------------------------------------------
+# App secrets (created out-of-band — see infra/k8s/README.md). Referenced by
+# name only; no secret values live in this chart.
+# ---------------------------------------------------------------------------
+secrets:
+  # DB/Redis/RabbitMQ app-level credentials this chart also feeds into the
+  # postgresql-ha / redis / rabbitmq subcharts below via existingSecret, so
+  # the same password is used on both ends without ever appearing in values.
+  dataCredentials: data-credentials # keys: postgres-password, redis-password, rabbitmq-password
+  agents: agents-secrets # JWT_SECRET_KEY, SECRET_KEY, *_API_KEY, DAYTONA_API_KEY, SENTRY_DSN, S3 creds, ...
+  frontend: frontend-secrets # NEXTAUTH_SECRET, JWT_SECRET, STRIPE_*, SMTP_*, ...
+
+# ---------------------------------------------------------------------------
+# Frontend (Next.js)
+# ---------------------------------------------------------------------------
+frontend:
+  replicaCount: 2
+  containerPort: 3000
+  resources:
+    requests: { cpu: 250m, memory: 512Mi }
+    limits: { cpu: "1", memory: 1Gi }
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+  env:
+    NODE_ENV: production
+    NEXT_PUBLIC_AUTH_ENABLED: "true"
+    # NEXT_PUBLIC_APP_URL / NEXTAUTH_URL / NEXT_PUBLIC_API_URL are set per
+    # environment in values-{dev,staging,prod}.yaml since they're hostnames.
+
+# ---------------------------------------------------------------------------
+# Agents API (Flask/gunicorn)
+# ---------------------------------------------------------------------------
+agents:
+  replicaCount: 2
+  containerPort: 5000
+  resources:
+    requests: { cpu: 500m, memory: 1Gi }
+    limits: { cpu: "2", memory: 2Gi }
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 20
+    targetCPUUtilizationPercentage: 60
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+  env:
+    FLASK_ENV: production
+    PORT: "5000"
+    USE_RABBITMQ: "true"
+    USE_REDIS_STREAM: "true"
+    SANDBOX_ENABLED: "true"
+    # DB_POOL_SIZE / DB_POOL_MAX_OVERFLOW (configs/flask_config.py): keep
+    # (agents.replicaCount x gunicorn workers=2 x (pool_size+max_overflow))
+    # comfortably under pgpool's max client connections (see postgresql-ha
+    # values below) — defaults here assume pgpool max ~200 and up to 20
+    # agents pods at full HPA scale-out: 20 x 2 x (5+5) = 400, so trim pool
+    # size down from the app default (5/5) when running near max replicas.
+    DB_POOL_SIZE: "3"
+    DB_POOL_MAX_OVERFLOW: "2"
+
+# ---------------------------------------------------------------------------
+# Worker (RabbitMQ consumer — chat_jobs / rag_jobs / scheduled_task_jobs)
+# ---------------------------------------------------------------------------
+worker:
+  # Base replica count before KEDA takes over; KEDA's minReplicaCount below
+  # is what actually governs steady-state once the ScaledObject is active.
+  replicaCount: 1
+  resources:
+    requests: { cpu: 500m, memory: 1Gi }
+    limits: { cpu: "2", memory: 2Gi }
+  # Generous grace period: worker/consumer.py catches SIGTERM and stops
+  # consuming NEW messages but finishes whatever job is already in flight
+  # (see worker/consumer.py::_handle_sigterm) — this bounds how long k8s
+  # waits before SIGKILL during a rolling deploy or KEDA scale-down.
+  terminationGracePeriodSeconds: 300
+  keda:
+    enabled: true
+    pollingInterval: 15
+    cooldownPeriod: 120
+    minReplicaCount: 1
+    maxReplicaCount: 20
+    # One trigger per queue — KEDA scales to whichever trigger demands the
+    # most replicas, mirroring the ECS queue_depth policy this replaces.
+    queues:
+      - name: chat_jobs
+        queueLength: "10" # target avg messages per worker, latency-sensitive
+      - name: rag_jobs
+        queueLength: "25"
+      - name: scheduled_task_jobs
+        queueLength: "25"
+
+# ---------------------------------------------------------------------------
+# Scheduler (worker/scheduler.py — polls scheduled_tasks, SELECT FOR UPDATE
+# SKIP LOCKED makes it safe to run >1 replica; fixed count, no HPA/KEDA)
+# ---------------------------------------------------------------------------
+scheduler:
+  replicaCount: 2
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { cpu: 500m, memory: 512Mi }
+
+# ---------------------------------------------------------------------------
+# Migrations (Helm hook Job — `alembic upgrade head`, blocks the rollout)
+# ---------------------------------------------------------------------------
+migrations:
+  enabled: true
+  backoffLimit: 2
+  activeDeadlineSeconds: 600
+
+# ---------------------------------------------------------------------------
+# Ingress
+# ---------------------------------------------------------------------------
+ingress:
+  enabled: true
+  className: nginx
+  clusterIssuer: letsencrypt-prod # cert-manager ClusterIssuer, see bootstrap/
+  frontendHost: CHANGE_ME.example.com
+  apiHost: CHANGE_ME-api.example.com
+  tlsSecretFrontend: vivexy-frontend-tls
+  tlsSecretApi: vivexy-api-tls
+
+networkPolicy:
+  enabled: true
+
+# ---------------------------------------------------------------------------
+# In-cluster data services (Bitnami/community subcharts — see Chart.yaml note
+# on version drift). All three app-facing passwords come from the SAME
+# `secrets.dataCredentials` Secret (see above) so the app and the subchart
+# always agree, without the password ever appearing in this file.
+#
+# IMPORTANT: the exact field paths below (auth.existingSecret,
+# postgresql.existingSecret, etc.) follow each chart's documented convention
+# at time of writing, but Bitnami schemas do shift between versions — run
+# `helm show values oci://registry-1.docker.io/bitnamicharts/<name>` for the
+# version pinned in Chart.yaml and reconcile field names before first
+# deploy, especially for postgresql-ha (repmgr + pgpool add extra
+# password fields beyond the single app-user password referenced here).
+# ---------------------------------------------------------------------------
+
+postgresql-ha:
+  enabled: true
+  postgresql:
+    username: vivexy
+    database: vivexy
+    existingSecret: data-credentials
+    # Most Bitnami charts let you point the "which key in existingSecret"
+    # lookup at your own key name instead of their internal default — this
+    # is what lets `data-credentials`'s `postgres-password` key (also read
+    # directly by the app container, see _helpers.tpl composeConnectionUrls)
+    # double as the postgresql-ha subchart's password too. Field name/nesting
+    # varies by chart version; verify against `helm show values`.
+    secretKeys:
+      userPasswordKey: postgres-password
+  pgpool:
+    replicaCount: 2
+    # pgpool is what makes read replicas actually useful: it transparently
+    # sends writes to the primary and load-balances reads across standbys,
+    # so the Flask app needs zero read/write-split code — see agents.env
+    # DB_POOL_SIZE comment above for how pod counts relate to this.
+    customUsers:
+      # pgpool needs its own admin credentials distinct from the DB user;
+      # verify exact field name against the pinned chart version.
+      existingSecret: data-credentials
+  postgresqlPrimary:
+    persistence:
+      enabled: true
+      size: 20Gi
+  postgresqlReplicas:
+    replicaCount: 2
+    persistence:
+      enabled: true
+      size: 20Gi
+
+redis:
+  enabled: true
+  architecture: replication
+  auth:
+    enabled: true
+    existingSecret: data-credentials
+    existingSecretPasswordKey: redis-password
+  master:
+    persistence:
+      enabled: true
+      size: 8Gi
+    resources:
+      requests: { cpu: 250m, memory: 512Mi }
+  replica:
+    replicaCount: 2
+    persistence:
+      enabled: true
+      size: 8Gi
+  # NOTE (documented, not silently glossed over): replication-only gives
+  # crash recovery (StatefulSet restarts pod-0 as master) but not automatic
+  # failover promotion — that needs `sentinel.enabled: true` plus a
+  # Sentinel-aware client in app/agents/pubsub.py and
+  # app/business_logic/streaming.py (currently plain redis.from_url).
+  # Left as a fast-follow rather than silently claimed here.
+  sentinel:
+    enabled: false
+
+rabbitmq:
+  enabled: true
+  replicaCount: 3
+  auth:
+    username: user
+    existingPasswordSecret: data-credentials
+    existingSecretPasswordKey: rabbitmq-password # verify field name against `helm show values` for pinned version
+  persistence:
+    enabled: true
+    size: 10Gi
+  clustering:
+    forceBoot: true
+
+minio:
+  enabled: true
+  mode: distributed
+  replicas: 4
+  existingSecret: data-credentials
+  # The minio chart's existingSecret is expected to contain rootUser/
+  # rootPassword by its own default key names — our data-credentials Secret
+  # stores the same values under minio-root-user/minio-root-password (also
+  # read directly by agents-deployment.yaml for AWS_ACCESS_KEY_ID/
+  # AWS_SECRET_ACCESS_KEY) so verify whether the pinned minio chart version
+  # supports remapping those key names, or add both pairs to the Secret.
+  persistence:
+    enabled: true
+    size: 50Gi
+  buckets:
+    - name: vivexy-uploads
+      policy: none
+      purge: false

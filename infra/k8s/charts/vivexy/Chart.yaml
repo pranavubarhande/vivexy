@@ -1,0 +1,38 @@
+apiVersion: v2
+name: vivexy
+description: >-
+  Umbrella chart for the Vivexy platform — frontend, agents API,
+  chat/RAG/scheduled-task workers, scheduler, and in-cluster Postgres/Redis/
+  RabbitMQ/MinIO. Deploys as one `helm upgrade --install` release per
+  environment (see ../../values-*.yaml note in README.md).
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+
+# NOTE on dependency versions: Bitnami's chart distribution has moved around
+# a lot (classic charts.bitnami.com repo deprecated; charts now published to
+# the OCI registry oci://registry-1.docker.io/bitnamicharts/<name>, where the
+# free tier reliably keeps only the *latest* tag long-term). The versions
+# pinned below were current as of writing — before your first
+# `helm dependency update`, run:
+#   helm show chart oci://registry-1.docker.io/bitnamicharts/postgresql-ha
+#   helm show chart oci://registry-1.docker.io/bitnamicharts/redis
+#   helm show chart oci://registry-1.docker.io/bitnamicharts/rabbitmq
+# and bump the `version:` fields below to whatever's actually available.
+dependencies:
+  - name: postgresql-ha
+    version: "16.0.4"
+    repository: "oci://registry-1.docker.io/bitnamicharts"
+    condition: postgresql-ha.enabled
+  - name: redis
+    version: "21.2.6"
+    repository: "oci://registry-1.docker.io/bitnamicharts"
+    condition: redis.enabled
+  - name: rabbitmq
+    version: "16.0.14"
+    repository: "oci://registry-1.docker.io/bitnamicharts"
+    condition: rabbitmq.enabled
+  - name: minio
+    version: "5.4.0"
+    repository: "https://charts.min.io/"
+    condition: minio.enabled

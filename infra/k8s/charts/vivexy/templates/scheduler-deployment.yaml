@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-scheduler
+  labels:
+    {{- include "vivexy.labels" . | nindent 4 }}
+    {{- include "vivexy.selectorLabels" (dict "component" "scheduler" "root" $) | nindent 4 }}
+spec:
+  # Safe to run >1 replica: worker/scheduler.py claims due tasks with
+  # `SELECT ... FOR UPDATE SKIP LOCKED`, so concurrent schedulers never
+  # double-dispatch the same task. No leader election needed.
+  replicas: {{ .Values.scheduler.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "vivexy.selectorLabels" (dict "component" "scheduler" "root" $) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "vivexy.selectorLabels" (dict "component" "scheduler" "root" $) | nindent 8 }}
+    spec:
+      imagePullSecrets:
+        {{- toYaml .Values.imagePullSecrets | nindent 8 }}
+      containers:
+        - name: scheduler
+          image: {{ include "vivexy.agentsImage" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -e
+              {{- include "vivexy.composeConnectionUrls" . | nindent 14 }}
+              exec python -m worker.scheduler
+          envFrom:
+            - configMapRef:
+                name: {{ .Release.Name }}-agents-config
+            - secretRef:
+                name: {{ .Values.secrets.agents }}
+          env:
+            - name: PG_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: {{ .Values.secrets.dataCredentials }}, key: postgres-password }
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: {{ .Values.secrets.dataCredentials }}, key: redis-password }
+            - name: RABBITMQ_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: {{ .Values.secrets.dataCredentials }}, key: rabbitmq-password }
+          resources:
+            {{- toYaml .Values.scheduler.resources | nindent 12 }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ .Release.Name }}-scheduler
+  labels:
+    {{- include "vivexy.labels" . | nindent 4 }}
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      {{- include "vivexy.selectorLabels" (dict "component" "scheduler" "root" $) | nindent 6 }}

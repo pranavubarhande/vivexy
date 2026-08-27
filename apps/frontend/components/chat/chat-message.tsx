@@ -7,6 +7,7 @@ import { InlineArtifactCard } from './inline-artifact-card';
 import { InlineTodoList } from './inline-todo-list';
 import { CHARTJS_IFRAME } from './artifact-content';
 import React, { useMemo, useState, useEffect } from 'react';
+import Link from 'next/link';
 import {
   RotateCcw,
   Copy,
@@ -16,6 +17,7 @@ import {
   Download,
   FileText,
   Zap,
+  KeyRound,
 } from 'lucide-react';
 import {
   Message,
@@ -502,6 +504,14 @@ export function AssistantMessage({
               <InlineArtifactCard key={art.id} artifact={art} />
             ))}
           </div>
+        )}
+        {message.errorAction && (
+          <Button asChild variant="outline" size="sm" className="mt-2">
+            <Link href={message.errorAction.href}>
+              <KeyRound className="size-3.5" />
+              {message.errorAction.label}
+            </Link>
+          </Button>
         )}
       </div>
       <div className="flex items-center gap-2 px-2">

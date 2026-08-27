@@ -241,7 +241,7 @@ def github_repos():
 @bp.route("/repos/link", methods=["POST"])
 @auth_middleware
 def link_repo():
-    """Link a GitHub repository to the user's portfolio helper account."""
+    """Link a GitHub repository to the user's Vivexy account."""
     try:
         user = request.user
         data = request.get_json() or {}

@@ -1,0 +1,40 @@
+{{- if .Values.worker.keda.enabled }}
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: {{ .Release.Name }}-worker-rabbitmq-auth
+spec:
+  secretTargetRef:
+    - parameter: host
+      name: {{ .Values.secrets.dataCredentials }}
+      key: rabbitmq-url # full amqp://user:pass@host:5672/ — see infra/k8s/README.md for how this key is created
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: {{ .Release.Name }}-worker
+  labels:
+    {{- include "vivexy.labels" . | nindent 4 }}
+spec:
+  scaleTargetRef:
+    name: {{ .Release.Name }}-worker
+  pollingInterval: {{ .Values.worker.keda.pollingInterval }}
+  cooldownPeriod: {{ .Values.worker.keda.cooldownPeriod }}
+  minReplicaCount: {{ .Values.worker.keda.minReplicaCount }}
+  maxReplicaCount: {{ .Values.worker.keda.maxReplicaCount }}
+  # One trigger per queue; KEDA scales to whichever trigger wants the most
+  # replicas at any given poll — the k8s equivalent of the ECS
+  # ALBRequestCountPerTarget-style queue_depth autoscaling policy this chart
+  # replaces, and it matches worker/consumer.py subscribing to all three
+  # queues (chat_jobs / rag_jobs / scheduled_task_jobs) from one process.
+  triggers:
+    {{- range .Values.worker.keda.queues }}
+    - type: rabbitmq
+      metadata:
+        queueName: {{ .name }}
+        mode: QueueLength
+        value: {{ .queueLength | quote }}
+      authenticationRef:
+        name: {{ $.Release.Name }}-worker-rabbitmq-auth
+    {{- end }}
+{{- end }}

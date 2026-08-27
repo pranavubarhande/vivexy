@@ -1,0 +1,83 @@
+# Local dev overlay — small footprint for kind/k3d. No HA: single replica of
+# everything, minimal resource requests, small PVCs. Use with:
+#   helm dependency update
+#   helm upgrade --install vivexy . -f values.yaml -f values-dev.yaml \
+#     -n vivexy --create-namespace
+
+image:
+  tag: latest
+  pullPolicy: IfNotPresent
+
+frontend:
+  replicaCount: 1
+  autoscaling:
+    enabled: false
+  podDisruptionBudget:
+    enabled: false
+  env:
+    NEXT_PUBLIC_APP_URL: "http://vivexy.local"
+    NEXTAUTH_URL: "http://vivexy.local"
+    NEXT_PUBLIC_API_URL: "http://api.vivexy.local"
+
+agents:
+  replicaCount: 1
+  autoscaling:
+    enabled: false
+  podDisruptionBudget:
+    enabled: false
+  env:
+    CORS_ORIGINS: "http://vivexy.local"
+    DB_POOL_SIZE: "5"
+    DB_POOL_MAX_OVERFLOW: "5"
+
+worker:
+  replicaCount: 1
+  terminationGracePeriodSeconds: 60
+  keda:
+    minReplicaCount: 1
+    maxReplicaCount: 3
+
+scheduler:
+  replicaCount: 1
+
+ingress:
+  enabled: true
+  className: nginx
+  clusterIssuer: "" # no cert-manager in dev — plain HTTP
+  frontendHost: vivexy.local
+  apiHost: api.vivexy.local
+
+networkPolicy:
+  enabled: false
+
+postgresql-ha:
+  pgpool:
+    replicaCount: 1
+  postgresqlPrimary:
+    persistence:
+      size: 5Gi
+  postgresqlReplicas:
+    replicaCount: 0
+    persistence:
+      size: 5Gi
+
+redis:
+  architecture: standalone
+  master:
+    persistence:
+      size: 2Gi
+  replica:
+    replicaCount: 0
+
+rabbitmq:
+  replicaCount: 1
+  persistence:
+    size: 2Gi
+  clustering:
+    forceBoot: false
+
+minio:
+  mode: standalone
+  replicas: 1
+  persistence:
+    size: 10Gi

@@ -3,12 +3,12 @@
  *
  * The workspace root is user-configurable (Claude Code-style):
  *   - No default: user must select a folder on first launch
- *   - Persisted in ~/.portfolio-helper-config.json
+ *   - Persisted in ~/.vivexy-config.json
  *   - All agent file operations are sandboxed to this folder
  *
  * Within the workspace:
- *   .portfolio-helper/artifacts/{chatId}/  – generated artifacts
- *   .portfolio-helper/files/{chatId}/      – uploaded / managed files
+ *   .vivexy/artifacts/{chatId}/  – generated artifacts
+ *   .vivexy/files/{chatId}/      – uploaded / managed files
  */
 
 import * as fs from 'fs';
@@ -167,7 +167,7 @@ export const isDataPath = (targetPath: string): boolean => {
 /**
  * Maps chatId → workspace root so artifacts can be loaded even after
  * the user switches to a different workspace folder.
- * Stored in ~/.portfolio-helper-chat-index.json (global, not per-workspace).
+ * Stored in ~/.vivexy-chat-index.json (global, not per-workspace).
  */
 const CHAT_INDEX_PATH = path.join(
     os.homedir(),

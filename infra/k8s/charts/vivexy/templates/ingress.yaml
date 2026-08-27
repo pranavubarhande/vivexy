@@ -1,0 +1,42 @@
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    {{- include "vivexy.labels" . | nindent 4 }}
+  annotations:
+    {{- if .Values.ingress.clusterIssuer }}
+    cert-manager.io/cluster-issuer: {{ .Values.ingress.clusterIssuer }}
+    {{- end }}
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m" # file uploads
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "120" # matches gunicorn --timeout
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- if .Values.ingress.clusterIssuer }}
+  tls:
+    - hosts: [{{ .Values.ingress.frontendHost }}]
+      secretName: {{ .Values.ingress.tlsSecretFrontend }}
+    - hosts: [{{ .Values.ingress.apiHost }}]
+      secretName: {{ .Values.ingress.tlsSecretApi }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.ingress.frontendHost }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Release.Name }}-frontend
+                port: { number: 80 }
+    - host: {{ .Values.ingress.apiHost }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Release.Name }}-agents
+                port: { number: 80 }
+{{- end }}

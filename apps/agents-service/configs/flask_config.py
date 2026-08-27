@@ -15,12 +15,24 @@ class Config:
     # Database
     SQLALCHEMY_DATABASE_URI = os.getenv(
         "DATABASE_URL",
-        "postgresql://postgres:pranav@localhost:5432/portfolio_helper_llm?schema=public",
+        "postgresql://postgres:pranav@localhost:5432/vivexy?schema=public",
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    # Test connections before use so stale pool connections (after idle minutes)
-    # are detected and replaced instead of silently failing on first query.
-    SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True}
+    # Bounded pool per process, not SQLAlchemy's defaults: each pod runs
+    # `gunicorn --workers 2 --threads 4` (see infra/docker/agents-service.Dockerfile),
+    # i.e. up to 8 concurrent DB users per process x 2 processes = 16 threads/pod.
+    # pool_size + max_overflow must be sized so that
+    # (pods x this value) stays under the connection pooler's (pgpool) max
+    # client connections — see infra/k8s chart values comments for the
+    # matching pgpool number. pool_pre_ping detects stale pooled connections
+    # (after idle minutes) instead of silently failing on first query.
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        "pool_pre_ping": True,
+        "pool_size": int(os.getenv("DB_POOL_SIZE", 5)),
+        "max_overflow": int(os.getenv("DB_POOL_MAX_OVERFLOW", 5)),
+        "pool_timeout": int(os.getenv("DB_POOL_TIMEOUT", 30)),
+        "pool_recycle": int(os.getenv("DB_POOL_RECYCLE", 1800)),
+    }
 
     # AI Providers
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -44,7 +56,7 @@ class Config:
     # AWS S3 Configuration
     AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
     AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
-    AWS_S3_BUCKET_NAME = os.getenv("AWS_S3_BUCKET_NAME", "portfolio-helper-files")
+    AWS_S3_BUCKET_NAME = os.getenv("AWS_S3_BUCKET_NAME", "vivexy-files")
     AWS_S3_REGION = os.getenv("AWS_S3_REGION", "us-east-1")
 
     # RAG Configuration

@@ -16,7 +16,7 @@ _CL_TOKEN = os.getenv("COURTLISTENER_API_TOKEN", "")
 
 
 def _cl_headers() -> dict:
-    h = {"User-Agent": "portfolio-helper research@example.com"}
+    h = {"User-Agent": "vivexy research@example.com"}
     if _CL_TOKEN:
         h["Authorization"] = f"Token {_CL_TOKEN}"
     return h

@@ -12,7 +12,7 @@ const nextConfig: NextConfig = {
 };
 
 export default withSentryConfig(nextConfig, {
-  org: 'portfolio-helper',
+  org: 'vivexy',
   project: 'frontend',
   silent: !process.env.CI,
   widenClientFileUpload: true,

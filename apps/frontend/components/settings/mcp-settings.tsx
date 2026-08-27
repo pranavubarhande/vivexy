@@ -35,7 +35,7 @@ import {
   Monitor,
 } from 'lucide-react';
 
-const WEB_MCP_KEY = 'portfolio-helper-mcp-config';
+const WEB_MCP_KEY = 'vivexy-mcp-config';
 
 const loadWebConfig = (): Record<string, McpServerConfig> => {
   if (typeof window === 'undefined') return {};
@@ -210,7 +210,7 @@ export const McpSettings = () => {
         <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 px-3 py-2 rounded-md">
           <FolderOpen className="h-3.5 w-3.5 shrink-0" />
           <span className="font-mono truncate">
-            {configDir}/.portfolio-helper-config.json
+            {configDir}/.vivexy-config.json
           </span>
         </div>
       )}

@@ -1,5 +1,5 @@
 {
-  "name": "portfolio-helper-monorepo",
+  "name": "vivexy-monorepo",
   "version": "0.1.0",
   "private": true,
   "packageManager": "npm@10.0.0",
@@ -16,7 +16,7 @@
     "setup:agents": "cd apps/agents-service && uv run playwright install chromium",
     "install:desktop": "cd apps/desktop && npm install",
     "dev": "turbo run dev dev:worker dev:scheduler --parallel",
-    "dev:frontend": "turbo dev --filter=portfolio-helper-frontend",
+    "dev:frontend": "turbo dev --filter=vivexy-frontend",
     "dev:agents": "turbo run dev dev:worker dev:scheduler --filter=agents-service --parallel",
     "dev:desktop": "cd apps/desktop && npm run dev",
     "build": "turbo build",

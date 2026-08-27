@@ -1,0 +1,27 @@
+# Production overlay — values.yaml's defaults are already prod-shaped (HA
+# postgres/redis/rabbitmq, autoscaling, PDBs); this file mainly pins
+# hostnames/issuer and anything that should be strictly larger than default.
+
+frontend:
+  env:
+    NEXT_PUBLIC_APP_URL: "https://app.example.com"
+    NEXTAUTH_URL: "https://app.example.com"
+    NEXT_PUBLIC_API_URL: "https://api.example.com"
+
+agents:
+  env:
+    CORS_ORIGINS: "https://app.example.com"
+
+ingress:
+  clusterIssuer: letsencrypt-prod
+  frontendHost: app.example.com
+  apiHost: api.example.com
+
+# pgpool max_pool must stay above (max agents replicas x gunicorn workers=2 x
+# (DB_POOL_SIZE+DB_POOL_MAX_OVERFLOW)) — with agents.autoscaling.maxReplicas=20
+# and DB_POOL_SIZE=3/DB_POOL_MAX_OVERFLOW=2 from values.yaml, that's 20 x 2 x 5
+# = 200 possible connections at full scale-out; size pgpool accordingly.
+postgresql-ha:
+  pgpool:
+    configuration: |-
+      max_pool = 200

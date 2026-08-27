@@ -11,7 +11,7 @@ from langchain_core.tools import BaseTool, tool
 
 _EDGAR_BASE = "https://efts.sec.gov"
 _EDGAR_DATA = "https://data.sec.gov"
-_HEADERS = {"User-Agent": "portfolio-helper research@example.com"}
+_HEADERS = {"User-Agent": "vivexy research@example.com"}
 
 
 @tool

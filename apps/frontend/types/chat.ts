@@ -92,6 +92,7 @@ export interface Message {
   createdAt: string;
   isStreaming?: boolean;
   tokenUsage?: TokenUsageData;
+  errorAction?: { label: string; href: string };
 }
 
 export interface Artifact {
@@ -271,4 +272,7 @@ export type SSEEvent =
       messageId?: string;
       userMessageId?: string;
     }
-  | { type: typeof STREAM_EVENT_ERROR; data: unknown };
+  | {
+      type: typeof STREAM_EVENT_ERROR;
+      data: { message?: string; code?: string };
+    };

@@ -1,6 +1,6 @@
 import os
 import tempfile
-from typing import List, TypedDict
+from typing import List, Optional, TypedDict
 
 import pandas as pd
 from langchain_community.document_loaders import (
@@ -101,12 +101,19 @@ def hybrid_search(
 # ==========================================================
 # LLM SETUP
 # ==========================================================
-llm = ChatGoogleGenerativeAI(
-    model="gemini-2.5-flash",
-    temperature=0,
-    max_tokens=2048,
-    api_key=Config.GOOGLE_AI_API_KEY,
-)
+_rag_llm_instance: Optional[ChatGoogleGenerativeAI] = None
+
+
+def get_rag_llm() -> ChatGoogleGenerativeAI:
+    global _rag_llm_instance
+    if _rag_llm_instance is None:
+        _rag_llm_instance = ChatGoogleGenerativeAI(
+            model="gemini-2.5-flash",
+            temperature=0,
+            max_tokens=2048,
+            api_key=Config.GOOGLE_AI_API_KEY,
+        )
+    return _rag_llm_instance
 
 
 # ==========================================================
@@ -129,7 +136,7 @@ Query: {query}
 Respond with ONLY the category name (no explanation)."""
 
     try:
-        response = llm.invoke(routing_prompt).content.strip().lower()
+        response = get_rag_llm().invoke(routing_prompt).content.strip().lower()
         valid_routes = ["csv_analysis", "document_qa", "file_list", "hybrid"]
         route = next((r for r in valid_routes if r in response), "document_qa")
         return route
@@ -203,7 +210,7 @@ Requirements:
 Write ONLY the Python code block:"""
 
     try:
-        response = llm.invoke(code_prompt).content
+        response = get_rag_llm().invoke(code_prompt).content
         code = response.strip()
         if code.startswith("```"):
             code = code.split("```")[1]
@@ -276,7 +283,7 @@ Question: {query}
 
 Answer:"""
 
-    answer = llm.invoke(qa_prompt).content
+    answer = get_rag_llm().invoke(qa_prompt).content
 
     return {"answer": answer, "analysis": "document_qa"}
 

@@ -1,4 +1,7 @@
-# Vivexy AI OS Template 
+# Vivexy AI OS Template
+
+[![Build and Push](https://github.com/pranavubarhande/vivexy/actions/workflows/build-and-push.yml/badge.svg)](https://github.com/pranavubarhande/vivexy/actions/workflows/build-and-push.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 A scalable SaaS application for AI agentic workflows, built as a polyglot monorepo.
 
@@ -7,8 +10,8 @@ A scalable SaaS application for AI agentic workflows, built as a polyglot monore
 This monorepo contains:
 
 - **Frontend**: Next.js application (apps/frontend)
+- **Desktop**: Electron app wrapping the frontend build (apps/desktop)
 - **Backend Services**: Flask-based AI agents service (apps/agents-service)
-- **Shared Packages**: Common TypeScript/Python utilities (packages/)
 - **Infrastructure**: Docker, deployment configs (infra/)
 
 ## Tech Stack
@@ -43,8 +46,8 @@ brew install uv
 1. **Clone and setup**:
 
    ```bash
-   git clone https://github.com/pranavubarhande/portfolio-helper-fe.git
-   cd portfolio-helper-fe
+   git clone https://github.com/pranavubarhande/vivexy.git
+   cd vivexy
    ```
 
 2. **Install dependencies**:
@@ -163,7 +166,7 @@ uv run alembic history
 ## Project Structure
 
 ```
-portfolio-helper-fe/
+vivexy/
 ├── apps/                         # Applications
 │   ├── frontend/                 # Next.js UI
 │   │   ├── components/           # React components
@@ -182,12 +185,9 @@ portfolio-helper-fe/
 │       ├── alembic/              # Database migrations
 │       │   └── versions/         # Migration scripts
 │       └── scripts/              # Seed scripts (seed_llm_models.py)
-├── packages/                     # Shared packages
-│   └── shared-types/             # TypeScript types
 ├── infra/                        # Deployment infrastructure
 │   ├── docker/                   # Production Dockerfiles
-│   ├── coolify/                  # Cheap path (VPS + managed services)
-│   └── aws/                      # Scalable path (Terraform + ECS Fargate)
+│   └── k8s/                      # Helm chart + cluster bootstrap docs
 ├── .gitignore
 ├── package.json                  # Root monorepo config
 ├── turbo.json                    # Turborepo config
@@ -199,20 +199,20 @@ portfolio-helper-fe/
 ### Root .env
 
 ```
-DATABASE_URL=postgresql://user:password@localhost:5432/portfolio_helper
+DATABASE_URL=postgresql://user:password@localhost:5432/vivexy
 ```
 
 ### Frontend .env.local
 
 ```
 NEXT_PUBLIC_API_URL=http://localhost:5000
-DATABASE_URL=postgresql://user:password@localhost:5432/portfolio_helper
+DATABASE_URL=postgresql://user:password@localhost:5432/vivexy
 ```
 
 ### Agents Service .env
 
 ```
-DATABASE_URL=postgresql://user:password@localhost:5432/portfolio_helper
+DATABASE_URL=postgresql://user:password@localhost:5432/vivexy
 OPENAI_API_KEY=your_key
 ANTHROPIC_API_KEY=your_key
 GOOGLE_AI_API_KEY=your_key
@@ -222,20 +222,18 @@ REDIS_URL=redis://localhost:6379
 
 ## Deployment
 
-Three supported paths — pick whichever matches your scale and ops budget. All three share the same image build pipeline ([.github/workflows/build-and-push.yml](.github/workflows/build-and-push.yml) → GHCR), so switching is a config change, not a rewrite.
+Deploys to any Kubernetes cluster (kind/k3d locally, EKS, GKE, AKS, a bare-metal
+cluster — nothing is cloud-specific) via the Helm chart in
+[infra/k8s/charts/vivexy](infra/k8s/charts/vivexy). Postgres,
+Redis, RabbitMQ, and object storage (MinIO) run in-cluster as chart dependencies —
+see [infra/k8s/README.md](infra/k8s/README.md) for prerequisites, secrets setup,
+and install/upgrade instructions, and [infra/k8s/bootstrap/README.md](infra/k8s/bootstrap/README.md)
+for the one-time cluster add-ons (ingress-nginx, cert-manager, KEDA).
 
-| Aspect                 | [Free (demo)](infra/free/README.md) | [Coolify (cheap)](infra/coolify/README.md) | [AWS ECS Fargate (scalable)](infra/aws/README.md) |
-| ---------------------- | ----------------------------------- | ------------------------------------------ | ------------------------------------------------- |
-| **Cost**               | $0                                  | ~$5–20/mo                                  | ~$200–500/mo                                      |
-| **Hosts**              | Vercel + Koyeb                      | VPS + Coolify                              | ECS Fargate + RDS + ElastiCache + MQ              |
-| **Stateful services**  | Neon, Upstash, CloudAMQP, R2        | Supabase, Upstash, CloudAMQP, S3           | RDS Multi-AZ, ElastiCache cluster, Amazon MQ, S3  |
-| **Cold starts**        | ~30 s (scales to zero)              | None                                       | None                                              |
-| **Scaling**            | Single replica ceiling              | Vertical (bigger VPS)                      | Horizontal autoscaling                            |
-| **Desktop installers** | GH Releases (unsigned)              | —                                          | —                                                 |
-| **Setup time**         | ~30 min                             | ~45 min                                    | ~2 hr                                             |
-| **When to pick**       | Demos, OSS forks, pre-launch POC    | Pre-scale, single team, low ops budget     | Spiky traffic, compliance, multi-AZ HA            |
-
-Auto-deploy on push to `main` is wired up for both paths via the workflows in [.github/workflows/](.github/workflows/). Each path has its own README with end-to-end setup, secrets bootstrap, DNS/TLS, and validation steps.
+Images are built by [.github/workflows/build-and-push.yml](.github/workflows/build-and-push.yml)
+(→ GHCR) and rolled out by [.github/workflows/deploy-k8s.yml](.github/workflows/deploy-k8s.yml)
+(`helm upgrade --install`, with Alembic migrations running as a blocking
+pre-upgrade hook) on every push to `main`.
 
 For local development, see the Quick Start section above — use `npm run dev` with Postgres/Redis running natively.
 
@@ -273,3 +271,15 @@ uv run black .        # Format Python code
 uv run isort .        # Sort imports
 uv run flake8 .       # Lint Python code
 ```
+
+## Contributing
+
+Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for community guidelines.
+
+## Security
+
+To report a vulnerability, see [SECURITY.md](SECURITY.md).
+
+## License
+
+MIT — see [LICENSE](LICENSE).

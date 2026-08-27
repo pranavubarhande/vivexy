@@ -1,7 +1,6 @@
 from app.constants.queues import CHAT_QUEUE, RAG_QUEUE
 from app.constants.redis_keys import (
     REDIS_CHANNEL_APPROVAL,
-    REDIS_CHANNEL_CHAT_STREAM,
     REDIS_CHANNEL_CLIENT_TOOL,
     REDIS_KEY_APPROVAL,
     REDIS_KEY_CLIENT_TOOL,
@@ -31,7 +30,6 @@ __all__ = [
     "CHAT_QUEUE",
     "RAG_QUEUE",
     "REDIS_CHANNEL_APPROVAL",
-    "REDIS_CHANNEL_CHAT_STREAM",
     "REDIS_CHANNEL_CLIENT_TOOL",
     "REDIS_KEY_APPROVAL",
     "REDIS_KEY_CLIENT_TOOL",

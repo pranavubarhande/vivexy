@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 def dispatch_chat_job(
     *,
+    stream_id: str,
     chat_id: str,
     user_id: str,
     messages: List[Dict[str, Any]],
@@ -28,12 +29,21 @@ def dispatch_chat_job(
     model_db_id: Optional[str],
     model_provider: str,
     file_context_dicts: List[Dict[str, Any]],
-    client_tools_enabled: bool,
-    saved_user_message: Dict[str, Any],
+    image_contexts: Optional[List[Dict[str, Any]]] = None,
+    client_tools_enabled: bool = False,
+    saved_user_message: Dict[str, Any] = None,
     user_skills: Optional[List[Dict[str, Any]]] = None,
+    mcp_tools: Optional[List[Dict[str, Any]]] = None,
+    github_context: Optional[Dict[str, Any]] = None,
 ) -> bool:
     """
     Publish a chat job to RabbitMQ.
+
+    ``stream_id`` ties this job back to the Redis Stream
+    (``REDIS_STREAM_CHAT.format(stream_id=stream_id)``) that
+    ``GET /events/<stream_id>`` reads from — the consumer publishes events
+    under that same key so the SSE relay works regardless of which pod
+    dispatched vs. which pod is running the agent.
 
     Returns True if the job was dispatched to a queue, False if it should
     be handled in-process (RabbitMQ unavailable or disabled).
@@ -44,6 +54,7 @@ def dispatch_chat_job(
 
     body = json.dumps(
         {
+            "stream_id": stream_id,
             "chat_id": chat_id,
             "user_id": user_id,
             "messages": messages,
@@ -51,9 +62,12 @@ def dispatch_chat_job(
             "model_db_id": model_db_id,
             "model_provider": model_provider,
             "file_context_dicts": file_context_dicts,
+            "image_contexts": image_contexts or [],
             "client_tools_enabled": client_tools_enabled,
-            "saved_user_message": saved_user_message,
+            "saved_user_message": saved_user_message or {},
             "user_skills": user_skills or [],
+            "mcp_tools": mcp_tools or [],
+            "github_context": github_context,
         }
     )
 

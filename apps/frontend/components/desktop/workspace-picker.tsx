@@ -152,9 +152,9 @@ export const WorkspacePicker = ({
             className="shrink-0 mt-0.5 text-muted-foreground"
           />
           <p className="text-xs text-muted-foreground leading-relaxed">
-            A hidden <code className="text-foreground">.portfolio-helper</code>{' '}
-            folder will be created inside your project to store generated files
-            and artifacts. Your existing files won&apos;t be modified.
+            A hidden <code className="text-foreground">.vivexy</code> folder
+            will be created inside your project to store generated files and
+            artifacts. Your existing files won&apos;t be modified.
           </p>
         </div>
       </div>

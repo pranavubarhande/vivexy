@@ -9,6 +9,7 @@ import os
 import re
 import threading
 import uuid as uuid_lib
+from dataclasses import asdict
 
 import redis as redis_lib
 from flask import (
@@ -53,6 +54,7 @@ from app.models.chat import Artifact
 from app.schemas import ArtifactCreate, ChatCreate, MessageCreate
 from app.services.s3_service import S3Service
 from configs import REDIS_URL
+from worker.dispatcher import dispatch_chat_job
 
 
 def _get_redis():
@@ -1247,30 +1249,64 @@ def start_chat_stream():
         stream_id = str(uuid_lib.uuid4())
         r.setex(REDIS_KEY_STREAM_TOKEN.format(stream_id=stream_id), 120, user_id)
         stream_key = REDIS_STREAM_CHAT.format(stream_id=stream_id)
-        app_ctx = current_app.app_context()
 
-        def _run():
-            run_agent_stream_to_redis(
-                stream_id=stream_id,
-                r=r,
-                stream_key=stream_key,
-                chat_id=chat_id,
-                user_id=user_id,
-                messages=messages,
-                model_id=model_id,
-                model_db_id=model_db_id,
-                model_provider=model_provider,
-                file_contexts=file_contexts,
-                image_contexts=image_contexts,
-                client_tools_enabled=client_tools_enabled,
-                saved_user_message=saved_user_message,
-                app_context=app_ctx,
-                user_skills=user_skills,
-                mcp_tools=mcp_tools,
-                github_context=github_context,
+        # Primary path: hand the whole agent run off to a worker pod via
+        # RabbitMQ. The worker publishes events to the same Redis Stream
+        # (keyed by stream_id) that GET /events/<stream_id> below reads from,
+        # so it's irrelevant which pod dispatched vs. which pod streams the
+        # response back — no sticky sessions, no in-process background thread
+        # tying this generation's fate to this web pod's lifetime.
+        dispatched = dispatch_chat_job(
+            stream_id=stream_id,
+            chat_id=chat_id,
+            user_id=user_id,
+            messages=messages,
+            model_id=model_id,
+            model_db_id=model_db_id,
+            model_provider=model_provider,
+            file_context_dicts=[asdict(fc) for fc in file_contexts],
+            image_contexts=image_contexts,
+            client_tools_enabled=client_tools_enabled,
+            saved_user_message=saved_user_message,
+            user_skills=user_skills,
+            mcp_tools=mcp_tools,
+            github_context=github_context,
+        )
+
+        if not dispatched:
+            # RabbitMQ unavailable or disabled (e.g. local dev without
+            # USE_RABBITMQ=true) — degrade to running the agent in a
+            # background thread of this request-handling process, same as
+            # before this endpoint dispatched to workers.
+            logger.warning(
+                "RabbitMQ unavailable — running chat job in-process for chat_id=%s",
+                chat_id,
             )
+            app_ctx = current_app.app_context()
 
-        threading.Thread(target=_run, daemon=True).start()
+            def _run():
+                run_agent_stream_to_redis(
+                    stream_id=stream_id,
+                    r=r,
+                    stream_key=stream_key,
+                    chat_id=chat_id,
+                    user_id=user_id,
+                    messages=messages,
+                    model_id=model_id,
+                    model_db_id=model_db_id,
+                    model_provider=model_provider,
+                    file_contexts=file_contexts,
+                    image_contexts=image_contexts,
+                    client_tools_enabled=client_tools_enabled,
+                    saved_user_message=saved_user_message,
+                    app_context=app_ctx,
+                    user_skills=user_skills,
+                    mcp_tools=mcp_tools,
+                    github_context=github_context,
+                )
+
+            threading.Thread(target=_run, daemon=True).start()
+
         return jsonify({"stream_id": stream_id})
 
     except ValueError as e:

@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional
 
 from langchain_core.messages import HumanMessage
 
-from app.agents.agent_factory import global_checkpointer
+from app.agents.agent_factory import get_global_checkpointer
 from app.agents.config import AgentConfig
 from app.agents.llm_factory import create_llm
 from app.models import Chat, LLMModel, Message, db
@@ -183,19 +183,19 @@ def compact_chat(
 
 
 def _reset_checkpointer_state(chat_id: str, summary: str):
-    """Clear the in-memory checkpointer state for a chat thread.
+    """Clear the Redis-backed checkpointer state for a chat thread.
 
     On the next agent invocation, _get_history_context will detect that
     there is no checkpointer state and rebuild from DB — at which point
     the compact_summary will be used instead of raw message history.
+
+    Thread IDs are chat_id (see streaming.py::_get_history_context's
+    ``config = {"configurable": {"thread_id": chat_id}}``), and
+    RedisSaver.delete_thread() removes every checkpoint/write for that
+    thread regardless of which pod originally wrote it.
     """
     try:
-        config = {"configurable": {"thread_id": chat_id}}
-        # MemorySaver stores state keyed by thread_id in its internal dict
-        if hasattr(global_checkpointer, "storage"):
-            global_checkpointer.storage.pop(chat_id, None)
-        elif hasattr(global_checkpointer, "store"):
-            global_checkpointer.store.pop(chat_id, None)
+        get_global_checkpointer().delete_thread(chat_id)
     except Exception as e:
         logger.warning("Could not reset checkpointer state for %s: %s", chat_id, e)
 

@@ -11,7 +11,7 @@ from daytona import CreateSandboxFromSnapshotParams, Daytona
 from deepagents import create_deep_agent
 from langchain_core.tools import BaseTool, tool
 from langchain_daytona import DaytonaSandbox
-from langgraph.checkpoint.memory import MemorySaver
+from langgraph.checkpoint.redis import RedisSaver
 
 from app.agents.config import (
     AGENT_METADATA,
@@ -29,6 +29,7 @@ from app.tools.sandbox.daytona_tools import (
     get_upload_sandbox_file_tool,
     install_sandbox_dependencies,
 )
+from configs import REDIS_URL
 
 logger = logging.getLogger(__name__)
 
@@ -36,10 +37,25 @@ SKILLS_DIR = Path(
     os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "skills")
 )
 
-# Stateful Checkpointer for cross-request chat history
-# TODO: MemorySaver is per-process. For production persistence across restarts,
-# a database-backed checkpointer should be used.
-global_checkpointer = MemorySaver()
+# Stateful checkpointer for cross-request chat history, backed by Redis so it
+# survives past a single process — any pod can resume any chat's LangGraph
+# state, not just the one that happened to handle the previous turn.
+#
+# Built lazily (on first agent creation) rather than at import time: this
+# module is imported by things that don't need Redis at all (Alembic
+# migrations, one-off scripts, test collection), and RedisSaver's
+# constructor connects eagerly, so importing it unconditionally would make
+# every one of those hard-depend on Redis being reachable.
+_checkpointer_instance: Optional[RedisSaver] = None
+
+
+def get_global_checkpointer() -> RedisSaver:
+    global _checkpointer_instance
+    if _checkpointer_instance is None:
+        saver = RedisSaver(redis_url=REDIS_URL)
+        saver.setup()
+        _checkpointer_instance = saver
+    return _checkpointer_instance
 
 
 _SYNC_CHUNK_SIZE = 60_000  # base64 chars per chunk — safely below shell ARG_MAX
@@ -575,7 +591,7 @@ def create_agent(
         backend = None
 
     # 5. Agent Checkpointer
-    checkpointer = global_checkpointer
+    checkpointer = get_global_checkpointer()
 
     _provider_env_map = {
         "google": "GOOGLE_API_KEY",

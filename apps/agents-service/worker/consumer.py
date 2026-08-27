@@ -8,26 +8,45 @@ Listens on three queues and dispatches work:
 
 Run with:  python -m worker.consumer
 Scale by running multiple consumer processes; RabbitMQ distributes messages.
+
+Chat/RAG jobs that raise are nacked without requeue — the queues are
+declared (in worker/broker.py) with a dead-letter exchange, so a failed
+message lands in a `.dlq` for inspection instead of being silently dropped.
+Scheduled-task jobs keep their existing nack-without-requeue-on-failure
+behavior (no DLX needed there; failure is already recorded on the
+ScheduledTaskRun row).
 """
 
 import json
 import logging
 import os
+import signal
 import sys
 
 _worker_dir = os.path.dirname(os.path.abspath(__file__))
 _app_root = os.path.dirname(_worker_dir)
 sys.path.insert(0, _app_root)
 
+import redis as redis_lib
+
 from app import create_app
-from app.agents.event_emitter import StreamEvent, publish_stream_event
+from app.agents.config import FileContext
 from app.business_logic.attachments import _try_index_attachment
-from app.constants.stream_events import STREAM_EVENT_ERROR
-from configs import CHAT_QUEUE, PREFETCH_COUNT, RAG_QUEUE, SCHEDULED_TASK_QUEUE
-from worker.agent_runner import run_agent_job
+from app.business_logic.streaming import NoopAppContext, run_agent_stream_to_redis
+from app.constants.redis_keys import REDIS_STREAM_CHAT
+from configs import (
+    CHAT_QUEUE,
+    PREFETCH_COUNT,
+    RAG_QUEUE,
+    REDIS_URL,
+    SCHEDULED_TASK_QUEUE,
+)
 from worker.broker import get_connection
 
 logger = logging.getLogger(__name__)
+
+_redis_client = None
+_shutting_down = False
 
 
 def _setup_flask_context():
@@ -38,36 +57,56 @@ def _setup_flask_context():
     return app, ctx
 
 
+def _get_redis():
+    """One Redis client for the life of the worker process (redis-py pools internally)."""
+    global _redis_client
+    if _redis_client is None:
+        _redis_client = redis_lib.from_url(REDIS_URL, decode_responses=True)
+    return _redis_client
+
+
 # ── Real-time chat ──────────────────────────────────────────────────────────
 
 
 def _handle_chat_job(ch, method, properties, body):
-    """Process a single real-time chat job."""
+    """Process a single real-time chat job, streaming events to the same
+    Redis Stream (keyed by stream_id) that GET /events/<stream_id> reads —
+    so it doesn't matter which pod dispatched vs. which pod is consuming.
+    """
     job = json.loads(body)
     chat_id = job.get("chat_id", "unknown")
-    logger.info("Processing chat job for chat_id=%s", chat_id)
+    stream_id = job.get("stream_id")
+    logger.info("Processing chat job for chat_id=%s stream_id=%s", chat_id, stream_id)
+
+    file_contexts = [FileContext(**fc) for fc in job.get("file_context_dicts", [])]
 
     try:
-        run_agent_job(
-            chat_id=job["chat_id"],
+        run_agent_stream_to_redis(
+            stream_id=stream_id,
+            r=_get_redis(),
+            stream_key=REDIS_STREAM_CHAT.format(stream_id=stream_id),
+            chat_id=chat_id,
             user_id=job["user_id"],
             messages=job["messages"],
             model_id=job.get("model_id"),
             model_db_id=job.get("model_db_id"),
             model_provider=job.get("model_provider", "google"),
-            file_context_dicts=job.get("file_context_dicts", []),
+            file_contexts=file_contexts,
+            image_contexts=job.get("image_contexts", []),
             client_tools_enabled=job.get("client_tools_enabled", False),
             saved_user_message=job.get("saved_user_message", {}),
+            app_context=NoopAppContext(),
             user_skills=job.get("user_skills", []),
+            mcp_tools=job.get("mcp_tools", []),
+            github_context=job.get("github_context"),
         )
-    except Exception as e:
-        logger.exception("Chat job failed for chat_id=%s", chat_id)
-        publish_stream_event(
-            chat_id,
-            StreamEvent(type=STREAM_EVENT_ERROR, data={"message": str(e)}),
-        )
-    finally:
         ch.basic_ack(delivery_tag=method.delivery_tag)
+    except Exception:
+        # run_agent_stream_to_redis already turns ordinary agent failures into
+        # a stream error event and swallows them — an exception escaping here
+        # means something broke outside the agent run itself (e.g. Redis).
+        logger.exception("Chat job failed for chat_id=%s", chat_id)
+        ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
 
 
 # ── RAG indexing ────────────────────────────────────────────────────────────
@@ -88,10 +127,10 @@ def _handle_rag_job(ch, method, properties, body):
             s3_key=job["s3_key"],
             filename=job["filename"],
         )
+        ch.basic_ack(delivery_tag=method.delivery_tag)
     except Exception:
         logger.exception("RAG job failed for %s", job.get("filename"))
-    finally:
-        ch.basic_ack(delivery_tag=method.delivery_tag)
+        ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
 
 
 # ── Scheduled tasks ─────────────────────────────────────────────────────────
@@ -121,7 +160,7 @@ def _handle_scheduled_task_job(ch, method, properties, body):
     except Exception:
         logger.exception("Scheduled task job failed for task_id=%s", task_id)
         # nack without requeue on unhandled failure to avoid infinite retry loops.
-        # Increase to requeue=True if you want automatic retries.
+        # Failure is already recorded on the ScheduledTaskRun row.
         ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
 
 
@@ -146,9 +185,9 @@ def start_worker():
         return
 
     channel = connection.channel()
-    channel.queue_declare(queue=CHAT_QUEUE, durable=True)
-    channel.queue_declare(queue=RAG_QUEUE, durable=True)
-    channel.queue_declare(queue=SCHEDULED_TASK_QUEUE, durable=True)
+    from worker.broker import _declare_topology
+
+    _declare_topology(channel)
 
     # prefetch_count=1: each worker handles one job at a time, ensuring fair dispatch.
     channel.basic_qos(prefetch_count=PREFETCH_COUNT)
@@ -166,12 +205,27 @@ def start_worker():
         SCHEDULED_TASK_QUEUE,
     )
 
+    def _handle_sigterm(signum, frame):
+        # Graceful drain: stop consuming NEW messages but let pika return
+        # control to start_consuming()'s loop so the in-flight callback (if
+        # any) finishes normally and its own basic_ack/nack still fires.
+        # This is what lets a rolling k8s deploy / KEDA scale-down avoid
+        # needlessly killing a chat job seconds from completing — pair with
+        # a generous terminationGracePeriodSeconds on the worker Deployment.
+        global _shutting_down
+        if _shutting_down:
+            return
+        _shutting_down = True
+        logger.info("Received signal %s — draining in-flight job, then exiting", signum)
+        channel.stop_consuming()
+
+    signal.signal(signal.SIGTERM, _handle_sigterm)
+    signal.signal(signal.SIGINT, _handle_sigterm)
+
     try:
         channel.start_consuming()
-    except KeyboardInterrupt:
-        logger.info("Worker shutting down")
-        channel.stop_consuming()
     finally:
+        logger.info("Worker shutting down")
         connection.close()
 
 
