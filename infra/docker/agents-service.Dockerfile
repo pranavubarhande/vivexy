@@ -43,13 +43,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates curl \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip install --no-cache-dir uv gunicorn
-
 # Non-root user
 RUN groupadd --system --gid 1001 app \
  && useradd --system --uid 1001 --gid app --home /app app
 
 COPY --from=deps /app/.venv /app/.venv
+RUN pip install --no-cache-dir uv gunicorn
 
 COPY apps/agents-service /app
 RUN chown -R app:app /app /opt && mkdir -p "$PLAYWRIGHT_BROWSERS_PATH" && chown -R app:app "$PLAYWRIGHT_BROWSERS_PATH"

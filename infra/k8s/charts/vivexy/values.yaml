@@ -17,6 +17,10 @@ image:
 imagePullSecrets:
   - name: ghcr-credentials # kubectl create secret docker-registry ghcr-credentials ...
 
+global:
+  security:
+    allowInsecureImages: true
+
 # ---------------------------------------------------------------------------
 # App secrets (created out-of-band — see infra/k8s/README.md). Referenced by
 # name only; no secret values live in this chart.
@@ -165,19 +169,39 @@ networkPolicy:
 
 postgresql-ha:
   enabled: true
+  # Broadcom deprecated the free `bitnami/*` images on Docker Hub in 2025 —
+  # postgresql-repmgr/pgpool/postgres-exporter/os-shell under that namespace
+  # return zero tags now (confirmed via the Docker Hub API), which fails
+  # every pod with ImagePullBackOff regardless of which tag is pinned above.
+  # `bitnamilegacy/*` is Bitnami's own migration-bridge org holding the same
+  # images/tags frozen as of the deprecation — verified each exact tag below
+  # still resolves there. Swap to Bitnami Secure Images (paid) or a
+  # different Postgres-HA chart if bitnamilegacy is ever pulled too.
   postgresql:
+    image:
+      repository: bitnamilegacy/postgresql-repmgr
     username: vivexy
     database: vivexy
     existingSecret: data-credentials
-    # Most Bitnami charts let you point the "which key in existingSecret"
-    # lookup at your own key name instead of their internal default — this
-    # is what lets `data-credentials`'s `postgres-password` key (also read
-    # directly by the app container, see _helpers.tpl composeConnectionUrls)
-    # double as the postgresql-ha subchart's password too. Field name/nesting
-    # varies by chart version; verify against `helm show values`.
-    secretKeys:
-      userPasswordKey: postgres-password
+    # This chart version (16.0.4) has NO secretKeys-style remapping despite
+    # earlier comments here claiming otherwise (verified against the actual
+    # templates, not just `helm show values` — there's no `secretKeys` block
+    # at all in postgresql-ha's schema). With existingSecret set, the exact
+    # key names it looks for are fixed: `postgres-password` and
+    # `repmgr-password` — both already present in `data-credentials`.
+    # `postgresql.postgresPassword` / `.repmgrPassword` MUST stay unset here:
+    # passing either as a plain value (e.g. via --set) alongside
+    # existingSecret trips a chart bug where the StatefulSet's volumeMounts
+    # reference a volume that was never defined
+    # ("volumeMounts[6].name: Not found: postgres-password") — the
+    # existingSecret's `postgres-password`/`repmgr-password` keys are picked
+    # up correctly on their own via a `lookup()` the chart does against the
+    # live Secret at render time, no extra values needed.
+    usePasswordFiles: false # direct secretKeyRef env vars — sidesteps the volume-mount bug above entirely
+    replicaCount: 3 # 1 primary + 2 replicas — total node count, NOT "extra replicas beyond primary"
   pgpool:
+    image:
+      repository: bitnamilegacy/pgpool
     replicaCount: 2
     # pgpool is what makes read replicas actually useful: it transparently
     # sends writes to the primary and load-balances reads across standbys,
@@ -187,18 +211,32 @@ postgresql-ha:
       # pgpool needs its own admin credentials distinct from the DB user;
       # verify exact field name against the pinned chart version.
       existingSecret: data-credentials
-  postgresqlPrimary:
-    persistence:
-      enabled: true
-      size: 20Gi
-  postgresqlReplicas:
-    replicaCount: 2
-    persistence:
-      enabled: true
-      size: 20Gi
+  metrics:
+    image:
+      repository: bitnamilegacy/postgres-exporter
+  volumePermissions:
+    image:
+      repository: bitnamilegacy/os-shell
+  # `postgresqlPrimary`/`postgresqlReplicas` (used to be here) are NOT real
+  # fields in this chart version — confirmed by extracting the actual chart
+  # and reading templates/postgresql/statefulset.yaml + values.yaml, not
+  # just `helm show values` comments. Helm silently ignores unknown keys, so
+  # this was quietly a no-op: every install ran on the chart's actual
+  # default (postgresql.replicaCount: 3) regardless of what was written
+  # here. There's ONE postgres StatefulSet (primary + replicas together,
+  # repmgr promotes among them, see postgresql.replicaCount above) sharing
+  # ONE persistence block — top-level here, NOT nested under `postgresql:`.
+  persistence:
+    enabled: true
+    size: 20Gi
 
 redis:
   enabled: true
+  # Same bitnami -> bitnamilegacy story as postgresql-ha/rabbitmq above —
+  # the pinned redis tag (8.0.2-debian-12-r4) returns "not found" even
+  # though the bitnami/redis repo itself is still otherwise alive.
+  image:
+    repository: bitnamilegacy/redis
   architecture: replication
   auth:
     enabled: true
@@ -226,6 +264,15 @@ redis:
 
 rabbitmq:
   enabled: true
+  # Same bitnami -> bitnamilegacy story as postgresql-ha above — see that
+  # block's comment. bitnami/rabbitmq and bitnami/os-shell return zero tags
+  # on Docker Hub now; bitnamilegacy still serves the exact tags this chart
+  # version pins.
+  image:
+    repository: bitnamilegacy/rabbitmq
+  volumePermissions:
+    image:
+      repository: bitnamilegacy/os-shell
   replicaCount: 3
   auth:
     username: user
@@ -242,12 +289,14 @@ minio:
   mode: distributed
   replicas: 4
   existingSecret: data-credentials
-  # The minio chart's existingSecret is expected to contain rootUser/
-  # rootPassword by its own default key names — our data-credentials Secret
-  # stores the same values under minio-root-user/minio-root-password (also
-  # read directly by agents-deployment.yaml for AWS_ACCESS_KEY_ID/
-  # AWS_SECRET_ACCESS_KEY) so verify whether the pinned minio chart version
-  # supports remapping those key names, or add both pairs to the Secret.
+  # Confirmed against the actual chart (charts.min.io minio 5.4.0): .data.rootUser
+  # and .data.rootPassword are MANDATORY fixed key names with no remapping
+  # option. `data-credentials` must carry both of these keys IN ADDITION to
+  # minio-root-user/minio-root-password (which agents-deployment.yaml reads
+  # directly for AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY) — same values,
+  # duplicated under both key names. See infra/k8s/README.md step 1, which
+  # needs updating to create rootUser/rootPassword alongside the
+  # minio-root-user/minio-root-password it already documents.
   persistence:
     enabled: true
     size: 50Gi
