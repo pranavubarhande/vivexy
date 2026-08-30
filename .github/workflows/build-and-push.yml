@@ -27,12 +27,26 @@ jobs:
           - service: frontend
             image: vivexy-frontend
             dockerfile: infra/docker/frontend.Dockerfile
+            cache-mode: max
           - service: agents-service
             image: vivexy-agents
             dockerfile: infra/docker/agents-service.Dockerfile
+            cache-mode: min
 
     steps:
       - uses: actions/checkout@v4
+
+      # agents-service pulls in build-essential + WeasyPrint/Playwright system
+      # libs + a Chromium download; that plus a mode=max GHA cache routinely
+      # exceeds the runner's ~14GB free disk (see build-and-push run history —
+      # every agents-service build failed with ENOSPC). Reclaim space taken by
+      # preinstalled toolchains this job never uses before building.
+      - name: Free disk space
+        if: matrix.service == 'agents-service'
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/boost "$AGENT_TOOLSDIRECTORY"
+          docker image prune -af
+          df -h /
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -63,4 +77,4 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.service }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=${{ matrix.cache-mode }},scope=${{ matrix.service }}
