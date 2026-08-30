@@ -15,9 +15,9 @@ frontend:
   podDisruptionBudget:
     enabled: false
   env:
-    NEXT_PUBLIC_APP_URL: "http://vivexy.local"
-    NEXTAUTH_URL: "http://vivexy.local"
-    NEXT_PUBLIC_API_URL: "http://api.vivexy.local"
+    NEXT_PUBLIC_APP_URL: 'http://vivexy.local'
+    NEXTAUTH_URL: 'http://vivexy.local'
+    NEXT_PUBLIC_API_URL: 'http://api.vivexy.local'
 
 agents:
   replicaCount: 1
@@ -26,9 +26,9 @@ agents:
   podDisruptionBudget:
     enabled: false
   env:
-    CORS_ORIGINS: "http://vivexy.local"
-    DB_POOL_SIZE: "5"
-    DB_POOL_MAX_OVERFLOW: "5"
+    CORS_ORIGINS: 'http://vivexy.local'
+    DB_POOL_SIZE: '5'
+    DB_POOL_MAX_OVERFLOW: '5'
 
 worker:
   replicaCount: 1
@@ -43,7 +43,7 @@ scheduler:
 ingress:
   enabled: true
   className: nginx
-  clusterIssuer: "" # no cert-manager in dev — plain HTTP
+  clusterIssuer: '' # no cert-manager in dev — plain HTTP
   frontendHost: vivexy.local
   apiHost: api.vivexy.local
 
@@ -53,13 +53,10 @@ networkPolicy:
 postgresql-ha:
   pgpool:
     replicaCount: 1
-  postgresqlPrimary:
-    persistence:
-      size: 5Gi
-  postgresqlReplicas:
-    replicaCount: 0
-    persistence:
-      size: 5Gi
+  postgresql:
+    replicaCount: 1 # single node — postgresqlPrimary/postgresqlReplicas aren't real fields, see values.yaml
+  persistence:
+    size: 5Gi
 
 redis:
   architecture: standalone
@@ -81,3 +78,6 @@ minio:
   replicas: 1
   persistence:
     size: 10Gi
+  resources:
+    requests:
+      memory: 512Mi

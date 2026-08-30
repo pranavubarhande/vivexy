@@ -36,8 +36,8 @@ ingress:
 postgresql-ha:
   pgpool:
     replicaCount: 1
-  postgresqlReplicas:
-    replicaCount: 1
+  postgresql:
+    replicaCount: 2 # 1 primary + 1 replica — postgresqlReplicas isn't a real field, see values.yaml
 
 redis:
   replica:
