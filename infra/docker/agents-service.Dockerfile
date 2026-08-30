@@ -19,6 +19,7 @@ RUN pip install --no-cache-dir uv
 
 COPY apps/agents-service/pyproject.toml apps/agents-service/uv.lock ./
 RUN uv sync --no-dev --frozen --no-install-project
+RUN uv pip install gunicorn
 
 FROM python:3.11-slim AS runtime
 WORKDIR /app
@@ -48,7 +49,7 @@ RUN groupadd --system --gid 1001 app \
  && useradd --system --uid 1001 --gid app --home /app app
 
 COPY --from=deps /app/.venv /app/.venv
-RUN pip install --no-cache-dir uv gunicorn
+RUN pip install --no-cache-dir uv
 
 COPY apps/agents-service /app
 RUN chown -R app:app /app /opt && mkdir -p "$PLAYWRIGHT_BROWSERS_PATH" && chown -R app:app "$PLAYWRIGHT_BROWSERS_PATH"

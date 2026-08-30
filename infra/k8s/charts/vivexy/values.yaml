@@ -126,8 +126,8 @@ worker:
 scheduler:
   replicaCount: 2
   resources:
-    requests: { cpu: 100m, memory: 256Mi }
-    limits: { cpu: 500m, memory: 512Mi }
+    requests: { cpu: 100m, memory: 512Mi }
+    limits: { cpu: 500m, memory: 1Gi }
 
 # ---------------------------------------------------------------------------
 # Migrations (Helm hook Job — `alembic upgrade head`, blocks the rollout)
@@ -135,7 +135,7 @@ scheduler:
 migrations:
   enabled: true
   backoffLimit: 2
-  activeDeadlineSeconds: 600
+  activeDeadlineSeconds: 1800
 
 # ---------------------------------------------------------------------------
 # Ingress
