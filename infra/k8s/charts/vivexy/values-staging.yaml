@@ -39,9 +39,6 @@ postgresql-ha:
   postgresql:
     replicaCount: 2 # 1 primary + 1 replica — postgresqlReplicas isn't a real field, see values.yaml
 
-redis:
-  replica:
-    replicaCount: 1
 
 rabbitmq:
   replicaCount: 3 # keep the real cluster size — this is what quorum queues need to mean anything
