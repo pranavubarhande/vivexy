@@ -41,7 +41,7 @@ frontend:
   containerPort: 3000
   resources:
     requests: { cpu: 250m, memory: 512Mi }
-    limits: { cpu: "1", memory: 1Gi }
+    limits: { cpu: '1', memory: 1Gi }
   autoscaling:
     enabled: true
     minReplicas: 2
@@ -52,7 +52,7 @@ frontend:
     minAvailable: 1
   env:
     NODE_ENV: production
-    NEXT_PUBLIC_AUTH_ENABLED: "true"
+    NEXT_PUBLIC_AUTH_ENABLED: 'true'
     # NEXT_PUBLIC_APP_URL / NEXTAUTH_URL / NEXT_PUBLIC_API_URL are set per
     # environment in values-{dev,staging,prod}.yaml since they're hostnames.
 
@@ -64,7 +64,7 @@ agents:
   containerPort: 5000
   resources:
     requests: { cpu: 500m, memory: 1Gi }
-    limits: { cpu: "2", memory: 2Gi }
+    limits: { cpu: '2', memory: 2Gi }
   autoscaling:
     enabled: true
     minReplicas: 2
@@ -75,18 +75,18 @@ agents:
     minAvailable: 1
   env:
     FLASK_ENV: production
-    PORT: "5000"
-    USE_RABBITMQ: "true"
-    USE_REDIS_STREAM: "true"
-    SANDBOX_ENABLED: "true"
+    PORT: '5000'
+    USE_RABBITMQ: 'true'
+    USE_REDIS_STREAM: 'true'
+    SANDBOX_ENABLED: 'true'
     # DB_POOL_SIZE / DB_POOL_MAX_OVERFLOW (configs/flask_config.py): keep
     # (agents.replicaCount x gunicorn workers=2 x (pool_size+max_overflow))
     # comfortably under pgpool's max client connections (see postgresql-ha
     # values below) — defaults here assume pgpool max ~200 and up to 20
     # agents pods at full HPA scale-out: 20 x 2 x (5+5) = 400, so trim pool
     # size down from the app default (5/5) when running near max replicas.
-    DB_POOL_SIZE: "3"
-    DB_POOL_MAX_OVERFLOW: "2"
+    DB_POOL_SIZE: '3'
+    DB_POOL_MAX_OVERFLOW: '2'
 
 # ---------------------------------------------------------------------------
 # Worker (RabbitMQ consumer — chat_jobs / rag_jobs / scheduled_task_jobs)
@@ -97,7 +97,7 @@ worker:
   replicaCount: 1
   resources:
     requests: { cpu: 500m, memory: 1Gi }
-    limits: { cpu: "2", memory: 2Gi }
+    limits: { cpu: '2', memory: 2Gi }
   # Generous grace period: worker/consumer.py catches SIGTERM and stops
   # consuming NEW messages but finishes whatever job is already in flight
   # (see worker/consumer.py::_handle_sigterm) — this bounds how long k8s
@@ -113,11 +113,11 @@ worker:
     # most replicas, mirroring the ECS queue_depth policy this replaces.
     queues:
       - name: chat_jobs
-        queueLength: "10" # target avg messages per worker, latency-sensitive
+        queueLength: '10' # target avg messages per worker, latency-sensitive
       - name: rag_jobs
-        queueLength: "25"
+        queueLength: '25'
       - name: scheduled_task_jobs
-        queueLength: "25"
+        queueLength: '25'
 
 # ---------------------------------------------------------------------------
 # Scheduler (worker/scheduler.py — polls scheduled_tasks, SELECT FOR UPDATE
@@ -231,36 +231,18 @@ postgresql-ha:
     size: 20Gi
 
 redis:
+  enabled: false
+
+redisStack:
   enabled: true
-  # Same bitnami -> bitnamilegacy story as postgresql-ha/rabbitmq above —
-  # the pinned redis tag (8.0.2-debian-12-r4) returns "not found" even
-  # though the bitnami/redis repo itself is still otherwise alive.
   image:
-    repository: bitnamilegacy/redis
-  architecture: replication
-  auth:
-    enabled: true
-    existingSecret: data-credentials
-    existingSecretPasswordKey: redis-password
-  master:
-    persistence:
-      enabled: true
-      size: 8Gi
-    resources:
-      requests: { cpu: 250m, memory: 512Mi }
-  replica:
-    replicaCount: 2
-    persistence:
-      enabled: true
-      size: 8Gi
-  # NOTE (documented, not silently glossed over): replication-only gives
-  # crash recovery (StatefulSet restarts pod-0 as master) but not automatic
-  # failover promotion — that needs `sentinel.enabled: true` plus a
-  # Sentinel-aware client in app/agents/pubsub.py and
-  # app/business_logic/streaming.py (currently plain redis.from_url).
-  # Left as a fast-follow rather than silently claimed here.
-  sentinel:
-    enabled: false
+    repository: redis/redis-stack-server
+    tag: 7.4.0-v8
+  persistence:
+    size: 8Gi
+  resources:
+    requests: { cpu: 250m, memory: 512Mi }
+    limits: { cpu: '1', memory: 1Gi }
 
 rabbitmq:
   enabled: true

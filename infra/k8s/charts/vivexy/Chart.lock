@@ -1,0 +1,15 @@
+dependencies:
+- name: postgresql-ha
+  repository: oci://registry-1.docker.io/bitnamicharts
+  version: 16.0.4
+- name: redis
+  repository: oci://registry-1.docker.io/bitnamicharts
+  version: 21.2.6
+- name: rabbitmq
+  repository: oci://registry-1.docker.io/bitnamicharts
+  version: 16.0.14
+- name: minio
+  repository: https://charts.min.io/
+  version: 5.4.0
+digest: sha256:c6ab56123328ed270800bd163b24df2834eaa1b2134e541084ed77eb2ad29cf6
+generated: "2026-08-31T20:25:18.772121+05:30"

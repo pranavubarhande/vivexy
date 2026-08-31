@@ -38,22 +38,42 @@ Secret, so the password only needs to be generated once).
 PG_PW=$(openssl rand -hex 20)
 REDIS_PW=$(openssl rand -hex 20)
 RABBITMQ_PW=$(openssl rand -hex 20)
+REPMGR_PW=$(openssl rand -hex 20)
 MINIO_USER=vivexy
 MINIO_PW=$(openssl rand -hex 20)
 
 kubectl -n vivexy create secret generic data-credentials \
   --from-literal=postgres-password="$PG_PW" \
+  --from-literal=password="$PG_PW" \
+  --from-literal=repmgr-password="$REPMGR_PW" \
   --from-literal=redis-password="$REDIS_PW" \
   --from-literal=rabbitmq-password="$RABBITMQ_PW" \
-  --from-literal=rabbitmq-url="amqp://user:${RABBITMQ_PW}@RELEASE_NAME-rabbitmq:5672/" \
+  --from-literal=rabbitmq-url="amqp://user:${RABBITMQ_PW}@RELEASE_NAME-rabbitmq.NAMESPACE.svc.cluster.local:5672/" \
   --from-literal=minio-root-user="$MINIO_USER" \
-  --from-literal=minio-root-password="$MINIO_PW"
+  --from-literal=minio-root-password="$MINIO_PW" \
+  --from-literal=rootUser="$MINIO_USER" \
+  --from-literal=rootPassword="$MINIO_PW"
 ```
 
-Replace `RELEASE_NAME` in `rabbitmq-url` with whatever you pass as the Helm
-release name in step 3 (e.g. `vivexy`) — KEDA's `TriggerAuthentication`
-reads this key directly to poll RabbitMQ queue depth, so it needs the fully
-composed connection string, not just the password.
+Replace `RELEASE_NAME` and `NAMESPACE` in `rabbitmq-url` with whatever you
+pass as the Helm release name/namespace in step 3 (e.g. `vivexy`/`vivexy`).
+This **must** be the fully-qualified `<svc>.<namespace>.svc.cluster.local`
+form, not the bare service name — KEDA's operator runs in its own `keda`
+namespace, and a bare hostname only resolves within the namespace a pod is
+running in. `vivexy-rabbitmq` resolves fine for the app pods (same
+namespace) but silently fails DNS lookup from KEDA's operator, which then
+never marks the ScaledObject `Ready` (`error establishing connection to
+RabbitMQ: ... no such host` in `kubectl describe scaledobject`) — easy to
+miss since every application pod stays healthy throughout.
+
+`repmgr-password` and `password` (a duplicate of `postgres-password` — this
+chart version has no `secretKeys`-style remapping, see `values.yaml`'s
+comments) are required by the `postgresql-ha` subchart's repmgr bootstrap;
+`rootUser`/`rootPassword` are duplicates of `minio-root-user`/
+`minio-root-password` required by the `minio` subchart's fixed key-name
+expectations. Without these, Postgres/MinIO pods fail to start entirely on
+a fresh install — see `values.yaml`'s `postgresql-ha:`/`minio:` blocks for
+the full explanation of each.
 
 ### `agents-secrets` — everything `apps/agents-service/.env.example` lists as
 a secret (JWT_SECRET_KEY, SECRET_KEY, per-provider `*_API_KEY`,
