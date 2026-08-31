@@ -1349,11 +1349,12 @@ def chat_events(stream_id):
 
     def generate():
         last_id = "0"
+        token_key = REDIS_KEY_STREAM_TOKEN.format(stream_id=stream_id)
         try:
             while True:
                 entries = r.xread({stream_key: last_id}, block=3000, count=100)
                 if not entries:
-                    if not r.exists(stream_key):
+                    if not r.exists(token_key):
                         break
                     continue
                 for _, msgs in entries:

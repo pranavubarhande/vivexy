@@ -1,0 +1,74 @@
+{{- if .Values.redisStack.enabled }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Release.Name }}-redis-master
+  labels:
+    {{- include "vivexy.labels" . | nindent 4 }}
+    {{- include "vivexy.selectorLabels" (dict "component" "redis-master" "root" $) | nindent 4 }}
+spec:
+  serviceName: {{ .Release.Name }}-redis-master
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "vivexy.selectorLabels" (dict "component" "redis-master" "root" $) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "vivexy.selectorLabels" (dict "component" "redis-master" "root" $) | nindent 8 }}
+    spec:
+      containers:
+        - name: redis-stack
+          image: "{{ .Values.redisStack.image.repository }}:{{ .Values.redisStack.image.tag }}"
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              exec redis-stack-server --requirepass "$REDIS_PASSWORD" --dir /data --appendonly yes --protected-mode no
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: {{ .Values.secrets.dataCredentials }}, key: redis-password }
+          ports:
+            - name: redis
+              containerPort: 6379
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          resources:
+            {{- toYaml .Values.redisStack.resources | nindent 12 }}
+          readinessProbe:
+            exec:
+              command: ["/bin/sh", "-c", "redis-cli -a \"$REDIS_PASSWORD\" --no-auth-warning ping"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["/bin/sh", "-c", "redis-cli -a \"$REDIS_PASSWORD\" --no-auth-warning ping"]
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 5
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: {{ .Values.redisStack.persistence.size }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-redis-master
+  labels:
+    {{- include "vivexy.labels" . | nindent 4 }}
+spec:
+  selector:
+    {{- include "vivexy.selectorLabels" (dict "component" "redis-master" "root" $) | nindent 4 }}
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379
+{{- end }}

@@ -58,14 +58,9 @@ postgresql-ha:
   persistence:
     size: 5Gi
 
-redis:
-  architecture: standalone
-  master:
-    persistence:
-      size: 2Gi
-  replica:
-    replicaCount: 0
-
+redisStack:
+  persistence:
+    size: 2Gi
 rabbitmq:
   replicaCount: 1
   persistence:
