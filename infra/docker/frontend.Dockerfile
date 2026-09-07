@@ -13,6 +13,16 @@ RUN npm ci --include-workspace-root --workspace apps/frontend
 FROM node:20-alpine AS builder
 WORKDIR /repo
 ENV NEXT_TELEMETRY_DISABLED=1
+# NEXT_PUBLIC_* vars are inlined into the client JS bundle by `next build` --
+# they must be present at BUILD time, not just as pod env vars at runtime
+# (which only affects server-side code). Passed in via docker --build-arg
+# from build-and-push.yml, sourced from repo variables.
+ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_APP_URL
+ARG NEXT_PUBLIC_AUTH_ENABLED
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
+ENV NEXT_PUBLIC_AUTH_ENABLED=$NEXT_PUBLIC_AUTH_ENABLED
 COPY --from=deps /repo/node_modules ./node_modules
 COPY --from=deps /repo/apps/frontend/node_modules ./apps/frontend/node_modules
 COPY package.json package-lock.json turbo.json ./
