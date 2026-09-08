@@ -38,10 +38,15 @@ postgresql-ha:
     replicaCount: 1
   postgresql:
     replicaCount: 2 # 1 primary + 1 replica — postgresqlReplicas isn't a real field, see values.yaml
-
+  # See values-prod.yaml's comment — chart default is false, turned on here
+  # for infra/k8s/observability/postgres-podmonitoring.yaml.
+  metrics:
+    enabled: true
 
 rabbitmq:
   replicaCount: 3 # keep the real cluster size — this is what quorum queues need to mean anything
+  metrics:
+    enabled: true
 
 minio:
   replicas: 4

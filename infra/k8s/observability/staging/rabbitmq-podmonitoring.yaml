@@ -1,0 +1,14 @@
+# See ../prod/rabbitmq-podmonitoring.yaml — same selector/port, different
+# namespace.
+apiVersion: monitoring.googleapis.com/v1
+kind: PodMonitoring
+metadata:
+  name: rabbitmq
+  namespace: vivexy-staging
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: rabbitmq
+  endpoints:
+    - port: metrics
+      interval: 30s

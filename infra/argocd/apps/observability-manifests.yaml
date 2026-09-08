@@ -1,0 +1,28 @@
+# Syncs everything under infra/k8s/observability/ — gmp-frontend.yaml
+# (namespace gmp-system) plus the prod/ and staging/ PodMonitoring CRDs
+# (namespace vivexy / vivexy-staging respectively). One Application is
+# enough despite the mixed namespaces: each manifest declares its own
+# metadata.namespace, which ArgoCD/kubectl honor over the Application's
+# destination.namespace default.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: observability-manifests
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/pranavubarhande/vivexy.git
+    targetRevision: main
+    path: infra/k8s/observability
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: gmp-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
