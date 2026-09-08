@@ -1,0 +1,5 @@
+# Documented convention, not enforced — GitHub blocks branch protection
+# rules on private repos without Pro/Team, and this is a solo personal
+# repo (confirmed: exactly one collaborator, admin role). Revisit if
+# collaborators are added or the repo goes public/Pro.
+* @pranavubarhande
