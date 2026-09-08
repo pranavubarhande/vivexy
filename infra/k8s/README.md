@@ -21,9 +21,22 @@ Sentinel caveat).
 ## 1. Create the namespace and secrets
 
 Nothing in this chart's `values-*.yaml` files contains a secret — every
-secret is a Kubernetes `Secret` created out-of-band and referenced by name
-(`secrets.dataCredentials` / `secrets.agents` / `secrets.frontend` in
-`values.yaml`). Create the namespace first:
+secret is a Kubernetes `Secret` referenced by name (`secrets.dataCredentials`
+/ `secrets.agents` / `secrets.frontend` in `values.yaml`). How that Secret
+actually gets created depends on the target:
+
+- **Local dev (kind/k3d)** — no GCP project to talk to, so it's the manual
+  `kubectl create secret` flow below.
+- **GKE (dev/staging/prod)** — GCP Secret Manager + External Secrets
+  Operator instead, so secrets survive a cluster teardown/recreate without
+  being retyped by hand every time. See `bootstrap/README.md` §4 and
+  `external-secrets/README.md`; skip straight to §2 below once those are set
+  up (the `ExternalSecret`s create the same Secret names/keys documented
+  here, so nothing else about the chart changes).
+
+Create the namespace first (local dev only — GKE gets its namespace from the
+ArgoCD `Application`'s `syncOptions: [CreateNamespace=true]`, see
+`../argocd/`):
 
 ```bash
 kubectl create namespace vivexy
@@ -144,20 +157,22 @@ helm show values oci://registry-1.docker.io/bitnamicharts/rabbitmq --version <re
 ## 3. Install / upgrade
 
 ```bash
-# Local dev (kind/k3d):
+# Local dev (kind/k3d) — the only case that still runs `helm upgrade`
+# directly:
 helm upgrade --install vivexy . \
   -f values.yaml -f values-dev.yaml \
   --set image.owner=<your-ghcr-owner> \
   -n vivexy --create-namespace --wait --timeout 10m
-
-# Staging / prod: same shape, different values file + real image tag (CI
-# passes --set image.tag=$IMAGE_TAG — see ../../.github/workflows/deploy-k8s.yml)
-helm upgrade --install vivexy . \
-  -f values.yaml -f values-prod.yaml \
-  --set image.owner=<your-ghcr-owner> \
-  --set image.tag=<sha-or-tag> \
-  -n vivexy --create-namespace --wait --timeout 10m
 ```
+
+**Staging / prod (GKE) never run `helm upgrade` by hand or from CI** — ArgoCD
+does, continuously, watching this chart in git (see `../argocd/README.md`).
+CI's only job is building the image and writing its tag back to git
+(`.github/workflows/update-image-tag.yml`); ArgoCD picks up that commit and
+reconciles the cluster. To deploy a new image: merge to `main`, wait for
+`build-and-push` + `update-image-tag` to finish, then either wait for
+ArgoCD's ~3-minute poll or trigger it manually (`argocd app sync vivexy-prod`
+if you have the CLI, or click Sync in the UI).
 
 `--wait` blocks until the pre-upgrade Alembic migration Job succeeds and all
 Deployments report ready — a failed migration fails the whole `helm upgrade`
