@@ -3,6 +3,11 @@ name: build-and-push
 on:
   push:
     branches: [main]
+    # update-image-tag.yml commits to this path after every successful build
+    # — without ignoring it, that commit would re-trigger this workflow,
+    # which would trigger another tag-bump commit, forever.
+    paths-ignore:
+      - 'infra/k8s/charts/vivexy/image-tag/**'
   workflow_dispatch:
 
 concurrency:
