@@ -1,9 +1,3 @@
-# Syncs everything under infra/k8s/observability/ — gmp-frontend.yaml
-# (namespace gmp-system) plus the prod/ and staging/ PodMonitoring CRDs
-# (namespace vivexy / vivexy-staging respectively). One Application is
-# enough despite the mixed namespaces: each manifest declares its own
-# metadata.namespace, which ArgoCD/kubectl honor over the Application's
-# destination.namespace default.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

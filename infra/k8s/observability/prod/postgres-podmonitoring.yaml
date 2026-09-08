@@ -1,10 +1,3 @@
-# Selector and port name verified directly against the rendered chart
-# (`helm template ... --set postgresql-ha.metrics.enabled=true`), not
-# assumed: the postgresql-ha subchart's StatefulSet (the actual DB pod,
-# component=postgresql — NOT the pgpool Deployment, which has no metrics
-# sidecar/port) exposes a container port literally named "metrics" once
-# postgresql-ha.metrics.enabled is true (see values-prod.yaml/
-# values-staging.yaml).
 apiVersion: monitoring.googleapis.com/v1
 kind: PodMonitoring
 metadata:

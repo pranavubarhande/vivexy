@@ -79,7 +79,6 @@ def main():
     for t in threads:
         t.start()
 
-    # Live progress every 5s
     last_count = 0
     while time.monotonic() - t_start < args.duration:
         time.sleep(5)

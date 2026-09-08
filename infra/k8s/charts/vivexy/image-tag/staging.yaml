@@ -1,3 +1,2 @@
-# See prod.yaml's comment — same mechanism, written by the same CI step.
 image:
   tag: latest

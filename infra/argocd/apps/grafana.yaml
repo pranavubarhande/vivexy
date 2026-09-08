@@ -1,11 +1,3 @@
-# Deliberately NOT kube-prometheus-stack, which would run a second
-# Prometheus + Alertmanager + node-exporter DaemonSet — meaningful CPU/
-# memory cost on a small autoscaling node pool (infra/terraform/) that's
-# also running Postgres-HA/RabbitMQ/MinIO/Redis-Stack/the app itself. This
-# is Grafana alone, as a query UI on top of the Prometheus data GKE already
-# collects for free (monitoring_config.managed_prometheus in
-# infra/terraform/modules/gke-cluster) via the query-frontend proxy
-# (../k8s/observability/gmp-frontend.yaml).
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -16,7 +8,7 @@ spec:
   source:
     repoURL: https://grafana.github.io/helm-charts
     chart: grafana
-    targetRevision: 10.5.15 # `helm search repo grafana/grafana` — verified current at authoring time, re-check before a real deploy
+    targetRevision: 10.5.15
     helm:
       valuesObject:
         replicas: 1

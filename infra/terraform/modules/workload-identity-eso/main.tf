@@ -1,10 +1,3 @@
-# The GCP service account External Secrets Operator impersonates via
-# Workload Identity to read secrets from Secret Manager. No key file is ever
-# generated or stored anywhere — the binding below is what lets the
-# Kubernetes ServiceAccount (created by hand as part of the ESO bootstrap
-# manifests, see infra/k8s/bootstrap/external-secrets/service-account.yaml)
-# act as this GSA purely via its Workload Identity annotation.
-
 resource "google_service_account" "eso" {
   project      = var.project_id
   account_id   = "eso-secret-manager"

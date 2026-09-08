@@ -1,5 +1,3 @@
-# See ../prod/postgres-podmonitoring.yaml — same selector/port, different
-# namespace (matches values-staging.yaml deploying to vivexy-staging).
 apiVersion: monitoring.googleapis.com/v1
 kind: PodMonitoring
 metadata:

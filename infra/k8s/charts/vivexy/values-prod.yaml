@@ -21,11 +21,6 @@ ingress:
 # (DB_POOL_SIZE+DB_POOL_MAX_OVERFLOW)) — with agents.autoscaling.maxReplicas=20
 # and DB_POOL_SIZE=3/DB_POOL_MAX_OVERFLOW=2 from values.yaml, that's 20 x 2 x 5
 # = 200 possible connections at full scale-out; size pgpool accordingly.
-#
-# metrics.enabled: false is the chart default (verified against the vendored
-# tarball) — the postgres-exporter sidecar this chart's comments elsewhere
-# reference has never actually been running until this is turned on. Powers
-# infra/k8s/observability/postgres-podmonitoring.yaml.
 postgresql-ha:
   pgpool:
     configuration: |-
@@ -33,8 +28,6 @@ postgresql-ha:
   metrics:
     enabled: true
 
-# Same story as postgresql-ha above — default false, turned on here for
-# infra/k8s/observability/rabbitmq-podmonitoring.yaml.
 rabbitmq:
   metrics:
     enabled: true

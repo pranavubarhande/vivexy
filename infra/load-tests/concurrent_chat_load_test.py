@@ -52,7 +52,6 @@ def run_one_user(
     }
     t_start = time.monotonic()
     try:
-        # 1. Register
         email = f"loadtest-{uuid.uuid4().hex[:12]}@example.com"
         r = session.post(
             f"{base_url}/auth/register",
@@ -64,13 +63,11 @@ def run_one_user(
         token = r.json()["token"]
         session.headers["Authorization"] = f"Bearer {token}"
 
-        # 2. Create chat
         r = session.post(f"{base_url}/chat", data=json.dumps({"title": f"loadtest-{user_idx}"}), timeout=15)
         result["stage"] = "create_chat"
         r.raise_for_status()
         chat_id = r.json()["id"]
 
-        # 3. Start chat (dispatch)
         prompt = SHORT_PROMPTS[user_idx % len(SHORT_PROMPTS)]
         t_dispatch_start = time.monotonic()
         r = session.post(
@@ -90,7 +87,6 @@ def run_one_user(
         stream_id = r.json()["streamId"]
         result["dispatch_latency_s"] = time.monotonic() - t_dispatch_start
 
-        # 4. Read SSE until a "done" event
         result["stage"] = "sse_stream"
         r = session.get(f"{base_url}/chat/events/{stream_id}", stream=True, timeout=sse_timeout)
         r.raise_for_status()

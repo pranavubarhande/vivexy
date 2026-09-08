@@ -3,14 +3,6 @@
 Post-deploy smoke test: register -> login -> create chat -> start a chat
 turn -> read the SSE stream until it completes.
 
-This is the exact sequence manually verified by hand after every deploy
-during initial development (register/login over HTTPS, then a live LLM
-round-trip) — codified here instead of re-typing curl commands each time.
-Field names (snake_case on the wire) match what the API's camelCase<->
-snake_case conversion middleware (app/__init__.py) actually accepts/returns,
-confirmed against app/routes/auth.py and app/routes/chat.py directly, not
-assumed.
-
 Usage:
   SMOKE_TEST_BASE_URL=https://api.<host> python scripts/smoke-test.py
   SMOKE_TEST_BASE_URL=https://api.<host> SMOKE_TEST_MODEL_PROVIDER=google \

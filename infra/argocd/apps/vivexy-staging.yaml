@@ -1,7 +1,3 @@
-# Own destination namespace (vivexy-staging, not vivexy) — this is what
-# fixes the old deploy-k8s.yml's bug: it hardcoded `namespace: vivexy`
-# regardless of which values_env was dispatched, so staging and prod would
-# have collided in the same namespace if ever both deployed.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

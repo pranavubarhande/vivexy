@@ -3,7 +3,7 @@ variable "project_id" {
 }
 
 variable "eso_ksa_namespace" {
-  description = "Namespace of the Kubernetes ServiceAccount ESO runs as (created by hand in the bootstrap manifests, see infra/k8s/bootstrap/external-secrets/service-account.yaml)."
+  description = "Namespace of the Kubernetes ServiceAccount ESO runs as."
   type        = string
   default     = "external-secrets"
 }

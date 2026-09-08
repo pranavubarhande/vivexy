@@ -1,14 +1,5 @@
 name: update-image-tag
 
-# The GitOps update mechanism: writes the just-built image tag back to git
-# instead of running `helm upgrade` against the cluster directly (that's
-# ArgoCD's job now — see infra/argocd/README.md for why deploy-k8s.yml was
-# deleted rather than kept alongside this). ArgoCD watches
-# infra/k8s/charts/vivexy/image-tag/*.yaml in git and picks up this commit
-# on its default ~3-minute poll, no webhook needed (a webhook would need a
-# publicly-reachable ArgoCD endpoint, which doesn't exist without a real
-# domain).
-
 on:
   workflow_run:
     workflows: [build-and-push]

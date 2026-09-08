@@ -1,5 +1,3 @@
-# See ../prod/rabbitmq-podmonitoring.yaml — same selector/port, different
-# namespace.
 apiVersion: monitoring.googleapis.com/v1
 kind: PodMonitoring
 metadata:
