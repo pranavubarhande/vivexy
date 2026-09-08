@@ -1,0 +1,6 @@
+# Overwritten by .github/workflows/update-image-tag.yml on every successful
+# build-and-push run on main. Not meant to be hand-edited — it's tracked in
+# git purely so ArgoCD (which only watches git, not the image registry) has
+# something to diff against. Placeholder until the first CI run lands.
+image:
+  tag: latest

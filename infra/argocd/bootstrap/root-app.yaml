@@ -1,0 +1,30 @@
+# "App of apps": the ONE manifest anyone ever applies by hand
+# (`kubectl apply -f infra/argocd/bootstrap/root-app.yaml`, once per cluster
+# lifetime, right after ArgoCD itself is installed — see ../README.md).
+#
+# From here, adding/removing a file under infra/argocd/apps/ and pushing to
+# main is the only action needed to add/remove anything ArgoCD-manages —
+# this Application watches that whole directory and creates/prunes child
+# Applications to match.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vivexy-root
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/pranavubarhande/vivexy.git
+    targetRevision: main
+    path: infra/argocd/apps
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

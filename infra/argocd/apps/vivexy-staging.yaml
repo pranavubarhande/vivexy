@@ -1,0 +1,32 @@
+# Own destination namespace (vivexy-staging, not vivexy) — this is what
+# fixes the old deploy-k8s.yml's bug: it hardcoded `namespace: vivexy`
+# regardless of which values_env was dispatched, so staging and prod would
+# have collided in the same namespace if ever both deployed.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vivexy-staging
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/pranavubarhande/vivexy.git
+    targetRevision: main
+    path: infra/k8s/charts/vivexy
+    helm:
+      valueFiles:
+        - values.yaml
+        - values-staging.yaml
+        - image-tag/staging.yaml
+      parameters:
+        - name: image.owner
+          value: pranavubarhande
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: vivexy-staging
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
