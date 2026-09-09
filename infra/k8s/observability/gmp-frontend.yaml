@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: gmp-system
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: managed-prometheus-frontend
+  template:
+    metadata:
+      labels:
+        app: managed-prometheus-frontend
+    spec:
+      automountServiceAccountToken: true
+      containers:
+        - name: frontend
+          image: gke.gcr.io/prometheus-engine/frontend:v0.15.3-gke.0
+          args:
+            - '--web.listen-address=:9090'
+            - '--query.project-id=<PROJECT_ID>'
+          ports:
+            - name: web
+              containerPort: 9090
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: web
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: web
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { cpu: 500m, memory: 512Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: gmp-system
+spec:
+  clusterIP: None
+  selector:
+    app: managed-prometheus-frontend
+  ports:
+    - name: web
+      port: 9090
+      targetPort: web

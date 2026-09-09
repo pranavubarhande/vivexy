@@ -25,3 +25,9 @@ postgresql-ha:
   pgpool:
     configuration: |-
       max_pool = 200
+  metrics:
+    enabled: true
+
+rabbitmq:
+  metrics:
+    enabled: true

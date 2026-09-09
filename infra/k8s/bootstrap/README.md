@@ -53,6 +53,37 @@ helm repo update
 helm install keda kedacore/keda --namespace keda --create-namespace
 ```
 
+## 4. External Secrets Operator (GKE only — skip for local dev)
+
+Replaces manually re-typing real API keys into `kubectl create secret`
+every time a cluster is recreated (see `../README.md`'s "local dev only"
+vs. "GKE" secrets sections). Reads from GCP Secret Manager via Workload
+Identity — requires `infra/terraform/` to already be applied (it
+provisions the GCP service account this binds to).
+
+```bash
+helm repo add external-secrets https://charts.external-secrets.io
+helm repo update
+helm install external-secrets external-secrets/external-secrets \
+  --namespace external-secrets --create-namespace
+```
+
+Edit `external-secrets/service-account.yaml`'s
+`iam.gke.io/gcp-service-account` annotation (fill in `<PROJECT_ID>` — or
+just paste `terraform output -raw eso_gsa_email` verbatim, it's already in
+the right format) and `external-secrets/cluster-secret-store.yaml`'s
+`<PROJECT_ID>`/`<ZONE>`/`<CLUSTER_NAME>` placeholders (from `terraform
+output`), then:
+
+```bash
+kubectl apply -f external-secrets/service-account.yaml
+kubectl apply -f external-secrets/cluster-secret-store.yaml
+kubectl get clustersecretstore gcp-secret-manager   # should report Ready=True
+```
+
+Then populate the real secret values and apply the per-environment
+`ExternalSecret`s — see `../external-secrets/README.md`.
+
 ## Verify
 
 ```bash
@@ -60,6 +91,8 @@ kubectl get pods -n ingress-nginx
 kubectl get pods -n cert-manager
 kubectl get pods -n keda
 kubectl get clusterissuer
+kubectl get pods -n external-secrets       # GKE only
+kubectl get clustersecretstore             # GKE only
 ```
 
 All should be `Running`/`Ready` before installing the app chart.

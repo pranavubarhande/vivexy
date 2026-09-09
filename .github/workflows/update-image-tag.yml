@@ -1,0 +1,41 @@
+name: update-image-tag
+
+on:
+  workflow_run:
+    workflows: [build-and-push]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  bump:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Write image tag overlay
+        run: |
+          TAG="sha-${{ github.event.workflow_run.head_sha }}"
+          for env in prod staging; do
+            cat > "infra/k8s/charts/vivexy/image-tag/${env}.yaml" <<EOF
+          image:
+            tag: ${TAG}
+          EOF
+          done
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add infra/k8s/charts/vivexy/image-tag/
+          if git diff --cached --quiet; then
+            echo "no change"
+            exit 0
+          fi
+          git commit -m "chore(deploy): bump image tag to sha-${{ github.event.workflow_run.head_sha }}"
+          git push

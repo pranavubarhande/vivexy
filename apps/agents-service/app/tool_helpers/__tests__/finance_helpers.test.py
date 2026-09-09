@@ -6,13 +6,31 @@ from app.tool_helpers.finance.cache_helpers import delete_cache, get_cache, set_
 from app.tool_helpers.finance.yahoo_finance_helpers import get_stock_quote
 
 
-def test_cache_helpers():
-    # Cache helpers use diskcache, we will test the basic wrapper functionality
-    set_cache("test_key", "test_value")
-    assert get_cache("test_key") == "test_value"
+class _FakeRedis:
+    """In-memory stand-in for the module-level redis_client — cache_helpers
+    talks to a real Redis server otherwise, which this test suite should not
+    require."""
 
-    delete_cache("test_key")
-    assert get_cache("test_key") is None
+    def __init__(self):
+        self._store = {}
+
+    def get(self, key):
+        return self._store.get(key)
+
+    def setex(self, key, ttl_seconds, value):
+        self._store[key] = value
+
+    def delete(self, key):
+        self._store.pop(key, None)
+
+
+def test_cache_helpers():
+    with patch("app.tool_helpers.finance.cache_helpers.redis_client", _FakeRedis()):
+        set_cache("test_key", "test_value")
+        assert get_cache("test_key") == "test_value"
+
+        delete_cache("test_key")
+        assert get_cache("test_key") is None
 
 
 @patch("app.tool_helpers.finance.yahoo_finance_helpers.yf.Ticker")
