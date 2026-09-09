@@ -17,6 +17,25 @@ spec:
       parameters:
         - name: image.owner
           value: pranavubarhande
+        # TEMPORARY test-practice-run override — avoids the multi-node
+        # repmgr bootstrap complexity while validating the deploy flow.
+        # Remove this parameter for a real production deploy so
+        # postgresql-ha.postgresql.replicaCount goes back to values-prod.yaml's
+        # real 3-node HA shape.
+        - name: postgresql-ha.postgresql.replicaCount
+          value: "1"
+        # TEMPORARY test-practice-run overrides — the minio chart's own
+        # default (resources.requests.memory: 16Gi per pod) can never fit
+        # on an e2-standard-2 node (8GB total), regardless of node count;
+        # rabbitmq's real 3-replica shape needs a 5th cluster node that this
+        # project's regional SSD quota (500GB, already ~490GB used by node
+        # boot disks + PVCs) can't provision. Remove both for a real
+        # production deploy (or after requesting a quota increase / sizing
+        # node boot disks down).
+        - name: minio.resources.requests.memory
+          value: 512Mi
+        - name: rabbitmq.replicaCount
+          value: "1"
   destination:
     server: https://kubernetes.default.svc
     namespace: vivexy
