@@ -17,6 +17,13 @@ spec:
       parameters:
         - name: image.owner
           value: pranavubarhande
+        # TEMPORARY test-practice-run override — avoids the multi-node
+        # repmgr bootstrap complexity while validating the deploy flow.
+        # Remove this parameter for a real production deploy so
+        # postgresql-ha.postgresql.replicaCount goes back to values-prod.yaml's
+        # real 3-node HA shape.
+        - name: postgresql-ha.postgresql.replicaCount
+          value: "1"
   destination:
     server: https://kubernetes.default.svc
     namespace: vivexy
