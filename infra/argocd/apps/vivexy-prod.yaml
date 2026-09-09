@@ -1,0 +1,28 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vivexy-prod
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/pranavubarhande/vivexy.git
+    targetRevision: main
+    path: infra/k8s/charts/vivexy
+    helm:
+      valueFiles:
+        - values.yaml
+        - values-prod.yaml
+        - image-tag/prod.yaml
+      parameters:
+        - name: image.owner
+          value: pranavubarhande
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: vivexy
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

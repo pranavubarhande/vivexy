@@ -1,0 +1,9 @@
+# Copy to terraform.tfvars (gitignored) and fill in.
+
+project_id = "vivexy"
+zone       = "us-central1-a"
+
+# cluster_name      = "vivexy"
+# node_machine_type = "e2-standard-2"
+# node_min_count    = 1
+# node_max_count    = 6
