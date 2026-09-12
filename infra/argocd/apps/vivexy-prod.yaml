@@ -50,6 +50,17 @@ spec:
         # Remove for a real production deploy.
         - name: postgresql-ha.pgpool.replicaCount
           value: "1"
+        # TEMPORARY test-practice-run overrides — even after the overrides
+        # above, total pod CPU requests exceeded 4 nodes' allocatable
+        # capacity (~7.7 vCPU on e2-standard-2 x4), and the SSD_TOTAL_GB
+        # quota won't allow a 5th 100GB-boot-disk node. Dropping these two
+        # HPA floors to 1 frees enough room to schedule everything. Remove
+        # for a real production deploy so both go back to their real
+        # 2-replica HA floor.
+        - name: agents.autoscaling.minReplicas
+          value: "1"
+        - name: frontend.autoscaling.minReplicas
+          value: "1"
   destination:
     server: https://kubernetes.default.svc
     namespace: vivexy
