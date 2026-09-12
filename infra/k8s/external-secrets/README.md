@@ -72,7 +72,7 @@ cat > /tmp/data-credentials.json <<EOF
   "repmgr-password": "${REPMGR_PW}",
   "redis-password": "${REDIS_PW}",
   "rabbitmq-password": "${RABBITMQ_PW}",
-  "rabbitmq-url": "amqp://user:${RABBITMQ_PW}@vivexy-rabbitmq.vivexy.svc.cluster.local:5672/",
+  "rabbitmq-url": "amqp://user:${RABBITMQ_PW}@vivexy-prod-rabbitmq.vivexy.svc.cluster.local:5672/",
   "minio-root-user": "vivexy",
   "minio-root-password": "${MINIO_PW}",
   "rootUser": "vivexy",
@@ -90,8 +90,21 @@ Same field meanings as documented in `../README.md`'s local-dev flow (the
 `rootUser`/`rootPassword` — all required by the `postgresql-ha`/`minio`
 subcharts' fixed key-name expectations). For staging, use a **fresh** set of
 random passwords (`vivexy-staging-data-credentials`) — do not reuse prod's
-DB passwords, and update `rabbitmq-url`'s namespace to
-`vivexy-staging.svc.cluster.local`.
+DB passwords, and use `vivexy-staging-rabbitmq.vivexy-staging.svc.cluster.local`
+for `rabbitmq-url` (both the release-name prefix **and** the namespace
+change for staging).
+
+`rabbitmq-url`'s host must be `<helm-release-name>-rabbitmq`, not just
+`rabbitmq` — the ArgoCD `Application`'s `metadata.name` (`vivexy-prod` /
+`vivexy-staging`) *is* the Helm release name, so the actual Service is
+`vivexy-prod-rabbitmq` / `vivexy-staging-rabbitmq`. Getting this wrong is
+an easy, quiet mistake: every application pod (built with the full
+`RABBITMQ_URL` composed from `data-credentials` + known service names via
+`templates/_helpers.tpl`) keeps working, but KEDA's `ScaledObject` reads
+`rabbitmq-url` directly out of this secret and its `keda-operator` runs in
+its own `keda` namespace, so a wrong host only breaks worker autoscaling —
+`kubectl describe scaledobject -n vivexy` showing `error establishing
+connection to RabbitMQ: ... no such host` is the tell.
 
 ## Populate `frontend-secrets`
 
