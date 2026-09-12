@@ -36,6 +36,20 @@ spec:
           value: 512Mi
         - name: rabbitmq.replicaCount
           value: "1"
+        # TEMPORARY test-practice-run override — values.yaml's default
+        # minio.persistence.size (50Gi x 4 replicas = 200GB) alone consumes
+        # 40% of this project's 500GB regional SSD_TOTAL_GB quota, on top of
+        # node boot disks (100GB each). Left no room for postgres/rabbitmq/
+        # redis PVCs to provision at all. Remove for a real production
+        # deploy (or after requesting a quota increase).
+        - name: minio.persistence.size
+          value: 10Gi
+        # TEMPORARY test-practice-run override — pgpool's 2-replica default
+        # doubles CPU-request pressure on an already-packed node pool for a
+        # connection-pooler that isn't the bottleneck being tested here.
+        # Remove for a real production deploy.
+        - name: postgresql-ha.pgpool.replicaCount
+          value: "1"
   destination:
     server: https://kubernetes.default.svc
     namespace: vivexy
