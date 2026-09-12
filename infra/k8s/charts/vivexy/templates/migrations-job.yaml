@@ -58,7 +58,8 @@ spec:
                 echo "  not ready yet (attempt $i/60), retrying in 5s"
                 sleep 5
               done
-              exec uv run alembic upgrade head
+              uv run alembic upgrade head
+              exec uv run python scripts/seed_llm_models.py
           envFrom:
             - configMapRef:
                 name: {{ .Release.Name }}-agents-config
