@@ -226,7 +226,8 @@ def start_worker():
         channel.start_consuming()
     finally:
         logger.info("Worker shutting down")
-        connection.close()
+        if connection.is_open:
+            connection.close()
 
 
 if __name__ == "__main__":
