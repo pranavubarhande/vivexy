@@ -252,7 +252,7 @@ kubectl -n monitoring port-forward svc/grafana 3000:80
 
 ---
 
-## Day-2 operations
+## Ongoing operations
 
 **Deploy a code change**: just merge to `main`. CI builds, writes the tag,
 ArgoCD picks it up within its ~3-minute poll (or force it — see below).
@@ -380,8 +380,8 @@ Levers, roughly in order of impact:
 Related: `cluster-autoscaler` remembers a failed scale-up (e.g. from a
 disk-quota error) and enters a backoff that can last up to ~30 minutes
 before retrying on its own. If you've just freed quota and need relief
-now rather than waiting it out, resize the node pool manually (see Day-2
-ops above) — that bypasses the autoscaler's own backoff entirely.
+now rather than waiting it out, resize the node pool manually (see
+Ongoing operations above) — that bypasses the autoscaler's own backoff entirely.
 
 ### HPA / node-capacity feedback loop
 
@@ -395,7 +395,7 @@ samples that burst and keeps/raises its replica recommendation → worse
 contention → repeat. `kubectl describe hpa` will show `AbleToScale:
 ScaleDownStabilized` holding a stale high recommendation.
 
-**Fix**: add real node capacity (see Day-2 ops' manual resize) rather
+**Fix**: add real node capacity (see Ongoing operations' manual resize) rather
 than fighting the HPA directly — a manual `kubectl scale` down gets
 partially overridden by HPA's own stabilization window anyway. Once
 there's genuine headroom, the loop breaks on its own within a couple of
