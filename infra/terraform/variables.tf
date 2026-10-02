@@ -32,3 +32,9 @@ variable "node_max_count" {
   type        = number
   default     = 6
 }
+
+variable "node_disk_size_gb" {
+  description = "Boot disk size per node. Kept small since node boot disks count against the project's regional SSD_TOTAL_GB quota alongside app PVCs, but not so small that kubelet's disk-pressure eviction threshold triggers once several service images are pulled onto a node (30GB was too tight in practice)."
+  type        = number
+  default     = 50
+}

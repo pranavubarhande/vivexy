@@ -6,24 +6,26 @@ metadata:
   labels:
     {{- include "vivexy.labels" . | nindent 4 }}
   annotations:
-    # pre-upgrade: blocks the rest of the rollout (via --wait in CI) until
-    # this exits 0 — the k8s equivalent of deploy-aws.yml's one-shot
-    # `aws ecs run-task` + `wait tasks-stopped` migration step, but expressed
-    # as a native Helm hook instead of hand-rolled CI choreography. On an
-    # upgrade, postgresql-ha is already running from the prior release, so
-    # this blocks correctly before any Deployment gets the new image.
+    # post-install,post-upgrade (NOT pre-install/pre-upgrade): a pre-install
+    # hook runs before ANY other resource in the release exists — including
+    # postgresql-ha's own StatefulSet — so on a fresh install there's no DB
+    # to connect to yet and the Job can only hang until
+    # activeDeadlineSeconds kills it. post-install/post-upgrade run after
+    # the rest of the release's resources are applied, so combined with the
+    # wait-loop below (Postgres takes a minute or two to accept connections)
+    # it actually succeeds.
     #
-    # post-install (NOT pre-install): a pre-install hook runs before ANY
-    # other resource in the release exists — including the postgresql-ha
-    # subchart's own StatefulSet, since that's just another resource in the
-    # same release. On a genuinely fresh install there is no DB to connect
-    # to yet, so a pre-install migration Job can only ever hang until
-    # activeDeadlineSeconds kills it — this isn't a slow-start timing issue,
-    # it's a hard chicken-and-egg with Helm's hook ordering. post-install
-    # runs after postgresql-ha's Service/StatefulSet have been applied, so
-    # combined with the wait-loop below (Postgres take a minute or two to
-    # accept connections after that) it actually succeeds.
-    "helm.sh/hook": post-install,pre-upgrade
+    # Verified empirically under ArgoCD: it maps Helm hook annotations onto
+    # its own PreSync/PostSync phases with no install-vs-upgrade distinction
+    # — a resource carrying "pre-upgrade" gets treated as PreSync on every
+    # sync, including the very first one. That deadlocked a live deploy
+    # (this Job stuck waiting for Postgres, while Postgres itself was held
+    # back as a regular resource behind this same "PreSync" hook). Using
+    # post-upgrade instead of pre-upgrade avoids that under ArgoCD, at the
+    # cost of no longer blocking app Deployments from rolling out ahead of
+    # a migration on subsequent releases the way pre-upgrade did under
+    # plain `helm upgrade --wait`.
+    "helm.sh/hook": post-install,post-upgrade
     "helm.sh/hook-weight": "0"
     "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
 spec:
@@ -56,7 +58,8 @@ spec:
                 echo "  not ready yet (attempt $i/60), retrying in 5s"
                 sleep 5
               done
-              exec uv run alembic upgrade head
+              uv run alembic upgrade head
+              exec uv run python scripts/seed_llm_models.py
           envFrom:
             - configMapRef:
                 name: {{ .Release.Name }}-agents-config

@@ -7,3 +7,4 @@ zone       = "us-central1-a"
 # node_machine_type = "e2-standard-2"
 # node_min_count    = 1
 # node_max_count    = 6
+# node_disk_size_gb = 50

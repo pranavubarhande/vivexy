@@ -20,8 +20,12 @@ applied — nothing to `kubectl apply` by hand.
 label selectors and port names were confirmed by actually rendering the
 chart (`helm template ... --set postgresql-ha.metrics.enabled=true --set
 rabbitmq.metrics.enabled=true`) and reading the real Pod labels/container
-ports, not assumed from the subcharts' documentation. `staging/` mirrors
-the same selectors into the `vivexy-staging` namespace.
+ports, not assumed from the subcharts' documentation. The staging
+equivalents (same selectors, `vivexy-staging` namespace) live in
+`../observability-disabled/staging/` — staging itself is currently
+disabled to conserve shared GCP quota (see `../../argocd/apps-disabled/`),
+so they're kept out of this directory to avoid a permanently-OutOfSync
+`observability-manifests` Application.
 
 `postgresql-ha.metrics.enabled` / `rabbitmq.metrics.enabled` default to
 `false` in the vendored charts (verified against the tarballs in

@@ -4,18 +4,18 @@
 
 frontend:
   env:
-    NEXT_PUBLIC_APP_URL: "https://app.example.com"
-    NEXTAUTH_URL: "https://app.example.com"
-    NEXT_PUBLIC_API_URL: "https://api.example.com"
+    NEXT_PUBLIC_APP_URL: "https://35-232-92-129.sslip.io"
+    NEXTAUTH_URL: "https://35-232-92-129.sslip.io"
+    NEXT_PUBLIC_API_URL: "https://api.35-232-92-129.sslip.io"
 
 agents:
   env:
-    CORS_ORIGINS: "https://app.example.com"
+    CORS_ORIGINS: "https://35-232-92-129.sslip.io"
 
 ingress:
   clusterIssuer: letsencrypt-prod
-  frontendHost: app.example.com
-  apiHost: api.example.com
+  frontendHost: 35-232-92-129.sslip.io
+  apiHost: api.35-232-92-129.sslip.io
 
 # pgpool max_pool must stay above (max agents replicas x gunicorn workers=2 x
 # (DB_POOL_SIZE+DB_POOL_MAX_OVERFLOW)) — with agents.autoscaling.maxReplicas=20

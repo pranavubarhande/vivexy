@@ -17,6 +17,50 @@ spec:
       parameters:
         - name: image.owner
           value: pranavubarhande
+        # TEMPORARY test-practice-run override — avoids the multi-node
+        # repmgr bootstrap complexity while validating the deploy flow.
+        # Remove this parameter for a real production deploy so
+        # postgresql-ha.postgresql.replicaCount goes back to values-prod.yaml's
+        # real 3-node HA shape.
+        - name: postgresql-ha.postgresql.replicaCount
+          value: "1"
+        # TEMPORARY test-practice-run overrides — the minio chart's own
+        # default (resources.requests.memory: 16Gi per pod) can never fit
+        # on an e2-standard-2 node (8GB total), regardless of node count;
+        # rabbitmq's real 3-replica shape needs a 5th cluster node that this
+        # project's regional SSD quota (500GB, already ~490GB used by node
+        # boot disks + PVCs) can't provision. Remove both for a real
+        # production deploy (or after requesting a quota increase / sizing
+        # node boot disks down).
+        - name: minio.resources.requests.memory
+          value: 512Mi
+        - name: rabbitmq.replicaCount
+          value: "1"
+        # TEMPORARY test-practice-run override — values.yaml's default
+        # minio.persistence.size (50Gi x 4 replicas = 200GB) alone consumes
+        # 40% of this project's 500GB regional SSD_TOTAL_GB quota, on top of
+        # node boot disks (100GB each). Left no room for postgres/rabbitmq/
+        # redis PVCs to provision at all. Remove for a real production
+        # deploy (or after requesting a quota increase).
+        - name: minio.persistence.size
+          value: 10Gi
+        # TEMPORARY test-practice-run override — pgpool's 2-replica default
+        # doubles CPU-request pressure on an already-packed node pool for a
+        # connection-pooler that isn't the bottleneck being tested here.
+        # Remove for a real production deploy.
+        - name: postgresql-ha.pgpool.replicaCount
+          value: "1"
+        # TEMPORARY test-practice-run overrides — even after the overrides
+        # above, total pod CPU requests exceeded 4 nodes' allocatable
+        # capacity (~7.7 vCPU on e2-standard-2 x4), and the SSD_TOTAL_GB
+        # quota won't allow a 5th 100GB-boot-disk node. Dropping these two
+        # HPA floors to 1 frees enough room to schedule everything. Remove
+        # for a real production deploy so both go back to their real
+        # 2-replica HA floor.
+        - name: agents.autoscaling.minReplicas
+          value: "1"
+        - name: frontend.autoscaling.minReplicas
+          value: "1"
   destination:
     server: https://kubernetes.default.svc
     namespace: vivexy

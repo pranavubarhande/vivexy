@@ -21,3 +21,7 @@ variable "node_min_count" {
 variable "node_max_count" {
   type = number
 }
+
+variable "node_disk_size_gb" {
+  type = number
+}
