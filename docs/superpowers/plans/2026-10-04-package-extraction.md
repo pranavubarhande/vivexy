@@ -748,6 +748,8 @@ Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
 
 **Context:** `constants/project.ts` (the `APP_NAME` branding constant) stays in `apps/frontend` — per the spec, branding is explicitly app-level, not packaged.
 
+**Important finding from Task 5:** Next.js/webpack resolves the `@/` alias using *only* `apps/frontend`'s own `tsconfig.json` paths — it does not re-scope `@/` per workspace package, regardless of what each package's own `tsconfig.json` says. This means a `@/X` reference inside a file **continues to work unchanged** if and only if `X` is a file that's still physically located in `apps/frontend` (e.g. `@/constants/project`, which never moves — that one's fine, don't touch it). But if `X` is something that has *also* moved out of `apps/frontend` into a package, `@/X` silently points at a now-deleted location and breaks the build. Task 6's Step 2 below already rewrites `@/components/chat`, `@/lib/`, `@/agents/`, etc. across **both** `apps/frontend` and `packages/core/src` (not just `apps/frontend`), which correctly handles self-references within the newly-moved code for the 10 categories this task moves. After Step 2 runs, if the build still fails on a module-resolution error, check whether the failing `@/X` reference points at something that has moved (fix: rewrite to `@vivexy/core/X` or a relative import, following the same pattern already established in Tasks 2 and 5) versus something that's still in `apps/frontend` (in which case it's a different bug, not this issue).
+
 - [ ] **Step 1: Move the directories and files**
 
 ```bash
