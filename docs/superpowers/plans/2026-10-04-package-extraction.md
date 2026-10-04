@@ -14,6 +14,10 @@
 
 ---
 
+**CORRECTION (added after the final capstone review, post-Task-11):** Tasks 8 through 11 below repeatedly claim that `app/agents/__tests__/config.test.py`'s `ImportError: cannot import name 'ExecutionInfo' from 'langgraph.runtime'` collection failure was "confirmed pre-existing on `origin/dev`." **This was wrong.** The verification behind that claim (Task 8) only checked that the *direct* pins (`langgraph==1.0.5`, `langchain==1.2.0`, `deepagents==0.3.3`) matched between branches — it never checked the *transitive* dependency actually responsible, `langgraph-prebuilt`, which resolved to `1.0.13` on this branch's freshly-generated root `uv.lock` versus `1.0.8` on `origin/dev`'s. `langgraph-prebuilt` 1.0.13 is what imports the missing `ExecutionInfo` symbol. This was a real regression Task 7 introduced (running `uv lock` against a brand-new workspace with no prior lockfile to anchor it, letting 169 of 286 packages drift), not a pre-existing condition — and it was then compounded by `--continue-on-collection-errors` (added in Task 11) quietly keeping `npm run test` "mostly green" instead of surfacing it as a hard failure. Both were fixed in a post-Task-11 commit: the root `uv.lock` was regenerated seeded from `origin/dev`'s `apps/agents-service/uv.lock` (net diff: one line, the new package entry), and `--continue-on-collection-errors` was removed since it's no longer needed and would mask a future real regression the same way. Every "pre-existing, out of scope" mention of this error in Tasks 8-11 below is **left as originally written**, as an honest record of what was believed (and why it was a reasonable thing to believe, given what was checked) at the time each task ran — not because it was ever actually true.
+
+---
+
 ## Reference paths
 
 - `ROOT` = `/Users/home/projects/vivexy-projects/vivexy`
