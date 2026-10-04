@@ -8,13 +8,13 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Switch } from '@/components/ui/switch';
+} from '@vivexy/ui/dialog';
+import { Button } from '@vivexy/ui/button';
+import { Input } from '@vivexy/ui/input';
+import { Label } from '@vivexy/ui/label';
+import { Textarea } from '@vivexy/ui/textarea';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@vivexy/ui/tabs';
+import { Switch } from '@vivexy/ui/switch';
 import { ModelSelector } from '@/components/chat/model-selector';
 import { FileUpload, UploadedFile } from '@/components/chat/file-upload';
 import { useModels } from '@/hooks/useChat';

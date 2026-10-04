@@ -7,10 +7,10 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
+} from '@vivexy/ui/card';
+import { Button } from '@vivexy/ui/button';
+import { Badge } from '@vivexy/ui/badge';
+import { Input } from '@vivexy/ui/input';
 import { Link2, Link2Off, Search, Plug } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -18,7 +18,7 @@ import {
   useGenerateConnection,
   useDisconnectConnection,
 } from '@/hooks/useConnectors';
-import { cn } from '@/utils/common';
+import { cn } from '@vivexy/ui/utils';
 
 type Category =
   | 'All'

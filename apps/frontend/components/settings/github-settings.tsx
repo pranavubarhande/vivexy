@@ -5,8 +5,8 @@ import { toast } from 'sonner';
 import { Github, CheckCircle2, LogOut, Loader2 } from 'lucide-react';
 import { useGithubStatus, useGithubDisconnect } from '@/hooks/useGithub';
 import { githubService } from '@/services/github.service';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@vivexy/ui/avatar';
+import { Button } from '@vivexy/ui/button';
 
 export const GithubSettings = () => {
   const { data: status, isLoading } = useGithubStatus();

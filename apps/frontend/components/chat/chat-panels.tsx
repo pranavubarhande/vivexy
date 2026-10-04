@@ -1,12 +1,7 @@
 'use client';
 
 import { useRef, useState, useEffect } from 'react';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@vivexy/ui/sheet';
 import { ArtifactsPanel } from '@/components/chat/artifacts-panel';
 import { GithubReposPanel } from '@/components/chat/github-repos-panel';
 import { useIsMobile } from '@/hooks/use-mobile';

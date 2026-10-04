@@ -1,7 +1,7 @@
 'use client';
 
 import { ChatMessage } from '@/components/chat/chat-message';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton } from '@vivexy/ui/skeleton';
 import type { Message } from '@/services/chat.service';
 
 interface ChatMessageListProps {

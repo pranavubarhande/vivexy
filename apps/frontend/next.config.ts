@@ -5,6 +5,7 @@ import { withSentryConfig } from '@sentry/nextjs';
 const isDesktopBuild = process.env.NEXT_DESKTOP === '1';
 
 const nextConfig: NextConfig = {
+  transpilePackages: ['@vivexy/ui'],
   output: isDesktopBuild ? 'export' : 'standalone',
   ...(isDesktopBuild
     ? { trailingSlash: true, images: { unoptimized: true } }

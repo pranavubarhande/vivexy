@@ -8,8 +8,8 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+} from '@vivexy/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@vivexy/ui/tabs';
 import { ProfileSettings } from '@/components/settings/profile-settings';
 import { PasswordSettings } from '@/components/settings/password-settings';
 import { NotificationSettings } from '@/components/settings/notification-settings';

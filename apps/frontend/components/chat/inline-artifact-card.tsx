@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { cn } from '@/utils/common';
+import { cn } from '@vivexy/ui/utils';
 import { ArtifactContent } from './artifact-content';
 import type { Artifact } from '@/services/chat.service';
 import { useChat } from '@/hooks/useChat';
@@ -10,7 +10,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+} from '@vivexy/ui/dropdown-menu';
 import { ChevronDown, ChevronUp, Download, Sparkles } from 'lucide-react';
 
 const TYPE_ICONS: Record<string, string> = {

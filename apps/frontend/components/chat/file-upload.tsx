@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/utils/common';
+import { Button } from '@vivexy/ui/button';
+import { cn } from '@vivexy/ui/utils';
 import { useFileUpload } from '@/hooks/useChat';
 
 interface FileUploadProps {

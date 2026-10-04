@@ -1,6 +1,6 @@
 'use client';
 
-import { cn } from '@/utils/common';
+import { cn } from '@vivexy/ui/utils';
 import { MessageStream } from './message-stream';
 import { StepItem } from './reasoning-display';
 import { InlineArtifactCard } from './inline-artifact-card';
@@ -33,8 +33,8 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+} from '@vivexy/ui/dialog';
+import { Button } from '@vivexy/ui/button';
 
 // ---------------------------------------------------------------------------
 // Shared helpers

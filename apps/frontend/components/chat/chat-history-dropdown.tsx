@@ -1,8 +1,8 @@
 'use client';
 
 import { Chat } from '@/services/chat.service';
-import { cn } from '@/utils/common';
-import { Button } from '@/components/ui/button';
+import { cn } from '@vivexy/ui/utils';
+import { Button } from '@vivexy/ui/button';
 import { formatDistanceToNow } from 'date-fns';
 import {
   DropdownMenu,
@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
   DropdownMenuLabel,
-} from '@/components/ui/dropdown-menu';
+} from '@vivexy/ui/dropdown-menu';
 import { MessageSquare, Trash2, ChevronDown } from 'lucide-react';
 
 interface ChatHistoryDropdownProps {

@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
-import { cn } from '@/utils/common';
+import { cn } from '@vivexy/ui/utils';
 import {
   ChevronDown,
   ChevronRight,

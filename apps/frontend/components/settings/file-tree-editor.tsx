@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@vivexy/ui/input';
+import { Textarea } from '@vivexy/ui/textarea';
 import { Plus, FileText, X, ChevronRight } from 'lucide-react';
 
 const CONTENT_PLACEHOLDER = `When the user asks to /my-skill, do the following:

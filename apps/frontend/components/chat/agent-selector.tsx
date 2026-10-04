@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useMemo, useCallback } from 'react';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { cn } from '@/utils/common';
+import { Dialog, DialogContent, DialogTitle } from '@vivexy/ui/dialog';
+import { Button } from '@vivexy/ui/button';
+import { Input } from '@vivexy/ui/input';
+import { cn } from '@vivexy/ui/utils';
 import { toast } from 'sonner';
 import {
   Bot,

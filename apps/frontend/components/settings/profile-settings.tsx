@@ -5,8 +5,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useUpdateProfile, useUserSettings } from '@/hooks/useUserSettings';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Button } from '@vivexy/ui/button';
+import { Input } from '@vivexy/ui/input';
 import {
   Form,
   FormControl,
@@ -14,7 +14,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form';
+} from '@vivexy/ui/form';
 import { toast } from 'sonner';
 
 const profileSchema = z.object({

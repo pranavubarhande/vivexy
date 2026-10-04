@@ -3,7 +3,7 @@
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { Artifact } from '@/services/chat.service';
-import { cn } from '@/utils/common';
+import { cn } from '@vivexy/ui/utils';
 import dynamic from 'next/dynamic';
 import { useXlsxContent } from '@/hooks/useChat';
 

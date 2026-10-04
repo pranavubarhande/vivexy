@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { platform } from '@/lib/platform';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/utils/common';
+import { Button } from '@vivexy/ui/button';
+import { cn } from '@vivexy/ui/utils';
 import {
   FolderOpen,
   Clock,

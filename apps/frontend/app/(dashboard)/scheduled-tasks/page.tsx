@@ -3,7 +3,7 @@
 import { useState, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@vivexy/ui/button';
 import { ScheduledTaskList } from '@/components/scheduled-tasks/scheduled-task-list';
 import { ScheduledTaskForm } from '@/components/scheduled-tasks/scheduled-task-form';
 import { TaskRunHistory } from '@/components/scheduled-tasks/task-run-history';

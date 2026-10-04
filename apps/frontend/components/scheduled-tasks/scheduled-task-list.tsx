@@ -11,9 +11,9 @@ import {
   Plus,
   CalendarClock,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
-import { Badge } from '@/components/ui/badge';
+import { Button } from '@vivexy/ui/button';
+import { Switch } from '@vivexy/ui/switch';
+import { Badge } from '@vivexy/ui/badge';
 import { scheduledTasksService } from '@/services/scheduled-tasks.service';
 import type { ScheduledTask } from '@/types/scheduled-task';
 

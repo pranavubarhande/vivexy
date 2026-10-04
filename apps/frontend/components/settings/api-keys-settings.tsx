@@ -1,10 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
+import { Button } from '@vivexy/ui/button';
+import { Input } from '@vivexy/ui/input';
+import { Label } from '@vivexy/ui/label';
+import { Badge } from '@vivexy/ui/badge';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,7 +14,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+} from '@vivexy/ui/alert-dialog';
 import { Key, Trash2, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
 import {
   useApiKeys,

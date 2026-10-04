@@ -1,14 +1,14 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect, KeyboardEvent } from 'react';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/utils/common';
+import { Button } from '@vivexy/ui/button';
+import { cn } from '@vivexy/ui/utils';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+} from '@vivexy/ui/dropdown-menu';
 import {
   Plus,
   Paperclip,

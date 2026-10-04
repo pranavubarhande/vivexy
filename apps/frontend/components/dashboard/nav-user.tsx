@@ -12,7 +12,7 @@ import {
 import Link from 'next/link';
 import { ROUTES } from '@/constants/routes';
 
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@vivexy/ui/avatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,16 +21,16 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+} from '@vivexy/ui/dropdown-menu';
 import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
-} from '@/components/ui/sidebar';
+} from '@vivexy/ui/sidebar';
 import { useAuthSafe } from '@/components/shared/auth-provider';
 import { ThemeToggle } from '@/components/shared/theme-toggle';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton } from '@vivexy/ui/skeleton';
 
 export function NavUser() {
   const { isMobile } = useSidebar();

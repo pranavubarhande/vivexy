@@ -4,10 +4,10 @@ import React from 'react';
 import { usePathname } from 'next/navigation';
 import { PUBLIC_ROUTES, AUTH_ROUTES } from '@/constants/routes';
 import { AppSidebar } from '@/components/dashboard/sidebar';
-import { SidebarProvider, useSidebar } from '@/components/ui/sidebar';
+import { SidebarProvider, useSidebar } from '@vivexy/ui/sidebar';
 import { DashboardHeader } from '@/components/dashboard/header';
 import { WorkspaceProvider } from '@/components/desktop/workspace-provider';
-import { cn } from '@/utils/common';
+import { cn } from '@vivexy/ui/utils';
 import { PanelLeft } from 'lucide-react';
 
 function titleFromPath(pathname: string) {

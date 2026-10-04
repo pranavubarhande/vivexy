@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { cn } from '@/utils/common';
+import { cn } from '@vivexy/ui/utils';
 import { Loader2, Send, Star } from 'lucide-react';
 
 // ---------------------------------------------------------------------------

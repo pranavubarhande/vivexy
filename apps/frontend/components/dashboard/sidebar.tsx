@@ -18,7 +18,7 @@ import {
   SidebarMenuItem,
   SidebarRail,
   SidebarTrigger,
-} from '@/components/ui/sidebar';
+} from '@vivexy/ui/sidebar';
 import {
   LayoutDashboard,
   Users,
@@ -35,7 +35,7 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from '@/components/ui/tooltip';
+} from '@vivexy/ui/tooltip';
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();

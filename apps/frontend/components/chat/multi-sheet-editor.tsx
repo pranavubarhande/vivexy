@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { DataGrid, Column } from 'react-data-grid';
 import 'react-data-grid/lib/styles.css';
-import { cn } from '@/utils/common';
+import { cn } from '@vivexy/ui/utils';
 
 const TextEditor = (props: {
   row: Record<string, string>;

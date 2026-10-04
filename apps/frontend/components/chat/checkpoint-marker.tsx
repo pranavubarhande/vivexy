@@ -1,7 +1,7 @@
 'use client';
 
 import { Clock, RotateCcw } from 'lucide-react';
-import { cn } from '@/utils/common';
+import { cn } from '@vivexy/ui/utils';
 
 interface CheckpointMarkerProps {
   checkpoint: {

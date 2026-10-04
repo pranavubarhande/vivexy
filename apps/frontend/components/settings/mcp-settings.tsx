@@ -2,18 +2,18 @@
 
 import { useState, useEffect } from 'react';
 import type { McpServerConfig, McpTransport } from '@/types/electron';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { Badge } from '@/components/ui/badge';
+import { Button } from '@vivexy/ui/button';
+import { Input } from '@vivexy/ui/input';
+import { Label } from '@vivexy/ui/label';
+import { Switch } from '@vivexy/ui/switch';
+import { Badge } from '@vivexy/ui/badge';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from '@/components/ui/dialog';
+} from '@vivexy/ui/dialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,8 +23,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { Textarea } from '@/components/ui/textarea';
+} from '@vivexy/ui/alert-dialog';
+import { Textarea } from '@vivexy/ui/textarea';
 import {
   Plus,
   Pencil,

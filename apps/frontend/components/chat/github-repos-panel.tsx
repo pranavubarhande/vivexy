@@ -32,9 +32,9 @@ import {
   Maximize2,
   Minimize2,
 } from 'lucide-react';
-import { cn } from '@/utils/common';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Badge } from '@/components/ui/badge';
+import { cn } from '@vivexy/ui/utils';
+import { Skeleton } from '@vivexy/ui/skeleton';
+import { Badge } from '@vivexy/ui/badge';
 import { platform } from '@/lib/platform';
 
 const MonacoEditor = dynamic(

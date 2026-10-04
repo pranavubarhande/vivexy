@@ -1,16 +1,16 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { cn } from '@/utils/common';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { cn } from '@vivexy/ui/utils';
+import { Button } from '@vivexy/ui/button';
+import { Input } from '@vivexy/ui/input';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from '@vivexy/ui/select';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,7 +18,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+} from '@vivexy/ui/dropdown-menu';
 import {
   Dialog,
   DialogContent,
@@ -26,7 +26,7 @@ import {
   DialogTitle,
   DialogFooter,
   DialogDescription,
-} from '@/components/ui/dialog';
+} from '@vivexy/ui/dialog';
 import { ChatHistoryDropdown } from '@/components/chat/chat-history-dropdown';
 import { MobileSidebarTrigger } from '../shared/app-shell';
 import {
@@ -41,8 +41,8 @@ import {
   FolderX,
   Users,
 } from 'lucide-react';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@vivexy/ui/label';
+import { Textarea } from '@vivexy/ui/textarea';
 import type { Chat } from '@/services/chat.service';
 import { toast } from 'sonner';
 import { useRenameChat } from '@/hooks/useChat';

@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import { useDeleteAccount } from '@/hooks/useUserSettings';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Button } from '@vivexy/ui/button';
+import { Input } from '@vivexy/ui/input';
+import { Label } from '@vivexy/ui/label';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,7 +15,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
+} from '@vivexy/ui/alert-dialog';
 import { toast } from 'sonner';
 
 export function DangerZone() {

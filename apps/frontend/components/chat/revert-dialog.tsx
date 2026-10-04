@@ -9,7 +9,7 @@ import {
   Loader2,
   AlertTriangle,
 } from 'lucide-react';
-import { cn } from '@/utils/common';
+import { cn } from '@vivexy/ui/utils';
 import { platform } from '@/lib/platform';
 
 export type RevertMode = 'messages' | 'code' | 'both';

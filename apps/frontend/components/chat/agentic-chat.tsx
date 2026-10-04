@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { cn } from '@/utils/common';
+import { cn } from '@vivexy/ui/utils';
 import { toast } from 'sonner';
 
 import { AgentSelector } from '@/components/chat/agent-selector';

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
-import { cn } from '@/utils/common';
+import { cn } from '@vivexy/ui/utils';
 import { ArtifactContent } from './artifact-content';
 import { useChat } from '@/hooks/useChat';
 import { toast } from 'sonner';
@@ -11,7 +11,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+} from '@vivexy/ui/dropdown-menu';
 import { artifactApi } from '@/services/chat/artifact-api';
 import { parseXlsxBuffer } from '@/hooks/useChat';
 

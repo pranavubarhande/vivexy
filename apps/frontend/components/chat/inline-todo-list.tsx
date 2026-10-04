@@ -1,6 +1,6 @@
 'use client';
 
-import { cn } from '@/utils/common';
+import { cn } from '@vivexy/ui/utils';
 import { Check, Minus, Circle, AlertCircle } from 'lucide-react';
 import type { InlineTodo } from '@/services/chat.service';
 

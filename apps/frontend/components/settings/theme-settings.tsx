@@ -1,7 +1,7 @@
 'use client';
 
 import { useTheme } from 'next-themes';
-import { cn } from '@/utils/common';
+import { cn } from '@vivexy/ui/utils';
 import { Check } from 'lucide-react';
 
 const themes = [

@@ -13,19 +13,19 @@ import {
   type GithubSkill,
 } from '@/lib/github-skills';
 import { FileTreeEditor } from './file-tree-editor';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@vivexy/ui/button';
+import { Input } from '@vivexy/ui/input';
+import { Label } from '@vivexy/ui/label';
+import { Switch } from '@vivexy/ui/switch';
+import { Badge } from '@vivexy/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@vivexy/ui/tabs';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from '@/components/ui/dialog';
+} from '@vivexy/ui/dialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,14 +35,14 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+} from '@vivexy/ui/alert-dialog';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from '@vivexy/ui/select';
 import {
   Plus,
   Pencil,

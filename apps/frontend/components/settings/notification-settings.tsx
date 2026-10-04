@@ -1,17 +1,17 @@
 'use client';
 
 import { useState } from 'react';
-import { Switch } from '@/components/ui/switch';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
+import { Switch } from '@vivexy/ui/switch';
+import { Button } from '@vivexy/ui/button';
+import { Label } from '@vivexy/ui/label';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
+} from '@vivexy/ui/card';
+import { Separator } from '@vivexy/ui/separator';
 import { toast } from 'sonner';
 
 export function NotificationSettings() {

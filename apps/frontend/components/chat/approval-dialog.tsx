@@ -5,9 +5,9 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+} from '@vivexy/ui/alert-dialog';
+import { Button } from '@vivexy/ui/button';
+import { Badge } from '@vivexy/ui/badge';
 import { useState } from 'react';
 import { Loader2, ShieldAlert, FileText, Code2 } from 'lucide-react';
 

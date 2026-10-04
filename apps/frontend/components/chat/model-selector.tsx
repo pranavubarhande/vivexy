@@ -1,16 +1,16 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Button } from '@vivexy/ui/button';
+import { Input } from '@vivexy/ui/input';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/components/ui/dialog';
-import { cn } from '@/utils/common';
+} from '@vivexy/ui/dialog';
+import { cn } from '@vivexy/ui/utils';
 import { LLMModel } from '@/services/chat.service';
 import {
   Sparkles,
