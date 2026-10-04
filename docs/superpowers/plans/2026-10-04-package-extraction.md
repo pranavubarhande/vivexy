@@ -1057,11 +1057,13 @@ Expected: prints `ok` with no import errors.
 
 - [ ] **Step 6: Run the existing test suite**
 
+**Known pre-existing issue (found during Task 8, confirmed present on `origin/dev` too, unrelated to this plan):** `app/agents/__tests__/config.test.py` fails to collect with `ImportError: cannot import name 'ExecutionInfo' from 'langgraph.runtime'` — a genuine version incompatibility between the locked `langchain==1.2.0`/`langgraph==1.0.5`/`deepagents==0.3.3` pins, verified already present in `origin/dev`'s own `uv.lock` before any of this extraction work started. Don't try to fix it — it's out of scope. Use `--continue-on-collection-errors` to get a real pass/fail signal around it instead of `-x` (which would stop dead on this one pre-existing failure and tell you nothing about the rest of the suite):
+
 ```bash
-cd $ROOT/apps/agents-service && uv run --extra dev pytest -x
+cd $ROOT/apps/agents-service && uv run --extra dev pytest --continue-on-collection-errors
 ```
 
-Expected: passes. (Full app boot isn't tested yet — `app/agents`, `business_logic`, `routes`, `tools`, `skills` haven't moved, so `app/__init__.py`'s blueprint imports still reference local, not-yet-moved modules and still work as before.)
+Expected: one collection error (the pre-existing `config.test.py` one above), everything else passes. If you see a *different* failure, or more than one collection error, that's a real regression from this task — investigate and fix it, don't assume it's also pre-existing.
 
 - [ ] **Step 7: Commit**
 
@@ -1163,11 +1165,13 @@ Expected: prints `ok`. (Adjust the exact symbols imported if `agent_factory.py` 
 
 - [ ] **Step 6: Run the test suite**
 
+Same known pre-existing issue noted in Task 8: `app/agents/__tests__/config.test.py` fails to collect due to a `langchain`/`langgraph`/`deepagents` version incompatibility that predates this plan (confirmed present in `origin/dev`'s own lockfile). Use `--continue-on-collection-errors`, not `-x`:
+
 ```bash
-cd $ROOT/apps/agents-service && uv run --extra dev pytest -x
+cd $ROOT/apps/agents-service && uv run --extra dev pytest --continue-on-collection-errors
 ```
 
-Expected: passes.
+Expected: the same one pre-existing collection error, everything else passes. Any other failure is a real regression — investigate it.
 
 - [ ] **Step 7: Commit**
 
@@ -1263,11 +1267,13 @@ Expected: prints `app created: app` (or similar) with no import errors — this 
 
 - [ ] **Step 7: Run the full test suite**
 
+Still need `--continue-on-collection-errors` here — pytest's default behavior aborts the *entire* run on any collection error (not just with `-x`), and the pre-existing `app/agents/__tests__/config.test.py` collection error (noted in Tasks 8-9) is still there:
+
 ```bash
-cd $ROOT/apps/agents-service && uv run --extra dev pytest
+cd $ROOT/apps/agents-service && uv run --extra dev pytest --continue-on-collection-errors
 ```
 
-Expected: full suite passes, not just `-x` fail-fast as in earlier tasks — this is the first point where every moved module is wired together.
+Expected: full suite passes aside from that one pre-existing collection error — this is the first point where every moved module is wired together, so beyond that known issue, nothing else should fail.
 
 - [ ] **Step 8: Commit**
 
@@ -1310,8 +1316,10 @@ cd $ROOT && npm run test
 Expected: passes for `apps/frontend`, `packages/ui`, `packages/core`.
 
 ```bash
-cd $ROOT/apps/agents-service && uv run --extra dev pytest
+cd $ROOT/apps/agents-service && uv run --extra dev pytest --continue-on-collection-errors
 ```
+
+Expected: passes aside from the one pre-existing `app/agents/__tests__/config.test.py` collection error noted since Task 8 (a `langchain`/`langgraph`/`deepagents` version incompatibility predating this plan, confirmed present in `origin/dev`'s own lockfile — not something this plan introduced or should fix).
 
 Expected: passes.
 
