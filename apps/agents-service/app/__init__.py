@@ -2,12 +2,13 @@ import json
 import os
 
 import sentry_sdk
+from agents_core.models import db
+from agents_core.utils.casing import camel_to_snake, snake_to_camel
 from flasgger import Swagger
 from flask import Flask, g, request
 from flask_cors import CORS
 from sentry_sdk.integrations.flask import FlaskIntegration
 
-from app.models import db
 from app.routes.agents import bp as agents_bp
 from app.routes.approval import bp as approval_bp
 from app.routes.auth import bp as auth_bp
@@ -22,7 +23,6 @@ from app.routes.stripe import bp as stripe_bp
 from app.routes.teams import bp as teams_bp
 from app.routes.usage import bp as usage_bp
 from app.routes.users import bp as users_bp
-from app.utils.casing import camel_to_snake, snake_to_camel
 from configs import Config
 from configs.swagger_config import SWAGGER_CONFIG, SWAGGER_TEMPLATE
 

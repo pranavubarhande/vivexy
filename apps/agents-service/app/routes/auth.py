@@ -1,14 +1,14 @@
-from flask import Blueprint, jsonify, request
-from pydantic import ValidationError
-
-from app.middlewares.auth import auth_middleware
-from app.schemas import UserCreate, UserLogin, UserResponse
-from app.utils.auth import (
+from agents_core.schemas import UserCreate, UserLogin, UserResponse
+from agents_core.utils.auth import (
     authenticate_user,
     create_user,
     exclude_password,
     generate_token,
 )
+from flask import Blueprint, jsonify, request
+from pydantic import ValidationError
+
+from app.middlewares.auth import auth_middleware
 
 bp = Blueprint("auth", __name__, url_prefix="/auth")
 

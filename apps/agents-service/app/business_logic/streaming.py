@@ -9,6 +9,23 @@ import logging
 import uuid
 from typing import Any, Dict, Generator, List, Optional, Set, Tuple, Union
 
+from agents_core.constants.stream_events import (
+    STREAM_EVENT_APPROVAL_REQUEST,
+    STREAM_EVENT_ARTIFACT,
+    STREAM_EVENT_CHART,
+    STREAM_EVENT_CLIENT_TOOL_REQUEST,
+    STREAM_EVENT_COMPACT,
+    STREAM_EVENT_CONTENT,
+    STREAM_EVENT_DONE,
+    STREAM_EVENT_ERROR,
+    STREAM_EVENT_REASONING,
+    STREAM_EVENT_START,
+    STREAM_EVENT_TOOL_CALL,
+    STREAM_EVENT_USAGE,
+)
+from agents_core.models.chat import Message as DBMessage
+from agents_core.models.llm import LLMModel
+from agents_core.models.token_usage import TokenUsage
 from dotenv import load_dotenv
 from langgraph.types import Command, Overwrite
 
@@ -25,23 +42,6 @@ from app.business_logic.compact import (
     get_compacted_messages,
     should_auto_compact,
 )
-from app.constants.stream_events import (
-    STREAM_EVENT_APPROVAL_REQUEST,
-    STREAM_EVENT_ARTIFACT,
-    STREAM_EVENT_CHART,
-    STREAM_EVENT_CLIENT_TOOL_REQUEST,
-    STREAM_EVENT_COMPACT,
-    STREAM_EVENT_CONTENT,
-    STREAM_EVENT_DONE,
-    STREAM_EVENT_ERROR,
-    STREAM_EVENT_REASONING,
-    STREAM_EVENT_START,
-    STREAM_EVENT_TOOL_CALL,
-    STREAM_EVENT_USAGE,
-)
-from app.models.chat import Message as DBMessage
-from app.models.llm import LLMModel
-from app.models.token_usage import TokenUsage
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -723,7 +723,7 @@ def _save_token_usage(
 ) -> Optional[Dict[str, Any]]:
     """Persist token counts + computed cost. Returns a dict for the SSE payload."""
     try:
-        from app.models.base import db as _db
+        from agents_core.models.base import db as _db
 
         input_tokens = usage.get("input_tokens", 0)
         output_tokens = usage.get("output_tokens", 0)

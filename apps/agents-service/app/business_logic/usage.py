@@ -6,9 +6,8 @@ import logging
 from datetime import datetime, timedelta
 from typing import Any, Dict, List
 
+from agents_core.models.token_usage import TokenUsage
 from sqlalchemy import func
-
-from app.models.token_usage import TokenUsage
 
 logger = logging.getLogger(__name__)
 

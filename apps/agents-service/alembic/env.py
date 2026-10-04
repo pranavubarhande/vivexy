@@ -10,7 +10,7 @@ from alembic import context
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 # Import your models here
-from app.models import (
+from agents_core.models import (
     Artifact,
     Chat,
     ChatAttachment,

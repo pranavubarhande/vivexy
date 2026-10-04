@@ -1,9 +1,9 @@
 import uuid
 from typing import List
 
-from app.models.base import db
-from app.models.skill import UserSkill
-from app.schemas.skill import UserSkillCreate, UserSkillUpdate
+from agents_core.models.base import db
+from agents_core.models.skill import UserSkill
+from agents_core.schemas.skill import UserSkillCreate, UserSkillUpdate
 
 
 def get_user_skills(user_id: str) -> List[UserSkill]:

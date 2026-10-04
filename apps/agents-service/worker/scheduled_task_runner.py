@@ -28,6 +28,11 @@ logger = logging.getLogger(__name__)
 
 
 def run_scheduled_task(task_id: str) -> None:
+    from agents_core.models.base import db
+    from agents_core.models.scheduled_task import ScheduledTask, ScheduledTaskRun
+    from agents_core.models.skill import UserSkill
+    from agents_core.schemas.chat import ChatCreate
+
     from app.agents.config import DEFAULT_AGENT_ID, FileContext
     from app.business_logic.chat import (
         build_image_contexts,
@@ -35,10 +40,6 @@ def run_scheduled_task(task_id: str) -> None:
         create_message,
     )
     from app.business_logic.streaming import NoopAppContext, run_agent_stream
-    from app.models.base import db
-    from app.models.scheduled_task import ScheduledTask, ScheduledTaskRun
-    from app.models.skill import UserSkill
-    from app.schemas.chat import ChatCreate
     from app.services.file_processor import FileProcessor
     from app.services.s3_service import S3Service
 
@@ -149,9 +150,10 @@ def _build_file_contexts(file_ids: list) -> list:
     if not file_ids:
         return []
 
+    from agents_core.models.chat import ChatAttachment
+
     from app.agents.config import FileContext
     from app.business_logic.chat import IMAGE_MIMES
-    from app.models.chat import ChatAttachment
     from app.services.file_processor import FileProcessor
     from app.services.s3_service import S3Service
 

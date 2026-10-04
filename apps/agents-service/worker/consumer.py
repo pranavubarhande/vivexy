@@ -28,12 +28,12 @@ _app_root = os.path.dirname(_worker_dir)
 sys.path.insert(0, _app_root)
 
 import redis as redis_lib
+from agents_core.constants.redis_keys import REDIS_STREAM_CHAT
 
 from app import create_app
 from app.agents.config import FileContext
 from app.business_logic.attachments import _try_index_attachment
 from app.business_logic.streaming import NoopAppContext, run_agent_stream_to_redis
-from app.constants.redis_keys import REDIS_STREAM_CHAT
 from configs import (
     CHAT_QUEUE,
     PREFETCH_COUNT,

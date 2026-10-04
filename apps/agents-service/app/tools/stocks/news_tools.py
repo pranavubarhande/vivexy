@@ -1,7 +1,6 @@
+from agents_core.tool_helpers.finance.news_helpers import get_stock_news
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field
-
-from app.tool_helpers.finance.news_helpers import get_stock_news
 
 
 class GetStockNewsInput(BaseModel):

@@ -14,13 +14,13 @@ import uuid
 from io import BytesIO
 
 import openpyxl
+from agents_core.models import Artifact, db
+from agents_core.models.enums import ArtifactType
 from langchain_core.tools import BaseTool, tool
 from langchain_daytona import DaytonaSandbox
 
 from app.agents.cancel_store import check_cancel_flag
 from app.agents.skill_loader import load_skill_deps
-from app.models import Artifact, db
-from app.models.enums import ArtifactType
 from app.services.s3_service import S3Service
 
 logger = logging.getLogger(__name__)

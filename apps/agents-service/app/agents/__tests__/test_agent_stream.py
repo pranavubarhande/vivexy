@@ -30,11 +30,7 @@ sys.path.insert(
     ),
 )
 
-from app.__init__ import create_app
-from app.agents.config import DEFAULT_AGENT_ID, FileContext
-from app.business_logic.chat import create_chat, create_message, update_chat
-from app.business_logic.streaming import run_agent_stream
-from app.constants.stream_events import (
+from agents_core.constants.stream_events import (
     STREAM_EVENT_APPROVAL_REQUEST,
     STREAM_EVENT_CONTENT,
     STREAM_EVENT_DONE,
@@ -42,9 +38,14 @@ from app.constants.stream_events import (
     STREAM_EVENT_REASONING,
     STREAM_EVENT_TOOL_CALL,
 )
-from app.models import Artifact, ChatAttachment, LLMModel, Message, User, db
-from app.models.enums import ArtifactType, MessageRole, Role
-from app.schemas import ChatCreate
+from agents_core.models import Artifact, ChatAttachment, LLMModel, Message, User, db
+from agents_core.models.enums import ArtifactType, MessageRole, Role
+from agents_core.schemas import ChatCreate
+
+from app.__init__ import create_app
+from app.agents.config import DEFAULT_AGENT_ID, FileContext
+from app.business_logic.chat import create_chat, create_message, update_chat
+from app.business_logic.streaming import run_agent_stream
 from app.services.file_processor import FileProcessor
 from app.services.s3_service import S3Service
 from configs.flask_config import Config as BaseConfig

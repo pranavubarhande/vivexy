@@ -8,12 +8,12 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+from agents_core.models import Chat, LLMModel, Message, db
 from langchain_core.messages import HumanMessage
 
 from app.agents.agent_factory import get_global_checkpointer
 from app.agents.config import AgentConfig
 from app.agents.llm_factory import create_llm
-from app.models import Chat, LLMModel, Message, db
 
 logger = logging.getLogger(__name__)
 

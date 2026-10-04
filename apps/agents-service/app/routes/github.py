@@ -7,11 +7,11 @@ import logging
 import os
 
 import requests
+from agents_core.models.base import db
+from agents_core.models.github import GithubConnection, GithubRepo
 from flask import Blueprint, jsonify, redirect, request
 
 from app.middlewares.auth import auth_middleware
-from app.models.base import db
-from app.models.github import GithubConnection, GithubRepo
 
 logger = logging.getLogger(__name__)
 
@@ -100,7 +100,7 @@ def github_callback():
 
     # Decode the JWT token from state to identify the user
     try:
-        from app.utils.auth import verify_token
+        from agents_core.utils.auth import verify_token
 
         payload = verify_token(state)
         user_id = payload.get("userId")

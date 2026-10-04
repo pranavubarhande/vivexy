@@ -1,8 +1,7 @@
 from functools import wraps
 
+from agents_core.utils.auth import get_user_from_token
 from flask import jsonify, request
-
-from app.utils.auth import get_user_from_token
 
 
 def auth_middleware(f):

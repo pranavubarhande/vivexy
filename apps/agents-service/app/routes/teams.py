@@ -1,3 +1,4 @@
+from agents_core.schemas import TeamCreate, TeamMemberCreate, TeamUpdate
 from flask import Blueprint, jsonify, request
 from pydantic import ValidationError
 
@@ -12,7 +13,6 @@ from app.business_logic.teams import (
     update_team,
 )
 from app.middlewares.auth import auth_middleware
-from app.schemas import TeamCreate, TeamMemberCreate, TeamUpdate
 
 bp = Blueprint("teams", __name__, url_prefix="/teams")
 

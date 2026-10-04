@@ -9,7 +9,7 @@ import os
 RABBITMQ_URL = os.environ.get("RABBITMQ_URL", "amqp://guest:guest@localhost:5672")
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379")
 
-# Queue names (single source of truth; re-exported from app.constants.queues)
+# Queue names (single source of truth; re-exported from agents_core.constants.queues)
 CHAT_QUEUE = "chat_jobs"
 RAG_QUEUE = "rag_jobs"
 SCHEDULED_TASK_QUEUE = (

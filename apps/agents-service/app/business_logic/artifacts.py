@@ -7,12 +7,12 @@ from typing import Any, Dict, List
 import markdown2
 import pandas as pd
 import pypandoc
+from agents_core.models import Artifact, Chat, db
+from agents_core.models.enums import ArtifactType
+from agents_core.schemas import ArtifactCreate
 from docx import Document
 from weasyprint import HTML
 
-from app.models import Artifact, Chat, db
-from app.models.enums import ArtifactType
-from app.schemas import ArtifactCreate
 from app.services.s3_service import S3Service
 
 logger = logging.getLogger(__name__)

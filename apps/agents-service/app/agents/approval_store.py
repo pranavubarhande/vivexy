@@ -2,8 +2,9 @@
 Approval Store — Backed by generic AsyncPubSubStore.
 """
 
+from agents_core.constants.redis_keys import REDIS_CHANNEL_APPROVAL, REDIS_KEY_APPROVAL
+
 from app.agents.pubsub import AsyncPubSubStore
-from app.constants.redis_keys import REDIS_CHANNEL_APPROVAL, REDIS_KEY_APPROVAL
 
 _store = AsyncPubSubStore(
     key_pattern=REDIS_KEY_APPROVAL,

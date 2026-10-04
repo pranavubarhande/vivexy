@@ -6,8 +6,9 @@ Allows setting and checking a cancellation flag for long-running tools.
 import logging
 import time
 
+from agents_core.constants.redis_keys import REDIS_KEY_CANCEL_TOOL
+
 from app.agents.pubsub import _get_redis
-from app.constants.redis_keys import REDIS_KEY_CANCEL_TOOL
 
 logger = logging.getLogger(__name__)
 

@@ -1,8 +1,8 @@
 from datetime import datetime
 from typing import Any, Dict
 
-from app.models import User, db
-from app.utils.auth import hash_password, verify_password
+from agents_core.models import User, db
+from agents_core.utils.auth import hash_password, verify_password
 
 
 def get_user_profile(user_id: str) -> Dict[str, Any]:

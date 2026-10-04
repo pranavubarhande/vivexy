@@ -61,7 +61,7 @@ def set_chat_title_func(chat_id: str, title: str) -> Dict[str, Any]:
     title is still 'New Chat' or empty.
     """
     try:
-        from app.models import Chat, db
+        from agents_core.models import Chat, db
 
         chat = Chat.query.filter_by(id=chat_id).first()
         if not chat:

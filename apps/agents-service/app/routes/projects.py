@@ -1,3 +1,9 @@
+from agents_core.schemas import (
+    ProjectChatAdd,
+    ProjectCreate,
+    ProjectTeamShare,
+    ProjectUpdate,
+)
 from flask import Blueprint, jsonify, request
 from pydantic import ValidationError
 
@@ -15,7 +21,6 @@ from app.business_logic.projects import (
     update_project,
 )
 from app.middlewares.auth import auth_middleware
-from app.schemas import ProjectChatAdd, ProjectCreate, ProjectTeamShare, ProjectUpdate
 
 bp = Blueprint("projects", __name__, url_prefix="/projects")
 
@@ -25,8 +30,8 @@ bp = Blueprint("projects", __name__, url_prefix="/projects")
 def get_unassigned_chats():
     """Return the current user's chats that are not in any project."""
     try:
-        from app.models.chat import Chat as ChatModel
-        from app.models.project import ProjectChat
+        from agents_core.models.chat import Chat as ChatModel
+        from agents_core.models.project import ProjectChat
 
         user = request.user
         assigned_ids = [pc.chat_id for pc in ProjectChat.query.all()]

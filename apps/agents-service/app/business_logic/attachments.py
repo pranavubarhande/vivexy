@@ -4,7 +4,8 @@ import uuid
 from datetime import datetime
 from typing import Any, Dict, List
 
-from app.models import Chat, ChatAttachment, db
+from agents_core.models import Chat, ChatAttachment, db
+
 from app.services.file_processor import FileProcessor
 from app.services.s3_service import S3Service
 from app.tools.rag.rag_tools import add_to_knowledge_base_func

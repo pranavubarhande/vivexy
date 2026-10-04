@@ -1,8 +1,14 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from app.models import Chat, Todo, db
-from app.schemas import TodoCreate, TodoPriority, TodoResponse, TodoStatus, TodoUpdate
+from agents_core.models import Chat, Todo, db
+from agents_core.schemas import (
+    TodoCreate,
+    TodoPriority,
+    TodoResponse,
+    TodoStatus,
+    TodoUpdate,
+)
 
 
 def get_chat_todos(chat_id: str, user_id: str) -> List[Dict[str, Any]]:

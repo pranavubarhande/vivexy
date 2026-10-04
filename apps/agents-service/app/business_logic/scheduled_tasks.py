@@ -7,9 +7,10 @@ import logging
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
+from agents_core.models.base import db
+from agents_core.models.scheduled_task import ScheduledTask, ScheduledTaskRun
+
 from app.agents.config import DEFAULT_AGENT_ID
-from app.models.base import db
-from app.models.scheduled_task import ScheduledTask, ScheduledTaskRun
 
 logger = logging.getLogger(__name__)
 

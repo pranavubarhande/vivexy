@@ -4,8 +4,12 @@ Client Tool Store — Backed by generic AsyncPubSubStore.
 
 from typing import Optional
 
+from agents_core.constants.redis_keys import (
+    REDIS_CHANNEL_CLIENT_TOOL,
+    REDIS_KEY_CLIENT_TOOL,
+)
+
 from app.agents.pubsub import AsyncPubSubStore
-from app.constants.redis_keys import REDIS_CHANNEL_CLIENT_TOOL, REDIS_KEY_CLIENT_TOOL
 
 _store = AsyncPubSubStore(
     key_pattern=REDIS_KEY_CLIENT_TOOL,

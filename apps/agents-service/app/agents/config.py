@@ -9,10 +9,8 @@ from enum import Enum
 from operator import add
 from typing import Annotated, Any, Dict, List, Optional, TypedDict
 
-from langchain_core.messages import BaseMessage
-
-from app.enum.agent_enums import AgentPhase, AgentType, TaskStatus
-from app.types.agent_types import (
+from agents_core.enum.agent_enums import AgentPhase, AgentType, TaskStatus
+from agents_core.types.agent_types import (
     AgentState,
     ApprovalRequest,
     FileContext,
@@ -20,6 +18,7 @@ from app.types.agent_types import (
     TaskItem,
     ToolCall,
 )
+from langchain_core.messages import BaseMessage
 
 _PROVIDER_ENV_KEYS = {
     "google": ["GOOGLE_AI_API_KEY", "GOOGLE_API_KEY"],

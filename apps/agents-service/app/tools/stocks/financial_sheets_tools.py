@@ -1,7 +1,8 @@
+from agents_core.tool_helpers.finance.financial_sheets_helpers import (
+    get_financial_sheets,
+)
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field
-
-from app.tool_helpers.finance.financial_sheets_helpers import get_financial_sheets
 
 
 class GetFinancialSheetsInput(BaseModel):

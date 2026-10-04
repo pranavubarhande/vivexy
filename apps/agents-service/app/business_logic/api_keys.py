@@ -1,8 +1,8 @@
 from typing import Dict, List, Optional
 
-from app.models import db
-from app.models.user_api_key import UserApiKey
-from app.utils.crypto import decrypt_api_key, encrypt_api_key
+from agents_core.models import db
+from agents_core.models.user_api_key import UserApiKey
+from agents_core.utils.crypto import decrypt_api_key, encrypt_api_key
 
 SUPPORTED_PROVIDERS = [
     "openai",

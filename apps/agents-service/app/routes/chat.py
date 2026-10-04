@@ -12,6 +12,9 @@ import uuid as uuid_lib
 from dataclasses import asdict
 
 import redis as redis_lib
+from agents_core.constants.redis_keys import REDIS_KEY_STREAM_TOKEN, REDIS_STREAM_CHAT
+from agents_core.models.chat import Artifact
+from agents_core.schemas import ArtifactCreate, ChatCreate, MessageCreate
 from flask import (
     Blueprint,
     Response,
@@ -48,10 +51,7 @@ from app.business_logic.chat import (
     update_message,
 )
 from app.business_logic.streaming import run_agent_stream_to_redis
-from app.constants.redis_keys import REDIS_KEY_STREAM_TOKEN, REDIS_STREAM_CHAT
 from app.middlewares.auth import auth_middleware
-from app.models.chat import Artifact
-from app.schemas import ArtifactCreate, ChatCreate, MessageCreate
 from app.services.s3_service import S3Service
 from configs import REDIS_URL
 from worker.dispatcher import dispatch_chat_job
@@ -248,8 +248,8 @@ def rename_chat(chat_id):
       - BearerAuth: []
     """
     try:
-        from app.models.base import db
-        from app.models.chat import Chat as ChatModel
+        from agents_core.models.base import db
+        from agents_core.models.chat import Chat as ChatModel
 
         user = request.user
         data = request.get_json() or {}
@@ -275,8 +275,8 @@ def get_chat_project(chat_id):
       - BearerAuth: []
     """
     try:
-        from app.models.chat import Chat as ChatModel
-        from app.models.project import Project, ProjectChat
+        from agents_core.models.chat import Chat as ChatModel
+        from agents_core.models.project import Project, ProjectChat
 
         user = request.user
         chat = ChatModel.query.filter_by(id=chat_id, user_id=user.id).first()
@@ -1122,7 +1122,7 @@ def start_chat_stream():
         # 2. If no context is sent but the chat already has one stored, use that.
         # 3. Attach the live access token for GitHub-type contexts so the
         #    agent factory can clone the repo into the sandbox.
-        from app.models.chat import Chat as ChatModel
+        from agents_core.models.chat import Chat as ChatModel
 
         chat_record = ChatModel.query.filter_by(id=chat_id).first()
 
@@ -1131,7 +1131,7 @@ def start_chat_stream():
             if chat_record and not chat_record.github_context:
                 safe = {k: v for k, v in github_context.items() if k != "access_token"}
                 chat_record.github_context = safe
-                from app.models.base import db as _db
+                from agents_core.models.base import db as _db
 
                 _db.session.commit()
         elif chat_record and chat_record.github_context:
@@ -1141,7 +1141,7 @@ def start_chat_stream():
         # Attach live access token for GitHub-type contexts
         if github_context and github_context.get("type") == "github":
             try:
-                from app.models.github import GithubConnection
+                from agents_core.models.github import GithubConnection
 
                 conn = GithubConnection.query.filter_by(user_id=user_id).first()
                 if conn:
@@ -1222,8 +1222,8 @@ def start_chat_stream():
 
         # Link uploaded files to this user message so they appear in chat history
         if file_ids:
-            from app.models.base import db as _db
-            from app.models.chat import ChatAttachment as _CA
+            from agents_core.models.base import db as _db
+            from agents_core.models.chat import ChatAttachment as _CA
 
             msg_id = (
                 saved_user_message.get("id")
@@ -1439,7 +1439,7 @@ def get_attachment_content(chat_id, attachment_id):
     # making enumeration attacks infeasible. The endpoint is read-only.
     """Serve raw attachment content from S3 (used for image previews in chat)."""
     try:
-        from app.models.chat import ChatAttachment
+        from agents_core.models.chat import ChatAttachment
 
         att = ChatAttachment.query.filter_by(id=attachment_id, chat_id=chat_id).first()
         if not att:

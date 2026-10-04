@@ -1,9 +1,9 @@
 from datetime import datetime
 from typing import Any, Dict, List
 
-from app.models import Chat, Team, db
-from app.models.project import Project, ProjectChat, ProjectTeam
-from app.schemas.project import ProjectCreate, ProjectUpdate
+from agents_core.models import Chat, Team, db
+from agents_core.models.project import Project, ProjectChat, ProjectTeam
+from agents_core.schemas.project import ProjectCreate, ProjectUpdate
 
 
 def _project_to_dict(project: Project) -> Dict[str, Any]:

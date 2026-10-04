@@ -10,8 +10,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from agents_core.models import LLMModel, db
+
 from app import create_app
-from app.models import LLMModel, db
 
 llm_models = [
     # ── OpenAI ───────────────────────────────────────────────────────────────

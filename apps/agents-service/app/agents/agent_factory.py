@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from agents_core.models.chat import Artifact, ChatAttachment
 from composio import Composio
 from composio_langchain import LangchainProvider
 from daytona import CreateSandboxFromSnapshotParams, Daytona
@@ -21,7 +22,6 @@ from app.agents.config import (
     AgentConfig,
     FileContext,
 )
-from app.models.chat import Artifact, ChatAttachment
 from app.services.s3_service import S3Service
 from app.tools.sandbox.daytona_tools import (
     get_execute_code_tool,

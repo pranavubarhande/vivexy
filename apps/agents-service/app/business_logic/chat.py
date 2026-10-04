@@ -5,19 +5,19 @@ import os
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+from agents_core.constants.stream_events import (
+    STREAM_EVENT_CONTENT,
+    STREAM_EVENT_DONE,
+    STREAM_EVENT_REASONING,
+)
+from agents_core.models import Chat, ChatAttachment, LLMModel, Message, db
+from agents_core.models.token_usage import TokenUsage
+from agents_core.schemas import ChatCreate, ChatResponse, LLMModelResponse, MessageRole
 from sqlalchemy.orm import joinedload
 
 from app.agents.agent_factory import create_langgraph_agent
 from app.agents.config import DEFAULT_AGENT_ID, FileContext
 from app.business_logic.artifacts import resolve_artifact_content
-from app.constants.stream_events import (
-    STREAM_EVENT_CONTENT,
-    STREAM_EVENT_DONE,
-    STREAM_EVENT_REASONING,
-)
-from app.models import Chat, ChatAttachment, LLMModel, Message, db
-from app.models.token_usage import TokenUsage
-from app.schemas import ChatCreate, ChatResponse, LLMModelResponse, MessageRole
 from app.services.file_processor import FileProcessor
 from app.services.s3_service import S3Service
 from app.tools.chat.chat_tools import generate_chat_title_func
@@ -511,7 +511,7 @@ def get_llm_models() -> List[LLMModelResponse]:
 
 def get_chat_checkpoints(chat_id: str, user_id: str) -> List[Dict]:
     """Get all checkpoints for a chat."""
-    from app.models.chat import ChatCheckpoint
+    from agents_core.models.chat import ChatCheckpoint
 
     get_user_chat(chat_id, user_id)  # verify ownership
     checkpoints = (
@@ -526,7 +526,7 @@ def create_checkpoint(
     chat_id: str, user_id: str, message_id: str, label: Optional[str] = None
 ) -> Dict:
     """Create a checkpoint at a specific message."""
-    from app.models.chat import ChatCheckpoint
+    from agents_core.models.chat import ChatCheckpoint
 
     get_user_chat(chat_id, user_id)  # verify ownership
     # Ensure message belongs to this chat
@@ -547,7 +547,7 @@ def create_auto_checkpoint(
     chat_id: str, user_id: str, message_id: str
 ) -> Optional[Dict]:
     """Create an automatic checkpoint (no duplicate check needed)."""
-    from app.models.chat import ChatCheckpoint
+    from agents_core.models.chat import ChatCheckpoint
 
     try:
         # Check if a checkpoint already exists for this exact message
@@ -573,7 +573,7 @@ def create_auto_checkpoint(
 
 def restore_checkpoint(chat_id: str, checkpoint_id: str, user_id: str) -> Dict:
     """Restore chat to a checkpoint — delete all messages after the checkpoint's message."""
-    from app.models.chat import Artifact, ChatCheckpoint, Todo
+    from agents_core.models.chat import Artifact, ChatCheckpoint, Todo
 
     get_user_chat(chat_id, user_id)  # verify ownership
     cp = ChatCheckpoint.query.filter_by(id=checkpoint_id, chat_id=chat_id).first()

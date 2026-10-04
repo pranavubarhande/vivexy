@@ -2,8 +2,8 @@ import re
 from datetime import datetime
 from typing import Any, Dict, List
 
-from app.models import Team, TeamInvite, TeamMember, User, db
-from app.schemas import TeamCreate, TeamMemberCreate, TeamUpdate
+from agents_core.models import Team, TeamInvite, TeamMember, User, db
+from agents_core.schemas import TeamCreate, TeamMemberCreate, TeamUpdate
 
 
 def slugify(text: str) -> str:

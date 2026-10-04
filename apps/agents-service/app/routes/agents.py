@@ -1,11 +1,11 @@
 import logging
 
+from agents_core.models.base import db
+from agents_core.models.deployed_agent import DeployedAgent
 from flask import Blueprint, jsonify, request
 
 from app.agents.config import AGENT_METADATA
 from app.middlewares.auth import auth_middleware
-from app.models.base import db
-from app.models.deployed_agent import DeployedAgent
 
 logger = logging.getLogger(__name__)
 

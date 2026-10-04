@@ -38,11 +38,11 @@ def _setup_flask_context():
 
 
 def _poll_and_dispatch():
+    from agents_core.models.base import db
+    from agents_core.models.scheduled_task import ScheduledTask
     from sqlalchemy import text
 
     from app.business_logic.scheduled_tasks import compute_next_run_at
-    from app.models.base import db
-    from app.models.scheduled_task import ScheduledTask
     from worker.dispatcher import dispatch_scheduled_task_job
 
     # Return any idle connection to the pool before querying so we always get
