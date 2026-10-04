@@ -609,6 +609,8 @@ Expected: installs cleanly, `packages/core` resolves `@vivexy/ui` as a workspace
 
 **Context:** `components/chat`, `components/dashboard`, `components/settings`, `components/auth`, `components/desktop`, `components/scheduled-tasks`, `lib`, and `agents` (moving in Task 6) all import from `hooks/`, `services/`, `types/`, and `components/shared/` internally. Since those directories haven't moved yet, their internal `@/hooks/...`, `@/services/...`, `@/types/...`, `@/components/shared/...` imports still resolve fine against the **not-yet-moved** local copies in `apps/frontend` — this task doesn't touch them. Only files that have *already* moved, or that live in `apps/frontend/app/` (pages), need their imports rewritten now.
 
+**Correction found during Task 2:** `hooks/use-mobile.ts` is a dependency-free, pure UI hook (window.matchMedia breakpoint check) with no product logic. It's used by `components/ui/sidebar.tsx`, which already moved into `packages/ui` in Task 2 — the Task 2 implementer correctly flagged that `packages/ui` can't depend on `packages/core` (that dependency already runs the other way: `packages/core` depends on `packages/ui`), so they temporarily duplicated the hook into `packages/ui/src/hooks/use-mobile.ts` rather than invent a circular dependency, and left `apps/frontend/hooks/use-mobile.ts` in place for its other consumer, `components/chat/chat-panels.tsx` (moving to `packages/core` in Task 6). This task resolves that duplication: `use-mobile.ts` does **not** move into `packages/core` — it stays out of the `hooks/` move below, and its `apps/frontend` copy gets deleted once confirmed redundant with the `packages/ui` copy (Step 1a). `chat-panels.tsx`'s import gets pointed at `@vivexy/ui/hooks/use-mobile` instead of `@vivexy/core/hooks/use-mobile` when Task 6 moves it.
+
 - [ ] **Step 1: Move the directories**
 
 ```bash
@@ -618,6 +620,33 @@ git -C $ROOT mv apps/frontend/hooks packages/core/src/hooks
 git -C $ROOT mv apps/frontend/services packages/core/src/services
 git -C $ROOT mv apps/frontend/types packages/core/src/types
 ```
+
+- [ ] **Step 1a: Undo the `use-mobile.ts` move — it belongs in `packages/ui`, not `packages/core`**
+
+The `git mv` above just moved `hooks/use-mobile.ts` into `packages/core/src/hooks/use-mobile.ts` along with everything else in `hooks/`. Back that one file out, since `packages/ui/src/hooks/use-mobile.ts` (created during Task 2) is already the same content:
+
+```bash
+diff $ROOT/packages/core/src/hooks/use-mobile.ts $ROOT/packages/ui/src/hooks/use-mobile.ts
+```
+
+Expected: no output (byte-identical — confirms the Task 2 duplicate is safe to treat as the canonical copy). Then remove the redundant copy from `packages/core`:
+
+```bash
+git -C $ROOT rm packages/core/src/hooks/use-mobile.ts
+```
+
+Add a `./hooks/*` export to `packages/ui/package.json`'s `"exports"` object (it currently only has `"./theme.css"`, `"./utils"`, and `"./*"` from Tasks 1 and 3):
+
+```json
+"exports": {
+  "./theme.css": "./theme.css",
+  "./utils": "./src/utils/common.ts",
+  "./hooks/*": "./src/hooks/*.ts",
+  "./*": "./src/components/ui/*.tsx"
+},
+```
+
+(Note the `.tsx` extension on the last pattern — the Task 2 implementer found that TypeScript's `bundler` module resolution needs it explicitly for that wildcard, unlike bundler runtime resolution which doesn't; that fix is already committed. `./hooks/*` needs its own `.ts` extension for the same reason.)
 
 - [ ] **Step 2: Fix internal `@/` imports inside the four moved directories**
 
@@ -633,10 +662,13 @@ If this returns files, note them — they'll be fixed automatically by Task 6's 
 
 - [ ] **Step 3: Rewrite `@/components/shared/*`, `@/hooks/*`, `@/services/*`, `@/types/*` imports across `apps/frontend`**
 
+The `@/hooks/use-mobile` special case (from Step 1a) must be rewritten to `@vivexy/ui/hooks/use-mobile` — **not** `@vivexy/core/hooks/use-mobile` like every other hook. Run that `sed` rule first, so the later generic `@/hooks/` rule no longer matches it (it won't start with `@/hooks/` anymore by the time the generic rule runs):
+
 ```bash
 cd $ROOT/apps/frontend
 grep -rl "@/components/shared/\|@/hooks/\|@/services/\|@/types/" --include="*.ts" --include="*.tsx" . | grep -v node_modules | while read -r f; do
   sed -i '' \
+    -e "s|@/hooks/use-mobile|@vivexy/ui/hooks/use-mobile|g" \
     -e "s|@/components/shared/|@vivexy/core/shared/|g" \
     -e "s|@/hooks/|@vivexy/core/hooks/|g" \
     -e "s|@/services/|@vivexy/core/services/|g" \
