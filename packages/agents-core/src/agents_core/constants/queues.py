@@ -1,8 +1,12 @@
 """
-Queue names for RabbitMQ.
-Re-exports from configs so app code can use constants without importing configs.
+Queue names for RabbitMQ (single source of truth — apps/agents-service's
+configs.worker_config re-exports from here, not the other way around).
 """
 
-from configs.worker_config import CHAT_QUEUE, RAG_QUEUE, SCHEDULED_TASK_QUEUE
+CHAT_QUEUE = "chat_jobs"
+RAG_QUEUE = "rag_jobs"
+SCHEDULED_TASK_QUEUE = (
+    "scheduled_task_jobs"  # dedicated queue — never starves real-time chat
+)
 
 __all__ = ["CHAT_QUEUE", "RAG_QUEUE", "SCHEDULED_TASK_QUEUE"]

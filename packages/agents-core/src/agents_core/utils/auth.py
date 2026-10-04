@@ -4,8 +4,7 @@ import bcrypt
 import jwt
 from flask import current_app
 
-from app import db
-from agents_core.models import User
+from agents_core.models import User, db
 from agents_core.schemas import UserCreate, UserResponse
 
 
