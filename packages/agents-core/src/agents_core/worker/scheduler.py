@@ -31,6 +31,10 @@ def _setup_flask_context():
     See worker/consumer.py's `_setup_flask_context` for why this doesn't use
     apps/agents-service's `create_app()`: that factory wires up all HTTP
     blueprints, which aren't a dependency of packages/agents-core.
+
+    The DB settings below are copied from, not imported from,
+    apps/agents-service/configs/flask_config.py's Config class. Nothing
+    keeps the two in sync — update both copies by hand if Config changes.
     """
     from flask import Flask
 

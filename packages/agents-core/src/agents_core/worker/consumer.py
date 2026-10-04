@@ -52,6 +52,11 @@ def _setup_flask_context():
     import graph. The worker only ever touches the DB through SQLAlchemy
     (via agents_core.models.db), so a bare Flask app with just the DB
     settings initialized is sufficient.
+
+    The DB settings below (URI default, engine pool options) are copied from
+    apps/agents-service/configs/flask_config.py's Config class, not imported
+    from it. Nothing keeps the two in sync — if Config's SQLAlchemy settings
+    change, update this function and scheduler.py's copy by hand.
     """
     from flask import Flask
 
