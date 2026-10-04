@@ -57,7 +57,7 @@ from flask import (
 from pydantic import ValidationError
 from werkzeug.utils import secure_filename
 
-from configs import REDIS_URL
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
 
 
 def _get_redis():

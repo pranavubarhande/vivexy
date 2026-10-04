@@ -47,9 +47,9 @@ def _setup_flask_context():
     from this background worker process.
 
     This deliberately does NOT use apps/agents-service's `create_app()` —
-    that factory wires up all HTTP blueprints (app.routes.*), which aren't a
-    dependency of packages/agents-core and don't belong on this process's
-    import graph. The worker only ever touches the DB through SQLAlchemy
+    that factory wires up all HTTP blueprints (agents_core.routes.*), which
+    aren't a dependency of packages/agents-core and don't belong on this
+    process's import graph. The worker only ever touches the DB through SQLAlchemy
     (via agents_core.models.db), so a bare Flask app with just the DB
     settings initialized is sufficient.
 
