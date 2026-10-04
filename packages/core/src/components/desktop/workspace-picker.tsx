@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { platform } from '@/lib/platform';
+import { platform } from '@vivexy/core/lib/platform';
 import { Button } from '@vivexy/ui/button';
 import { cn } from '@vivexy/ui/utils';
 import {

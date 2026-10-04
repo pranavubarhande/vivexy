@@ -8,7 +8,7 @@ import {
   useCallback,
   type ReactNode,
 } from 'react';
-import { platform, type WorkspaceInfo } from '@/lib/platform';
+import { platform, type WorkspaceInfo } from '@vivexy/core/lib/platform';
 import { WorkspacePicker } from './workspace-picker';
 
 interface WorkspaceContextValue {

@@ -27,7 +27,7 @@ import {
   DialogFooter,
   DialogDescription,
 } from '@vivexy/ui/dialog';
-import { ChatHistoryDropdown } from '@/components/chat/chat-history-dropdown';
+import { ChatHistoryDropdown } from '@vivexy/core/chat/chat-history-dropdown';
 import { MobileSidebarTrigger } from '@vivexy/core/shared/app-shell';
 import {
   Plus,

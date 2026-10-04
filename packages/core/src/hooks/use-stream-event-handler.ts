@@ -10,7 +10,7 @@ import type {
 import type {
   FormQuestionRequest,
   FormQuestionField,
-} from '@/components/chat/form-question-card';
+} from '@vivexy/core/chat/form-question-card';
 import { chatService } from '../services/chat.service';
 import {
   STREAM_EVENT_APPROVAL_REQUEST,
@@ -33,9 +33,9 @@ import {
   STREAM_EVENT_TODO,
   STREAM_EVENT_TOOL_CALL,
   STREAM_EVENT_USAGE,
-} from '@/constants/stream-events';
+} from '@vivexy/core/constants/stream-events';
 import { chatKeys } from './useChat';
-import { platform } from '@/lib/platform';
+import { platform } from '@vivexy/core/lib/platform';
 import type { useQueryCacheUpdater } from './use-query-cache-updater';
 
 const normalizeKey = (key: string | null | undefined): string => {

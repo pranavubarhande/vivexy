@@ -10,7 +10,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { cn } from '@vivexy/ui/utils';
-import { platform } from '@/lib/platform';
+import { platform } from '@vivexy/core/lib/platform';
 
 export type RevertMode = 'messages' | 'code' | 'both';
 

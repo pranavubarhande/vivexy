@@ -35,7 +35,7 @@ import {
 import { cn } from '@vivexy/ui/utils';
 import { Skeleton } from '@vivexy/ui/skeleton';
 import { Badge } from '@vivexy/ui/badge';
-import { platform } from '@/lib/platform';
+import { platform } from '@vivexy/core/lib/platform';
 
 const MonacoEditor = dynamic(
   () => import('@monaco-editor/react').then((m) => m.default),

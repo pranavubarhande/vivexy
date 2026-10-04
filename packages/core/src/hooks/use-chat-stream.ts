@@ -8,10 +8,10 @@ import {
   type TimelineItem,
 } from '../services/chat.service';
 import type { GitContext, MessageAttachment } from '../types/chat';
-import { platform } from '@/lib/platform';
-import { UploadedFile } from '@/components/chat/file-upload';
-import { ApprovalRequest } from '@/components/chat/approval-dialog';
-import { FormQuestionRequest } from '@/components/chat/form-question-card';
+import { platform } from '@vivexy/core/lib/platform';
+import { UploadedFile } from '@vivexy/core/chat/file-upload';
+import { ApprovalRequest } from '@vivexy/core/chat/approval-dialog';
+import { FormQuestionRequest } from '@vivexy/core/chat/form-question-card';
 import { useQueryCacheUpdater } from './use-query-cache-updater';
 import { chatKeys } from './useChat';
 import { handleStreamEvent } from './use-stream-event-handler';

@@ -5,17 +5,17 @@ import { useQueryClient } from '@tanstack/react-query';
 import { cn } from '@vivexy/ui/utils';
 import { toast } from 'sonner';
 
-import { AgentSelector } from '@/components/chat/agent-selector';
-import { ModelSelector } from '@/components/chat/model-selector';
-import { ChatInput } from '@/components/chat/chat-input';
-import { ChatHeader } from '@/components/chat/chat-header';
-import { ChatMessageList } from '@/components/chat/chat-message-list';
-import { ChatPanels } from '@/components/chat/chat-panels';
-import { ApprovalDialog } from '@/components/chat/approval-dialog';
-import { FormQuestionCard } from '@/components/chat/form-question-card';
-import { UploadedFile } from '@/components/chat/file-upload';
-import { RevertDialog, type RevertMode } from '@/components/chat/revert-dialog';
-import { platform } from '@/lib/platform';
+import { AgentSelector } from '@vivexy/core/chat/agent-selector';
+import { ModelSelector } from '@vivexy/core/chat/model-selector';
+import { ChatInput } from '@vivexy/core/chat/chat-input';
+import { ChatHeader } from '@vivexy/core/chat/chat-header';
+import { ChatMessageList } from '@vivexy/core/chat/chat-message-list';
+import { ChatPanels } from '@vivexy/core/chat/chat-panels';
+import { ApprovalDialog } from '@vivexy/core/chat/approval-dialog';
+import { FormQuestionCard } from '@vivexy/core/chat/form-question-card';
+import { UploadedFile } from '@vivexy/core/chat/file-upload';
+import { RevertDialog, type RevertMode } from '@vivexy/core/chat/revert-dialog';
+import { platform } from '@vivexy/core/lib/platform';
 
 import {
   useChat,
@@ -24,9 +24,9 @@ import {
   useModels,
 } from '@vivexy/core/hooks/useChat';
 import { useAddChatToProject } from '@vivexy/core/hooks/useProjects';
-import { NO_PROJECT_FILTER } from '@/components/chat/chat-header';
+import { NO_PROJECT_FILTER } from '@vivexy/core/chat/chat-header';
 import { useChatStream } from '@vivexy/core/hooks/use-chat-stream';
-import { useWorkspace } from '@/components/desktop/workspace-provider';
+import { useWorkspace } from '@vivexy/core/desktop/workspace-provider';
 import { useAuthSafe } from '@vivexy/core/shared/auth-provider';
 import { useGitContext } from '@vivexy/core/hooks/useGitContext';
 
@@ -37,7 +37,7 @@ import {
   chatService,
 } from '@vivexy/core/services/chat.service';
 import { File } from 'lucide-react';
-import type { PanelType } from '@/components/chat/chat-panels';
+import type { PanelType } from '@vivexy/core/chat/chat-panels';
 
 function GitHubIcon({ size = 16 }: { size?: number }) {
   return (

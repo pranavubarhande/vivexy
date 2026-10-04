@@ -1,6 +1,6 @@
 import axiosInstance from '../axiosInstance.service';
-import { UploadedFile } from '@/components/chat/file-upload';
-import { platform } from '@/lib/platform';
+import { UploadedFile } from '@vivexy/core/chat/file-upload';
+import { platform } from '@vivexy/core/lib/platform';
 
 export const attachmentApi = {
   uploadAttachment: async (chatId: string, file: File) => {

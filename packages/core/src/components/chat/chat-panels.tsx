@@ -2,8 +2,8 @@
 
 import { useRef, useState, useEffect } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@vivexy/ui/sheet';
-import { ArtifactsPanel } from '@/components/chat/artifacts-panel';
-import { GithubReposPanel } from '@/components/chat/github-repos-panel';
+import { ArtifactsPanel } from '@vivexy/core/chat/artifacts-panel';
+import { GithubReposPanel } from '@vivexy/core/chat/github-repos-panel';
 import { useIsMobile } from '@vivexy/ui/hooks/use-mobile';
 import { Maximize2, PanelRightClose, File, Github } from 'lucide-react';
 import type { Artifact } from '@vivexy/core/services/chat.service';

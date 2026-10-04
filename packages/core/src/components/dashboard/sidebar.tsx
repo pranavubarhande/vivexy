@@ -2,10 +2,9 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ROUTES } from '@/constants/routes';
-import { APP_NAME } from '@/constants/project';
+import { ROUTES } from '@vivexy/core/constants/routes';
 import Image from 'next/image';
-import { useWorkspace } from '@/components/desktop/workspace-provider';
+import { useWorkspace } from '@vivexy/core/desktop/workspace-provider';
 import {
   Sidebar,
   SidebarHeader,
@@ -37,7 +36,10 @@ import {
   TooltipTrigger,
 } from '@vivexy/ui/tooltip';
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+export function AppSidebar({
+  appName = 'App',
+  ...props
+}: React.ComponentProps<typeof Sidebar> & { appName?: string }) {
   const pathname = usePathname();
   const { workspacePath, workspaceInfo, isDesktop, changeWorkspace } =
     useWorkspace();
@@ -88,12 +90,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <div className="flex items-center gap-2 px-2 group-data-[collapsible=icon]:hidden">
             <Image
               src="/logo.png"
-              alt={APP_NAME}
+              alt={appName}
               width={24}
               height={24}
               className="rounded-sm object-contain shrink-0"
             />
-            <span className="font-semibold text-lg truncate">{APP_NAME}</span>
+            <span className="font-semibold text-lg truncate">{appName}</span>
           </div>
           <SidebarTrigger />
         </div>

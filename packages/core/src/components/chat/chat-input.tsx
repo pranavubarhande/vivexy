@@ -21,7 +21,7 @@ import {
   FileText,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { ROUTES } from '@/constants/routes';
+import { ROUTES } from '@vivexy/core/constants/routes';
 import { UploadedFile } from './file-upload';
 import { CommandPalette } from './command-palette';
 import { useCommandPalette } from '@vivexy/core/hooks/useCommandPalette';

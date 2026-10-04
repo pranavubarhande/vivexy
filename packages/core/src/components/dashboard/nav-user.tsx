@@ -10,7 +10,7 @@ import {
   Blocks,
 } from 'lucide-react';
 import Link from 'next/link';
-import { ROUTES } from '@/constants/routes';
+import { ROUTES } from '@vivexy/core/constants/routes';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@vivexy/ui/avatar';
 import {

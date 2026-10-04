@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { agentsService } from '../services/agents.service';
-import { CATALOGUE_AGENTS } from '@/agents/catalogue';
-import { AGENT_SUMMARIES } from '@/agents/client-config';
+import { CATALOGUE_AGENTS } from '@vivexy/core/agents/catalogue';
+import { AGENT_SUMMARIES } from '@vivexy/core/agents/client-config';
 import type { AgentSummary, DeployedAgent } from '../types/agent';
 
 const QUERY_KEY = ['agents', 'deployed'] as const;

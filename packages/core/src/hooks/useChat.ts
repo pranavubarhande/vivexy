@@ -11,7 +11,7 @@ import {
 import type { ChatProject } from '../services/chat/chat-api';
 import { toast } from 'sonner';
 import { artifactApi } from '../services/chat/artifact-api';
-import { platform } from '@/lib/platform';
+import { platform } from '@vivexy/core/lib/platform';
 
 // ---------------------------------------------------------------------------
 // Query keys — single source of truth

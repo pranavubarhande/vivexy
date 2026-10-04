@@ -1,5 +1,5 @@
-import { camelToSnake } from '@/lib/caseConverters';
-import { platform } from '@/lib/platform';
+import { camelToSnake } from '@vivexy/core/lib/caseConverters';
+import { platform } from '@vivexy/core/lib/platform';
 import type {
   StreamMessageParams,
   SSEEvent,

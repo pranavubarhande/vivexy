@@ -4,7 +4,7 @@
  * When running inside Electron, window.electronAPI is available.
  * In a regular browser, it is undefined — all tools run server-side.
  *
- * NOTE: Use `import { platform } from '@/lib/platform'` for detection
+ * NOTE: Use `import { platform } from '@vivexy/core/lib/platform'` for detection
  * instead of checking window.electronAPI directly.
  */
 

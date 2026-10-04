@@ -55,7 +55,7 @@ export default function RootLayout({
         >
           <Providers>
             <AuthProvider>
-              <AppShell>{children}</AppShell>
+              <AppShell appName={APP_NAME}>{children}</AppShell>
               <Toaster />
             </AuthProvider>
           </Providers>

@@ -4,7 +4,7 @@ import { memo, useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { cn } from '@vivexy/ui/utils';
-import { MERMAID_IFRAME } from '@/components/chat/artifact-content';
+import { MERMAID_IFRAME } from '@vivexy/core/chat/artifact-content';
 
 const THINKING_WORDS = [
   'Thinking...',

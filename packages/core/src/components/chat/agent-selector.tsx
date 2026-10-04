@@ -22,8 +22,8 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 
-import { CATALOGUE_AGENTS } from '@/agents/catalogue';
-import { AGENT_SUMMARIES } from '@/agents/client-config';
+import { CATALOGUE_AGENTS } from '@vivexy/core/agents/catalogue';
+import { AGENT_SUMMARIES } from '@vivexy/core/agents/client-config';
 import {
   useDeployedAgents,
   useDeployAgent,

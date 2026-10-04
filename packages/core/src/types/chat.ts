@@ -24,7 +24,7 @@ import {
   STREAM_EVENT_TOOL_CALL,
   STREAM_EVENT_START,
   STREAM_EVENT_USAGE,
-} from '@/constants/stream-events';
+} from '@vivexy/core/constants/stream-events';
 
 export interface Chat {
   id: string;

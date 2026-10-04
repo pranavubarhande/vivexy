@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { camelToSnake, snakeToCamel } from '@/lib/caseConverters';
+import { camelToSnake, snakeToCamel } from '@vivexy/core/lib/caseConverters';
 
 // Create axios instance with base configuration
 const axiosInstance = axios.create({

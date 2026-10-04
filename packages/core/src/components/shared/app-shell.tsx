@@ -2,11 +2,11 @@
 
 import React from 'react';
 import { usePathname } from 'next/navigation';
-import { PUBLIC_ROUTES, AUTH_ROUTES } from '@/constants/routes';
-import { AppSidebar } from '@/components/dashboard/sidebar';
+import { PUBLIC_ROUTES, AUTH_ROUTES } from '@vivexy/core/constants/routes';
+import { AppSidebar } from '@vivexy/core/dashboard/sidebar';
 import { SidebarProvider, useSidebar } from '@vivexy/ui/sidebar';
-import { DashboardHeader } from '@/components/dashboard/header';
-import { WorkspaceProvider } from '@/components/desktop/workspace-provider';
+import { DashboardHeader } from '@vivexy/core/dashboard/header';
+import { WorkspaceProvider } from '@vivexy/core/desktop/workspace-provider';
 import { cn } from '@vivexy/ui/utils';
 import { PanelLeft } from 'lucide-react';
 
@@ -33,7 +33,13 @@ export function MobileSidebarTrigger() {
   );
 }
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({
+  children,
+  appName,
+}: {
+  children: React.ReactNode;
+  appName?: string;
+}) {
   const pathname = usePathname();
 
   const normalizedPath = pathname.replace(/\/$/, '') || '/';
@@ -51,7 +57,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <WorkspaceProvider>
       <SidebarProvider>
-        <AppSidebar className="relative" />
+        <AppSidebar appName={appName} className="relative" />
         <div className="flex flex-1 flex-col min-w-0">
           {!isChatPage && (
             <DashboardHeader heading={titleFromPath(pathname)}>

@@ -1,4 +1,4 @@
-import { platform } from '@/lib/platform';
+import { platform } from '@vivexy/core/lib/platform';
 import axiosInstance from '../axiosInstance.service';
 import { Artifact } from '../../types/chat';
 

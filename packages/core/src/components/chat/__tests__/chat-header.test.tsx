@@ -30,7 +30,7 @@ vi.mock('@vivexy/core/shared/app-shell', () => ({
   MobileSidebarTrigger: () => <div data-testid="mobile-sidebar-trigger" />,
 }));
 
-vi.mock('@/components/chat/chat-history-dropdown', () => ({
+vi.mock('@vivexy/core/chat/chat-history-dropdown', () => ({
   ChatHistoryDropdown: () => <div data-testid="chat-history-dropdown" />,
 }));
 

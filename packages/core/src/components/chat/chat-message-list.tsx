@@ -1,6 +1,6 @@
 'use client';
 
-import { ChatMessage } from '@/components/chat/chat-message';
+import { ChatMessage } from '@vivexy/core/chat/chat-message';
 import { Skeleton } from '@vivexy/ui/skeleton';
 import type { Message } from '@vivexy/core/services/chat.service';
 

@@ -53,7 +53,7 @@ import {
   Building,
 } from 'lucide-react';
 import { useState } from 'react';
-import { plans, type PlanConfig } from '@/configs/billing';
+import { plans, type PlanConfig } from '@vivexy/core/configs/billing';
 import { toast } from 'sonner';
 import axiosInstance from '@vivexy/core/services/axiosInstance.service';
 import { Invoice, Plan, Subscription } from '@vivexy/core/types/subscription';

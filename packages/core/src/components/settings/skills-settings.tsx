@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import type { SkillConfig } from '@vivexy/core/types/electron';
 import type { OfficialSkill } from '@vivexy/core/services/skills.service';
-import { APP_NAME } from '@/constants/project';
 import { useInstalledSkills } from '@vivexy/core/hooks/useInstalledSkills';
 import { useOfficialSkills } from '@vivexy/core/hooks/useOfficialSkills';
 import {
@@ -11,7 +10,7 @@ import {
   parseGithubUrl,
   githubSkillToInstallable,
   type GithubSkill,
-} from '@/lib/github-skills';
+} from '@vivexy/core/lib/github-skills';
 import { FileTreeEditor } from './file-tree-editor';
 import { Button } from '@vivexy/ui/button';
 import { Input } from '@vivexy/ui/input';
@@ -237,7 +236,7 @@ const GithubSkillCard = ({
 
 // ── Main Component ────────────────────────────────────────────────────
 
-export const SkillsSettings = () => {
+export const SkillsSettings = ({ appName = 'App' }: { appName?: string }) => {
   const { skills, skillsDir, saveSkill, toggleSkill, deleteSkill } =
     useInstalledSkills();
   const { data: officialSkills = [], isLoading: officialLoading } =
@@ -567,7 +566,7 @@ export const SkillsSettings = () => {
           <div className="flex items-start gap-2 text-xs text-muted-foreground bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 px-3 py-2 rounded-md">
             <Shield className="h-3.5 w-3.5 text-amber-600 shrink-0 mt-0.5" />
             <span>
-              Official skills are maintained by {APP_NAME} and always available
+              Official skills are maintained by {appName} and always available
               to the agent. Install a copy to your local profile to customize or
               override them.
             </span>

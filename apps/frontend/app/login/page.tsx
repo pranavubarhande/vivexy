@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { LoginForm } from '@/components/auth/login-form';
+import { LoginForm } from '@vivexy/core/auth/login-form';
 
 export default function LoginPage() {
   const router = useRouter();
