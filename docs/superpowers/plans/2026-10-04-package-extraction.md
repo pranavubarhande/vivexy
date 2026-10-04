@@ -1084,6 +1084,8 @@ Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
 - Move: `apps/agents-service/worker/` → `packages/agents-core/src/agents_core/worker/`
 - Modify: everything referencing these (now mostly within `packages/agents-core` itself, since `routes/` — the main remaining consumer — moves in Task 10)
 
+**Known issue from Task 8 — check for reverse dependencies onto `apps/agents-service`:** Task 8 found several places where code now living in `packages/agents-core` still imported from `apps/agents-service` (a `from app import db` no-dot import that the `from app.X` sed pattern didn't catch, and a `from configs import REDIS_URL` reaching into the app-level `configs` package). These broke `packages/agents-core`'s ability to run its own test suite standalone — the whole point of extracting it. **Specifically confirmed during Task 8's cleanup:** `worker/broker.py`, `worker/consumer.py`, and `worker/dispatcher.py` (all moving in this task) import `CHAT_QUEUE`/`RAG_QUEUE`/`SCHEDULED_TASK_QUEUE` via `from configs import ...` — `configs/__init__.py` (app-level) re-exports these from `configs/worker_config.py`, which in turn now imports them from `agents_core.constants.queues` (the canonical source as of Task 8). Once these three worker files move into `packages/agents-core`, rewrite their imports to `from agents_core.constants.queues import CHAT_QUEUE, RAG_QUEUE, SCHEDULED_TASK_QUEUE` directly (a sibling-package import, not through `configs`) — don't leave them importing `from configs`, which would reintroduce the same reverse dependency. After Step 2 below, run `grep -rn "^from configs\|^from app import\|^import app\b\|^from app\b" packages/agents-core/src/` and confirm it's empty before moving to Step 3 — that pattern catches both known forms of this issue.
+
 - [ ] **Step 1: Move the directories**
 
 ```bash
@@ -1172,6 +1174,16 @@ cd $ROOT/apps/agents-service && uv run --extra dev pytest --continue-on-collecti
 ```
 
 Expected: the same one pre-existing collection error, everything else passes. Any other failure is a real regression — investigate it.
+
+- [ ] **Step 6a: Run `packages/agents-core`'s own test suite standalone**
+
+This is a separate, meaningful check from Step 6 — Task 8 found that `packages/agents-core` could pass when tested as part of `apps/agents-service`'s full suite while still being unable to run on its own (due to the reverse-dependency issues described above, and a missing `pytest.ini` for its `*.test.py` discovery convention — both already fixed as of Task 8, but worth re-confirming now that more code has moved in):
+
+```bash
+cd $ROOT/packages/agents-core && uv run --extra dev pytest
+```
+
+Expected: passes with no collection errors (this package has no equivalent `app/agents/__tests__/config.test.py` collection problem of its own at this point, since Task 9 hasn't moved `routes/` yet — if this fails, don't assume it's the same pre-existing issue from Step 6; diagnose it for real, most likely a fresh reverse-dependency or missing-sibling-import problem in the newly-moved code).
 
 - [ ] **Step 7: Commit**
 
@@ -1274,6 +1286,22 @@ cd $ROOT/apps/agents-service && uv run --extra dev pytest --continue-on-collecti
 ```
 
 Expected: full suite passes aside from that one pre-existing collection error — this is the first point where every moved module is wired together, so beyond that known issue, nothing else should fail.
+
+- [ ] **Step 7a: Check for the reverse-dependency pattern one more time**
+
+**Already confirmed present:** `app/routes/chat.py` has `from configs import REDIS_URL` — same pattern Task 8 fixed in `cache_helpers.py`. Once `routes/` moves into `packages/agents-core` in this task, inline it the same way: replace with `REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")` directly in the file (matching the default already used everywhere else), rather than importing from the app-level `configs` package.
+
+```bash
+grep -rn "^from configs\|^from app import\|^import app\b\|^from app\b" $ROOT/packages/agents-core/src/
+```
+
+Expected: empty after the fix above. Then run `packages/agents-core`'s own standalone suite:
+
+```bash
+cd $ROOT/packages/agents-core && uv run --extra dev pytest --continue-on-collection-errors
+```
+
+Expected: now that `routes/` has moved in, this package's own test run will include the same pre-existing `config.test.py` collection error as `apps/agents-service`'s full suite does — that's expected, not new. Everything else should pass.
 
 - [ ] **Step 8: Commit**
 
