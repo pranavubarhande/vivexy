@@ -1,17 +1,16 @@
-from flask import Blueprint, jsonify, request
-
-from app.business_logic.api_keys import (
+from agents_core.business_logic.api_keys import (
     delete_user_api_key,
     get_user_api_keys,
     upsert_user_api_key,
 )
-from app.business_logic.users import (
+from agents_core.business_logic.users import (
     delete_user,
     get_user_profile,
     update_user_password,
     update_user_profile,
 )
-from app.middlewares.auth import auth_middleware
+from agents_core.middlewares.auth import auth_middleware
+from flask import Blueprint, jsonify, request
 
 bp = Blueprint("users", __name__, url_prefix="/users")
 

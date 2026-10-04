@@ -1,6 +1,5 @@
+from agents_core.middlewares.auth import auth_middleware
 from flask import Blueprint, jsonify, request
-
-from app.middlewares.auth import auth_middleware
 
 bp = Blueprint("stripe", __name__, url_prefix="/stripe")
 

@@ -1,7 +1,6 @@
+from agents_core.business_logic.chat import get_user_chat
+from agents_core.middlewares.auth import auth_middleware
 from flask import Blueprint, jsonify, request
-
-from app.business_logic.chat import get_user_chat
-from app.middlewares.auth import auth_middleware
 
 bp = Blueprint("approval", __name__, url_prefix="/chat")
 
@@ -68,7 +67,7 @@ def approve_tool(chat_id):
         if not chat:
             return jsonify({"error": "Chat not found"}), 404
 
-        from app.agents.approval_store import resolve_approval
+        from agents_core.agents.approval_store import resolve_approval
 
         signalled = resolve_approval(request_id, approved=True)
 
@@ -148,7 +147,7 @@ def reject_tool(chat_id):
         if not chat:
             return jsonify({"error": "Chat not found"}), 404
 
-        from app.agents.approval_store import resolve_approval
+        from agents_core.agents.approval_store import resolve_approval
 
         signalled = resolve_approval(request_id, approved=False)
 

@@ -1,6 +1,5 @@
+from agents_core.services.rag_service import process_rag_query
 from flask import Blueprint, jsonify, request
-
-from app.services.rag_service import process_rag_query
 
 bp = Blueprint("rag", __name__)
 

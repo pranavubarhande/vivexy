@@ -5,16 +5,15 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 import yaml
-from agents_core.schemas.skill import UserSkillCreate, UserSkillUpdate
-from flask import Blueprint, jsonify, request
-
-from app.business_logic.skills import (
+from agents_core.business_logic.skills import (
     delete_user_skill,
     get_user_skills,
     update_user_skill,
     upsert_user_skill,
 )
-from app.middlewares.auth import auth_middleware
+from agents_core.middlewares.auth import auth_middleware
+from agents_core.schemas.skill import UserSkillCreate, UserSkillUpdate
+from flask import Blueprint, jsonify, request
 
 logger = logging.getLogger(__name__)
 

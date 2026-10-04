@@ -1,3 +1,4 @@
+from agents_core.middlewares.auth import auth_middleware
 from agents_core.schemas import UserCreate, UserLogin, UserResponse
 from agents_core.utils.auth import (
     authenticate_user,
@@ -7,8 +8,6 @@ from agents_core.utils.auth import (
 )
 from flask import Blueprint, jsonify, request
 from pydantic import ValidationError
-
-from app.middlewares.auth import auth_middleware
 
 bp = Blueprint("auth", __name__, url_prefix="/auth")
 

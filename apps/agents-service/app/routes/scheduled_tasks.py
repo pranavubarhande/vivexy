@@ -5,10 +5,7 @@ CRUD for user-defined tasks that run a chat prompt on a schedule.
 
 import logging
 
-from agents_core.models.scheduled_task import ScheduledTask
-from flask import Blueprint, jsonify, request
-
-from app.business_logic.scheduled_tasks import (
+from agents_core.business_logic.scheduled_tasks import (
     create_task,
     delete_task,
     dispatch_task,
@@ -17,7 +14,9 @@ from app.business_logic.scheduled_tasks import (
     get_user_tasks,
     update_task,
 )
-from app.middlewares.auth import auth_middleware
+from agents_core.middlewares.auth import auth_middleware
+from agents_core.models.scheduled_task import ScheduledTask
+from flask import Blueprint, jsonify, request
 
 logger = logging.getLogger(__name__)
 

@@ -7,11 +7,10 @@ import logging
 import os
 
 import requests
+from agents_core.middlewares.auth import auth_middleware
 from agents_core.models.base import db
 from agents_core.models.github import GithubConnection, GithubRepo
 from flask import Blueprint, jsonify, redirect, request
-
-from app.middlewares.auth import auth_middleware
 
 logger = logging.getLogger(__name__)
 

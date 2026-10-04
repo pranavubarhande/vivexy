@@ -12,9 +12,38 @@ import uuid as uuid_lib
 from dataclasses import asdict
 
 import redis as redis_lib
+from agents_core.agents.client_tool_store import resolve_client_tool
+from agents_core.agents.config import DEFAULT_AGENT_ID
+from agents_core.business_logic.artifacts import (
+    create_artifact,
+    export_artifact,
+    export_md_content,
+    get_chat_artifacts,
+)
+from agents_core.business_logic.attachments import (
+    create_attachment,
+    get_chat_attachments,
+)
+from agents_core.business_logic.chat import (
+    build_file_contexts,
+    build_image_contexts,
+    create_chat,
+    create_message,
+    get_chat_messages,
+    get_llm_models,
+    get_user_chat,
+    get_user_chats,
+    revert_to_message,
+    update_chat,
+    update_message,
+)
+from agents_core.business_logic.streaming import run_agent_stream_to_redis
 from agents_core.constants.redis_keys import REDIS_KEY_STREAM_TOKEN, REDIS_STREAM_CHAT
+from agents_core.middlewares.auth import auth_middleware
 from agents_core.models.chat import Artifact
 from agents_core.schemas import ArtifactCreate, ChatCreate, MessageCreate
+from agents_core.services.s3_service import S3Service
+from agents_core.worker.dispatcher import dispatch_chat_job
 from flask import (
     Blueprint,
     Response,
@@ -28,33 +57,7 @@ from flask import (
 from pydantic import ValidationError
 from werkzeug.utils import secure_filename
 
-from app.agents.client_tool_store import resolve_client_tool
-from app.agents.config import DEFAULT_AGENT_ID
-from app.business_logic.artifacts import (
-    create_artifact,
-    export_artifact,
-    export_md_content,
-    get_chat_artifacts,
-)
-from app.business_logic.attachments import create_attachment, get_chat_attachments
-from app.business_logic.chat import (
-    build_file_contexts,
-    build_image_contexts,
-    create_chat,
-    create_message,
-    get_chat_messages,
-    get_llm_models,
-    get_user_chat,
-    get_user_chats,
-    revert_to_message,
-    update_chat,
-    update_message,
-)
-from app.business_logic.streaming import run_agent_stream_to_redis
-from app.middlewares.auth import auth_middleware
-from app.services.s3_service import S3Service
 from configs import REDIS_URL
-from worker.dispatcher import dispatch_chat_job
 
 
 def _get_redis():
@@ -189,7 +192,7 @@ def cancel_tool_endpoint(chat_id):
                 400,
             )
 
-        from app.agents.cancel_store import set_cancel_flag
+        from agents_core.agents.cancel_store import set_cancel_flag
 
         success = set_cancel_flag(chat_id, tool_name)
         if not success:
@@ -509,7 +512,7 @@ def get_checkpoints(chat_id):
     """List all checkpoints for a chat."""
     try:
         user = request.user
-        from app.business_logic.chat import get_chat_checkpoints
+        from agents_core.business_logic.chat import get_chat_checkpoints
 
         checkpoints = get_chat_checkpoints(chat_id, user.id)
         return jsonify(checkpoints)
@@ -530,7 +533,7 @@ def create_new_checkpoint(chat_id):
         label = data.get("label")
         if not message_id:
             return jsonify({"error": "message_id is required"}), 400
-        from app.business_logic.chat import create_checkpoint
+        from agents_core.business_logic.chat import create_checkpoint
 
         cp = create_checkpoint(chat_id, user.id, message_id, label)
         return jsonify(cp), 201
@@ -546,7 +549,7 @@ def restore_checkpoint_endpoint(chat_id, checkpoint_id):
     """Restore chat to a checkpoint."""
     try:
         user = request.user
-        from app.business_logic.chat import restore_checkpoint
+        from agents_core.business_logic.chat import restore_checkpoint
 
         result = restore_checkpoint(chat_id, checkpoint_id, user.id)
         return jsonify(result)
@@ -1168,8 +1171,8 @@ def start_chat_stream():
         if compact_match:
             focus = (compact_match.group(1) or "").strip() or None
             try:
-                from app.business_logic.api_keys import get_decrypted_api_keys
-                from app.business_logic.compact import compact_chat
+                from agents_core.business_logic.api_keys import get_decrypted_api_keys
+                from agents_core.business_logic.compact import compact_chat
 
                 user_api_keys = get_decrypted_api_keys(user_id) if user_id else {}
                 result = compact_chat(
@@ -1514,8 +1517,8 @@ def compact_chat_endpoint(chat_id):
         model_provider = data.get("model_provider", "google")
         model_id = data.get("model_id", "gemini-2.5-flash")
 
-        from app.business_logic.api_keys import get_decrypted_api_keys
-        from app.business_logic.compact import compact_chat
+        from agents_core.business_logic.api_keys import get_decrypted_api_keys
+        from agents_core.business_logic.compact import compact_chat
 
         user_api_keys = get_decrypted_api_keys(user.id) if user.id else {}
 

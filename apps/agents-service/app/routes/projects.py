@@ -1,13 +1,4 @@
-from agents_core.schemas import (
-    ProjectChatAdd,
-    ProjectCreate,
-    ProjectTeamShare,
-    ProjectUpdate,
-)
-from flask import Blueprint, jsonify, request
-from pydantic import ValidationError
-
-from app.business_logic.projects import (
+from agents_core.business_logic.projects import (
     add_chat_to_project,
     create_project,
     delete_project,
@@ -20,7 +11,15 @@ from app.business_logic.projects import (
     share_project_with_team,
     update_project,
 )
-from app.middlewares.auth import auth_middleware
+from agents_core.middlewares.auth import auth_middleware
+from agents_core.schemas import (
+    ProjectChatAdd,
+    ProjectCreate,
+    ProjectTeamShare,
+    ProjectUpdate,
+)
+from flask import Blueprint, jsonify, request
+from pydantic import ValidationError
 
 bp = Blueprint("projects", __name__, url_prefix="/projects")
 

@@ -1,8 +1,4 @@
-from agents_core.schemas import TeamCreate, TeamMemberCreate, TeamUpdate
-from flask import Blueprint, jsonify, request
-from pydantic import ValidationError
-
-from app.business_logic.teams import (
+from agents_core.business_logic.teams import (
     add_team_member,
     create_team,
     delete_team,
@@ -12,7 +8,10 @@ from app.business_logic.teams import (
     remove_team_member,
     update_team,
 )
-from app.middlewares.auth import auth_middleware
+from agents_core.middlewares.auth import auth_middleware
+from agents_core.schemas import TeamCreate, TeamMemberCreate, TeamUpdate
+from flask import Blueprint, jsonify, request
+from pydantic import ValidationError
 
 bp = Blueprint("teams", __name__, url_prefix="/teams")
 

@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "uv run python app.py",
-    "dev:worker": "uv run python -m worker.consumer",
-    "dev:scheduler": "uv run python -m worker.scheduler",
+    "dev:worker": "uv run python -m agents_core.worker.consumer",
+    "dev:scheduler": "uv run python -m agents_core.worker.scheduler",
     "install": "uv sync",
     "format": "uv run --extra dev black . && uv run --extra dev isort .",
     "lint": "uv run --extra dev flake8 .",

@@ -1,7 +1,6 @@
+from agents_core.middlewares.auth import auth_middleware
 from composio import Composio
 from flask import Blueprint, jsonify, request
-
-from app.middlewares.auth import auth_middleware
 
 bp = Blueprint("connectors", __name__, url_prefix="/api/connectors")
 
