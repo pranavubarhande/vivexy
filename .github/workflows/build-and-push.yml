@@ -43,7 +43,7 @@ jobs:
         run: npm ci
 
       - name: Install agents-service Python dependencies
-        run: cd apps/agents-service && uv sync --extra dev
+        run: uv sync --extra dev
 
       - name: Run tests (pytest + vitest via turbo)
         run: npm run test

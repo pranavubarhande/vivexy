@@ -29,7 +29,7 @@ spec:
             - |
               set -e
               {{- include "vivexy.composeConnectionUrls" . | nindent 14 }}
-              exec python -m worker.scheduler
+              exec python -m agents_core.worker.scheduler
           envFrom:
             - configMapRef:
                 name: {{ .Release.Name }}-agents-config

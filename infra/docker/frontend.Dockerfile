@@ -8,7 +8,9 @@ WORKDIR /repo
 RUN apk add --no-cache libc6-compat
 COPY package.json package-lock.json turbo.json ./
 COPY apps/frontend/package.json ./apps/frontend/
-RUN npm ci --include-workspace-root --workspace apps/frontend
+COPY packages/ui/package.json ./packages/ui/
+COPY packages/core/package.json ./packages/core/
+RUN npm ci --include-workspace-root --workspace apps/frontend --workspace packages/ui --workspace packages/core
 
 FROM node:20-alpine AS builder
 WORKDIR /repo
@@ -29,6 +31,8 @@ COPY --from=deps /repo/node_modules ./node_modules
 COPY --from=deps /repo/apps/frontend/node_modules ./apps/frontend/node_modules
 COPY package.json package-lock.json turbo.json ./
 COPY apps/frontend ./apps/frontend
+COPY packages/ui ./packages/ui
+COPY packages/core ./packages/core
 RUN npx turbo run build --filter=vivexy-frontend
 
 FROM node:20-alpine AS runner
