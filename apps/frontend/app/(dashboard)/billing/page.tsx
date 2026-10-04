@@ -55,8 +55,8 @@ import {
 import { useState } from 'react';
 import { plans, type PlanConfig } from '@/configs/billing';
 import { toast } from 'sonner';
-import axiosInstance from '@/services/axiosInstance.service';
-import { Invoice, Plan, Subscription } from '@/types/subscription';
+import axiosInstance from '@vivexy/core/services/axiosInstance.service';
+import { Invoice, Plan, Subscription } from '@vivexy/core/types/subscription';
 
 // Mock data for demonstration - in real app, this would come from API
 const mockSubscription: Subscription = {

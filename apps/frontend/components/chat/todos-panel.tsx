@@ -10,7 +10,7 @@ import {
   Calendar,
   ListTodo,
 } from 'lucide-react';
-import { Todo } from '@/services/chat.service';
+import { Todo } from '@vivexy/core/services/chat.service';
 
 interface TodosPanelProps {
   todos: Todo[];

@@ -1,4 +1,4 @@
-import { Plan } from '@/types/subscription';
+import { Plan } from '@vivexy/core/types/subscription';
 
 export type PlanConfig = {
   key: Plan;

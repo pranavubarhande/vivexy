@@ -5,7 +5,7 @@ import {
   useCostSummary,
   useCostByModel,
   useDailyUsage,
-} from '@/hooks/useCostManager';
+} from '@vivexy/core/hooks/useCostManager';
 import {
   Card,
   CardContent,

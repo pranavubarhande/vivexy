@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import { cn } from '@vivexy/ui/utils';
 import { ArtifactContent } from './artifact-content';
-import type { Artifact } from '@/services/chat.service';
-import { useChat } from '@/hooks/useChat';
+import type { Artifact } from '@vivexy/core/services/chat.service';
+import { useChat } from '@vivexy/core/hooks/useChat';
 import {
   DropdownMenu,
   DropdownMenuContent,

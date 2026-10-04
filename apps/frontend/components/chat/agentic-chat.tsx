@@ -22,20 +22,20 @@ import {
   useChatHistory,
   useChatProject,
   useModels,
-} from '@/hooks/useChat';
-import { useAddChatToProject } from '@/hooks/useProjects';
+} from '@vivexy/core/hooks/useChat';
+import { useAddChatToProject } from '@vivexy/core/hooks/useProjects';
 import { NO_PROJECT_FILTER } from '@/components/chat/chat-header';
-import { useChatStream } from '@/hooks/use-chat-stream';
+import { useChatStream } from '@vivexy/core/hooks/use-chat-stream';
 import { useWorkspace } from '@/components/desktop/workspace-provider';
-import { useAuthSafe } from '@/components/shared/auth-provider';
-import { useGitContext } from '@/hooks/useGitContext';
+import { useAuthSafe } from '@vivexy/core/shared/auth-provider';
+import { useGitContext } from '@vivexy/core/hooks/useGitContext';
 
 import {
   Artifact,
   LLMModel,
   Message,
   chatService,
-} from '@/services/chat.service';
+} from '@vivexy/core/services/chat.service';
 import { File } from 'lucide-react';
 import type { PanelType } from '@/components/chat/chat-panels';
 
@@ -64,7 +64,7 @@ function getGreeting() {
 // Types
 // ---------------------------------------------------------------------------
 
-import type { AgentSummary } from '@/types/agent';
+import type { AgentSummary } from '@vivexy/core/types/agent';
 
 export interface AgenticChatConfig {
   availableAgents: AgentSummary[];
@@ -102,7 +102,7 @@ interface ChatInputToolbarProps {
   agents: AgentSummary[];
   selectedAgentId: string;
   onAgentSelect: (id: string) => void;
-  models: import('@/services/chat.service').LLMModel[];
+  models: import('@vivexy/core/services/chat.service').LLMModel[];
   isLoadingModels: boolean;
   selectedModelDbId: string | null;
   onModelSelect: (
@@ -298,7 +298,7 @@ export const AgenticChat = ({
   // not dependent on a server refetch. The DB column is the server-side source
   // of truth for page reloads; this state handles the in-session UX.
   const [chatContextMap, setChatContextMap] = useState<
-    Record<string, import('@/types/chat').GitContext>
+    Record<string, import('@vivexy/core/types/chat').GitContext>
   >(() => {
     if (typeof window === 'undefined') return {};
     try {
@@ -309,7 +309,7 @@ export const AgenticChat = ({
   });
 
   const lockContextToChat = useCallback(
-    (id: string, ctx: import('@/types/chat').GitContext | null) => {
+    (id: string, ctx: import('@vivexy/core/types/chat').GitContext | null) => {
       if (!id || !ctx) return;
       setChatContextMap((prev) => {
         if (prev[id]) return prev; // already locked — never overwrite

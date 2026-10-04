@@ -40,7 +40,7 @@ import {
   Presentation,
   Globe,
 } from 'lucide-react';
-import type { CatalogueAgent } from '@/types/agent';
+import type { CatalogueAgent } from '@vivexy/core/types/agent';
 
 export const CATALOGUE_AGENTS: CatalogueAgent[] = [
   // ─── Finance ──────────────────────────────────────────────────────────────

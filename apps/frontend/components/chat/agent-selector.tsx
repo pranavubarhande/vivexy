@@ -28,12 +28,12 @@ import {
   useDeployedAgents,
   useDeployAgent,
   useUndeployAgent,
-} from '@/hooks/useAgents';
+} from '@vivexy/core/hooks/useAgents';
 import type {
   AgentSummary,
   AgentCategory,
   CatalogueAgent,
-} from '@/types/agent';
+} from '@vivexy/core/types/agent';
 
 const CATEGORIES: (AgentCategory | 'All')[] = [
   'All',

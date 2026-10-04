@@ -4,7 +4,10 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useUpdateProfile, useUserSettings } from '@/hooks/useUserSettings';
+import {
+  useUpdateProfile,
+  useUserSettings,
+} from '@vivexy/core/hooks/useUserSettings';
 import { Button } from '@vivexy/ui/button';
 import { Input } from '@vivexy/ui/input';
 import {

@@ -14,8 +14,8 @@ import {
 import { Button } from '@vivexy/ui/button';
 import { Switch } from '@vivexy/ui/switch';
 import { Badge } from '@vivexy/ui/badge';
-import { scheduledTasksService } from '@/services/scheduled-tasks.service';
-import type { ScheduledTask } from '@/types/scheduled-task';
+import { scheduledTasksService } from '@vivexy/core/services/scheduled-tasks.service';
+import type { ScheduledTask } from '@vivexy/core/types/scheduled-task';
 
 interface Props {
   tasks: ScheduledTask[];

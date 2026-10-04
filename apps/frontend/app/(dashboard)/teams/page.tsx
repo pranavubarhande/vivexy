@@ -63,10 +63,10 @@ import {
   useTeamMembers,
   useInviteMember,
   useUpdateTeam,
-} from '@/hooks/useTeams';
+} from '@vivexy/core/hooks/useTeams';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { Team, TeamMember, TeamRole } from '@/types/team';
+import { Team, TeamMember, TeamRole } from '@vivexy/core/types/team';
 
 export default function TeamsPage() {
   const { data: teams, isLoading } = useTeams();

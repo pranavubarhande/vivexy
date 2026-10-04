@@ -26,7 +26,7 @@ vi.mock('lucide-react', async (importOriginal) => {
   };
 });
 
-vi.mock('../../shared/app-shell', () => ({
+vi.mock('@vivexy/core/shared/app-shell', () => ({
   MobileSidebarTrigger: () => <div data-testid="mobile-sidebar-trigger" />,
 }));
 

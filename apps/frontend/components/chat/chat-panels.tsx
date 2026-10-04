@@ -4,10 +4,10 @@ import { useRef, useState, useEffect } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@vivexy/ui/sheet';
 import { ArtifactsPanel } from '@/components/chat/artifacts-panel';
 import { GithubReposPanel } from '@/components/chat/github-repos-panel';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { useIsMobile } from '@vivexy/ui/hooks/use-mobile';
 import { Maximize2, PanelRightClose, File, Github } from 'lucide-react';
-import type { Artifact } from '@/services/chat.service';
-import type { GitContext } from '@/types/chat';
+import type { Artifact } from '@vivexy/core/services/chat.service';
+import type { GitContext } from '@vivexy/core/types/chat';
 
 export type PanelType = 'artifacts' | 'github' | null;
 

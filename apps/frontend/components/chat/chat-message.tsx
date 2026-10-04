@@ -24,8 +24,11 @@ import {
   Artifact,
   TimelineItem,
   ReasoningStep,
-} from '@/services/chat.service';
-import type { MessageAttachment, TokenUsageData } from '@/types/chat';
+} from '@vivexy/core/services/chat.service';
+import type {
+  MessageAttachment,
+  TokenUsageData,
+} from '@vivexy/core/types/chat';
 import {
   Dialog,
   DialogContent,

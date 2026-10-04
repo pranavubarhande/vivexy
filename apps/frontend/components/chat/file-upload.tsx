@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { Button } from '@vivexy/ui/button';
 import { cn } from '@vivexy/ui/utils';
-import { useFileUpload } from '@/hooks/useChat';
+import { useFileUpload } from '@vivexy/core/hooks/useChat';
 
 interface FileUploadProps {
   onFilesSelected: (files: File[]) => void;

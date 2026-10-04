@@ -4,7 +4,7 @@ import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import { cn } from '@vivexy/ui/utils';
 import { ArtifactContent } from './artifact-content';
-import { useChat } from '@/hooks/useChat';
+import { useChat } from '@vivexy/core/hooks/useChat';
 import { toast } from 'sonner';
 import {
   DropdownMenu,
@@ -12,8 +12,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@vivexy/ui/dropdown-menu';
-import { artifactApi } from '@/services/chat/artifact-api';
-import { parseXlsxBuffer } from '@/hooks/useChat';
+import { artifactApi } from '@vivexy/core/services/chat/artifact-api';
+import { parseXlsxBuffer } from '@vivexy/core/hooks/useChat';
 
 const MarkdownEditor = dynamic(
   () => import('./markdown-editor').then((mod) => mod.MarkdownEditor),
@@ -36,7 +36,7 @@ import {
   File,
   Download,
 } from 'lucide-react';
-import type { Artifact } from '@/services/chat.service';
+import type { Artifact } from '@vivexy/core/services/chat.service';
 
 interface ArtifactsPanelProps {
   artifacts: Artifact[];

@@ -28,8 +28,8 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from '@vivexy/ui/sidebar';
-import { useAuthSafe } from '@/components/shared/auth-provider';
-import { ThemeToggle } from '@/components/shared/theme-toggle';
+import { useAuthSafe } from '@vivexy/core/shared/auth-provider';
+import { ThemeToggle } from '@vivexy/core/shared/theme-toggle';
 import { Skeleton } from '@vivexy/ui/skeleton';
 
 export function NavUser() {

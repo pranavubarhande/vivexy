@@ -4,7 +4,10 @@ import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '@vivexy/ui/utils';
 import { Zap, FileText } from 'lucide-react';
-import type { PaletteState, CommandItem } from '@/hooks/useCommandPalette';
+import type {
+  PaletteState,
+  CommandItem,
+} from '@vivexy/core/hooks/useCommandPalette';
 
 interface CommandPaletteProps {
   palette: PaletteState;

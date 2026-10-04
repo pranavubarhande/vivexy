@@ -17,14 +17,14 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@vivexy/ui/tabs';
 import { Switch } from '@vivexy/ui/switch';
 import { ModelSelector } from '@/components/chat/model-selector';
 import { FileUpload, UploadedFile } from '@/components/chat/file-upload';
-import { useModels } from '@/hooks/useChat';
-import { scheduledTasksService } from '@/services/scheduled-tasks.service';
-import { chatService } from '@/services/chat.service';
+import { useModels } from '@vivexy/core/hooks/useChat';
+import { scheduledTasksService } from '@vivexy/core/services/scheduled-tasks.service';
+import { chatService } from '@vivexy/core/services/chat.service';
 import type {
   CreateScheduledTaskPayload,
   ScheduleType,
   ScheduledTask,
-} from '@/types/scheduled-task';
+} from '@vivexy/core/types/scheduled-task';
 
 // ---------------------------------------------------------------------------
 // Time conversion helpers (all times in HH:MM format)

@@ -20,7 +20,7 @@ import {
   useApiKeys,
   useSetApiKey,
   useDeleteApiKey,
-} from '@/hooks/useUserSettings';
+} from '@vivexy/core/hooks/useUserSettings';
 
 const PROVIDERS = [
   {

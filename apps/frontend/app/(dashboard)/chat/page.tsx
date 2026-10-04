@@ -3,7 +3,7 @@
 import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { AgenticChat } from '@/components/chat/agentic-chat';
-import { useDeployedAgentSummaries } from '@/hooks/useAgents';
+import { useDeployedAgentSummaries } from '@vivexy/core/hooks/useAgents';
 
 function ChatPageInner() {
   const searchParams = useSearchParams();

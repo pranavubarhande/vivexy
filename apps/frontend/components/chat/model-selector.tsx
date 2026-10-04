@@ -11,7 +11,7 @@ import {
   DialogTrigger,
 } from '@vivexy/ui/dialog';
 import { cn } from '@vivexy/ui/utils';
-import { LLMModel } from '@/services/chat.service';
+import { LLMModel } from '@vivexy/core/services/chat.service';
 import {
   Sparkles,
   Brain,

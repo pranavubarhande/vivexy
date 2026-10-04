@@ -1,11 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
-import type { SkillConfig } from '@/types/electron';
-import type { OfficialSkill } from '@/services/skills.service';
+import type { SkillConfig } from '@vivexy/core/types/electron';
+import type { OfficialSkill } from '@vivexy/core/services/skills.service';
 import { APP_NAME } from '@/constants/project';
-import { useInstalledSkills } from '@/hooks/useInstalledSkills';
-import { useOfficialSkills } from '@/hooks/useOfficialSkills';
+import { useInstalledSkills } from '@vivexy/core/hooks/useInstalledSkills';
+import { useOfficialSkills } from '@vivexy/core/hooks/useOfficialSkills';
 import {
   listSkillsInRepo,
   parseGithubUrl,
@@ -63,7 +63,7 @@ import {
   Layers,
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
-import type { SkillPlatform } from '@/types/electron';
+import type { SkillPlatform } from '@vivexy/core/types/electron';
 
 // ── Constants ─────────────────────────────────────────────────────────
 

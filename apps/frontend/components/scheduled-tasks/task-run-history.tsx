@@ -6,12 +6,12 @@ import { ExternalLink, CheckCircle2, XCircle, Loader2, X } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@vivexy/ui/sheet';
 import { Badge } from '@vivexy/ui/badge';
 import { Button } from '@vivexy/ui/button';
-import { scheduledTasksService } from '@/services/scheduled-tasks.service';
+import { scheduledTasksService } from '@vivexy/core/services/scheduled-tasks.service';
 import type {
   ScheduledTask,
   ScheduledTaskRun,
   RunStatus,
-} from '@/types/scheduled-task';
+} from '@vivexy/core/types/scheduled-task';
 
 interface Props {
   task: ScheduledTask | null;

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useDeleteAccount } from '@/hooks/useUserSettings';
+import { useDeleteAccount } from '@vivexy/core/hooks/useUserSettings';
 import { Button } from '@vivexy/ui/button';
 import { Input } from '@vivexy/ui/input';
 import { Label } from '@vivexy/ui/label';

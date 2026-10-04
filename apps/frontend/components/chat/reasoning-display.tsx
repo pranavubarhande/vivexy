@@ -14,8 +14,8 @@ import {
   Check,
   Circle,
 } from 'lucide-react';
-import type { ReasoningStep } from '@/types/chat';
-import { chatService } from '@/services/chat.service';
+import type { ReasoningStep } from '@vivexy/core/types/chat';
+import { chatService } from '@vivexy/core/services/chat.service';
 
 import { toast } from 'sonner';
 

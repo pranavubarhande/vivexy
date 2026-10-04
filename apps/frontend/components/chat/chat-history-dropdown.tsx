@@ -1,6 +1,6 @@
 'use client';
 
-import { Chat } from '@/services/chat.service';
+import { Chat } from '@vivexy/core/services/chat.service';
 import { cn } from '@vivexy/ui/utils';
 import { Button } from '@vivexy/ui/button';
 import { formatDistanceToNow } from 'date-fns';

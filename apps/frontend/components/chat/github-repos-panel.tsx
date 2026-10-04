@@ -51,13 +51,13 @@ import {
   useRepoBranches,
   useRepoContents,
   useFileContent,
-} from '@/hooks/useGithub';
+} from '@vivexy/core/hooks/useGithub';
 import {
   githubService,
   GithubContent,
   GithubRepo,
-} from '@/services/github.service';
-import type { GitContext } from '@/types/chat';
+} from '@vivexy/core/services/github.service';
+import type { GitContext } from '@vivexy/core/types/chat';
 
 // ---------------------------------------------------------------------------
 // GitHub File Tree Node (web)

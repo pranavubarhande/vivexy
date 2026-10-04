@@ -2,10 +2,10 @@
 
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import type { Artifact } from '@/services/chat.service';
+import type { Artifact } from '@vivexy/core/services/chat.service';
 import { cn } from '@vivexy/ui/utils';
 import dynamic from 'next/dynamic';
-import { useXlsxContent } from '@/hooks/useChat';
+import { useXlsxContent } from '@vivexy/core/hooks/useChat';
 
 const MultiSheetEditor = dynamic(
   () => import('./multi-sheet-editor').then((mod) => mod.MultiSheetEditor),

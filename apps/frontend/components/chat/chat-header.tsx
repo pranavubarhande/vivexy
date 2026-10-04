@@ -28,7 +28,7 @@ import {
   DialogDescription,
 } from '@vivexy/ui/dialog';
 import { ChatHistoryDropdown } from '@/components/chat/chat-history-dropdown';
-import { MobileSidebarTrigger } from '../shared/app-shell';
+import { MobileSidebarTrigger } from '@vivexy/core/shared/app-shell';
 import {
   Plus,
   Folder,
@@ -43,9 +43,9 @@ import {
 } from 'lucide-react';
 import { Label } from '@vivexy/ui/label';
 import { Textarea } from '@vivexy/ui/textarea';
-import type { Chat } from '@/services/chat.service';
+import type { Chat } from '@vivexy/core/services/chat.service';
 import { toast } from 'sonner';
-import { useRenameChat } from '@/hooks/useChat';
+import { useRenameChat } from '@vivexy/core/hooks/useChat';
 import {
   useProjects,
   useCreateProject,
@@ -56,8 +56,8 @@ import {
   useShareProjectWithTeam,
   useRevokeTeamAccess,
   useUnassignedChats,
-} from '@/hooks/useProjects';
-import { useTeams } from '@/hooks/useTeams';
+} from '@vivexy/core/hooks/useProjects';
+import { useTeams } from '@vivexy/core/hooks/useTeams';
 
 /** Sentinel stored in selectedProjectId to mean "filter to chats with no project". */
 export const NO_PROJECT_FILTER = 'none';

@@ -1,7 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import type { McpServerConfig, McpTransport } from '@/types/electron';
+import type {
+  McpServerConfig,
+  McpTransport,
+} from '@vivexy/core/types/electron';
 import { Button } from '@vivexy/ui/button';
 import { Input } from '@vivexy/ui/input';
 import { Label } from '@vivexy/ui/label';

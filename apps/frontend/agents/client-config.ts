@@ -1,5 +1,5 @@
-export type { AgentSummary } from '@/types/agent';
-import type { AgentSummary } from '@/types/agent';
+export type { AgentSummary } from '@vivexy/core/types/agent';
+import type { AgentSummary } from '@vivexy/core/types/agent';
 import { Bot } from 'lucide-react';
 
 /** Base agents always available in chat regardless of deployed catalogue agents. */

@@ -24,8 +24,8 @@ import { useRouter } from 'next/navigation';
 import { ROUTES } from '@/constants/routes';
 import { UploadedFile } from './file-upload';
 import { CommandPalette } from './command-palette';
-import { useCommandPalette } from '@/hooks/useCommandPalette';
-import { useFileUpload } from '@/hooks/useChat';
+import { useCommandPalette } from '@vivexy/core/hooks/useCommandPalette';
+import { useFileUpload } from '@vivexy/core/hooks/useChat';
 
 // ---------------------------------------------------------------------------
 // Per-file state while chips live inside the input

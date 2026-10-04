@@ -2,7 +2,7 @@
 
 import { cn } from '@vivexy/ui/utils';
 import { Check, Minus, Circle, AlertCircle } from 'lucide-react';
-import type { InlineTodo } from '@/services/chat.service';
+import type { InlineTodo } from '@vivexy/core/services/chat.service';
 
 interface InlineTodoListProps {
   todos: InlineTodo[];

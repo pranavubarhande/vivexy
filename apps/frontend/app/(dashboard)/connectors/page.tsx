@@ -17,7 +17,7 @@ import {
   useConnections,
   useGenerateConnection,
   useDisconnectConnection,
-} from '@/hooks/useConnectors';
+} from '@vivexy/core/hooks/useConnectors';
 import { cn } from '@vivexy/ui/utils';
 
 type Category =
