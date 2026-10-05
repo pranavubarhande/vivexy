@@ -1649,7 +1649,7 @@ git commit -m "feat: add frontend types/service/hooks for SSO and email verifica
 - Modify: `packages/core/src/components/auth/register-form.tsx`
 - Test: `packages/core/src/components/auth/__tests__/login-form.test.tsx` (create)
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `packages/core/src/components/auth/__tests__/login-form.test.tsx`:
 
@@ -1710,12 +1710,12 @@ describe('LoginForm SSO buttons', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `cd packages/core && npx vitest run src/components/auth/__tests__/login-form.test.tsx`
 Expected: FAIL — no button named "Continue with Google"/"Continue with Microsoft" exists yet.
 
-- [ ] **Step 3: Implement — login-form.tsx**
+- [x] **Step 3: Implement — login-form.tsx**
 
 Edit `packages/core/src/components/auth/login-form.tsx`. Add a helper above the component and two buttons plus a divider inside `CardContent`, before the existing `<Form {...form}>`:
 
@@ -1768,12 +1768,12 @@ Inside `<CardContent>`, immediately before `<Form {...form}>`:
         </div>
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `cd packages/core && npx vitest run src/components/auth/__tests__/login-form.test.tsx`
 Expected: PASS.
 
-- [ ] **Step 5: Apply the same change to register-form.tsx**
+- [x] **Step 5: Apply the same change to register-form.tsx**
 
 Edit `packages/core/src/components/auth/register-form.tsx`. Add this helper above the component (identical to login-form.tsx's Step 3, including the nonce generation):
 
@@ -1820,12 +1820,12 @@ Inside its `<CardContent>`, immediately before its `<Form {...form}>`:
         </div>
 ```
 
-- [ ] **Step 6: Run the full frontend test suite**
+- [x] **Step 6: Run the full frontend test suite**
 
 Run: `cd packages/core && npm run test`
 Expected: all PASS, including the new login-form test and all pre-existing tests.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add packages/core/src/components/auth/login-form.tsx packages/core/src/components/auth/register-form.tsx packages/core/src/components/auth/__tests__/login-form.test.tsx
