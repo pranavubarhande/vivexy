@@ -187,3 +187,41 @@ def create_user(user_data: UserCreate) -> User:
     db.session.commit()
 
     return user
+
+
+def find_or_create_oauth_user(
+    provider: str, subject_id: str, email: str, name: str | None
+) -> User:
+    """Find-or-create a User for an OAuth/SSO login.
+
+    Lookup order: (1) an existing OAuth identity match, (2) an existing
+    password-based account with the same email (auto-linked), (3) a brand
+    new SSO-only account. SSO accounts are treated as pre-verified since
+    the provider already verified the email before allowing sign-in with
+    it — see the design spec's "SSO + verification" decision.
+    """
+    user = User.query.filter_by(
+        oauth_provider=provider, oauth_subject_id=subject_id
+    ).first()
+    if user:
+        return user
+
+    user = User.query.filter_by(email=email).first()
+    if user:
+        user.oauth_provider = provider
+        user.oauth_subject_id = subject_id
+        user.email_verified = True
+        db.session.commit()
+        return user
+
+    user = User(
+        email=email,
+        name=name,
+        password=None,
+        oauth_provider=provider,
+        oauth_subject_id=subject_id,
+        email_verified=True,
+    )
+    db.session.add(user)
+    db.session.commit()
+    return user
