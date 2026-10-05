@@ -5,17 +5,17 @@ import {
   useCostSummary,
   useCostByModel,
   useDailyUsage,
-} from '@/hooks/useCostManager';
+} from '@vivexy/core/hooks/useCostManager';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
+} from '@vivexy/ui/card';
+import { Tabs, TabsList, TabsTrigger } from '@vivexy/ui/tabs';
+import { Badge } from '@vivexy/ui/badge';
+import { Skeleton } from '@vivexy/ui/skeleton';
 import {
   Coins,
   Zap,

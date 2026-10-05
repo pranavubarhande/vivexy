@@ -35,7 +35,7 @@ spec:
             - |
               set -e
               {{- include "vivexy.composeConnectionUrls" . | nindent 14 }}
-              exec python -m worker.consumer
+              exec python -m agents_core.worker.consumer
           envFrom:
             - configMapRef:
                 name: {{ .Release.Name }}-agents-config

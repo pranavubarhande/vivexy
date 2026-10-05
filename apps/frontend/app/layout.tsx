@@ -2,11 +2,11 @@ import type { Metadata } from 'next';
 import { Geist, Geist_Mono, Inter, Fraunces } from 'next/font/google';
 import { APP_NAME } from '@/constants/project';
 import './globals.css';
-import { ThemeProvider } from '@/components/shared/theme-provider';
-import { AuthProvider } from '@/components/shared/auth-provider';
-import { Providers } from '@/components/shared/providers';
+import { ThemeProvider } from '@vivexy/core/shared/theme-provider';
+import { AuthProvider } from '@vivexy/core/shared/auth-provider';
+import { Providers } from '@vivexy/core/shared/providers';
 import { Toaster } from 'sonner';
-import { AppShell } from '@/components/shared/app-shell';
+import { AppShell } from '@vivexy/core/shared/app-shell';
 import { Analytics } from '@vercel/analytics/next';
 
 const inter = Inter({
@@ -55,7 +55,7 @@ export default function RootLayout({
         >
           <Providers>
             <AuthProvider>
-              <AppShell>{children}</AppShell>
+              <AppShell appName={APP_NAME}>{children}</AppShell>
               <Toaster />
             </AuthProvider>
           </Providers>

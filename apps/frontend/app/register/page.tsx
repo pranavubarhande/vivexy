@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { RegisterForm } from '@/components/auth/register-form';
+import { RegisterForm } from '@vivexy/core/auth/register-form';
 
 export default function RegisterPage() {
   const router = useRouter();

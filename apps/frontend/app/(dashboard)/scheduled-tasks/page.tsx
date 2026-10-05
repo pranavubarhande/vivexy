@@ -3,12 +3,12 @@
 import { useState, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { ScheduledTaskList } from '@/components/scheduled-tasks/scheduled-task-list';
-import { ScheduledTaskForm } from '@/components/scheduled-tasks/scheduled-task-form';
-import { TaskRunHistory } from '@/components/scheduled-tasks/task-run-history';
-import { scheduledTasksService } from '@/services/scheduled-tasks.service';
-import type { ScheduledTask } from '@/types/scheduled-task';
+import { Button } from '@vivexy/ui/button';
+import { ScheduledTaskList } from '@vivexy/core/scheduled-tasks/scheduled-task-list';
+import { ScheduledTaskForm } from '@vivexy/core/scheduled-tasks/scheduled-task-form';
+import { TaskRunHistory } from '@vivexy/core/scheduled-tasks/task-run-history';
+import { scheduledTasksService } from '@vivexy/core/services/scheduled-tasks.service';
+import type { ScheduledTask } from '@vivexy/core/types/scheduled-task';
 
 const QUERY_KEY = ['scheduled-tasks'];
 

@@ -2,27 +2,27 @@ import json
 import os
 
 import sentry_sdk
+from agents_core.models import db
+from agents_core.routes.agents import bp as agents_bp
+from agents_core.routes.approval import bp as approval_bp
+from agents_core.routes.auth import bp as auth_bp
+from agents_core.routes.chat import bp as chat_bp
+from agents_core.routes.connectors import bp as connectors_bp
+from agents_core.routes.github import bp as github_bp
+from agents_core.routes.projects import bp as projects_bp
+from agents_core.routes.rag import bp as rag_bp
+from agents_core.routes.scheduled_tasks import bp as scheduled_tasks_bp
+from agents_core.routes.skills import bp as skills_bp
+from agents_core.routes.stripe import bp as stripe_bp
+from agents_core.routes.teams import bp as teams_bp
+from agents_core.routes.usage import bp as usage_bp
+from agents_core.routes.users import bp as users_bp
+from agents_core.utils.casing import camel_to_snake, snake_to_camel
 from flasgger import Swagger
 from flask import Flask, g, request
 from flask_cors import CORS
 from sentry_sdk.integrations.flask import FlaskIntegration
 
-from app.models import db
-from app.routes.agents import bp as agents_bp
-from app.routes.approval import bp as approval_bp
-from app.routes.auth import bp as auth_bp
-from app.routes.chat import bp as chat_bp
-from app.routes.connectors import bp as connectors_bp
-from app.routes.github import bp as github_bp
-from app.routes.projects import bp as projects_bp
-from app.routes.rag import bp as rag_bp
-from app.routes.scheduled_tasks import bp as scheduled_tasks_bp
-from app.routes.skills import bp as skills_bp
-from app.routes.stripe import bp as stripe_bp
-from app.routes.teams import bp as teams_bp
-from app.routes.usage import bp as usage_bp
-from app.routes.users import bp as users_bp
-from app.utils.casing import camel_to_snake, snake_to_camel
 from configs import Config
 from configs.swagger_config import SWAGGER_CONFIG, SWAGGER_TEMPLATE
 

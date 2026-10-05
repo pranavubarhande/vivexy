@@ -2,23 +2,24 @@
 
 import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { APP_NAME } from '@/constants/project';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ProfileSettings } from '@/components/settings/profile-settings';
-import { PasswordSettings } from '@/components/settings/password-settings';
-import { NotificationSettings } from '@/components/settings/notification-settings';
-import { DangerZone } from '@/components/settings/danger-zone';
-import { McpSettings } from '@/components/settings/mcp-settings';
-import { SkillsSettings } from '@/components/settings/skills-settings';
-import { ApiKeysSettings } from '@/components/settings/api-keys-settings';
-import { ThemeSettings } from '@/components/settings/theme-settings';
-import { GithubSettings } from '@/components/settings/github-settings';
+} from '@vivexy/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@vivexy/ui/tabs';
+import { ProfileSettings } from '@vivexy/core/settings/profile-settings';
+import { PasswordSettings } from '@vivexy/core/settings/password-settings';
+import { NotificationSettings } from '@vivexy/core/settings/notification-settings';
+import { DangerZone } from '@vivexy/core/settings/danger-zone';
+import { McpSettings } from '@vivexy/core/settings/mcp-settings';
+import { SkillsSettings } from '@vivexy/core/settings/skills-settings';
+import { ApiKeysSettings } from '@vivexy/core/settings/api-keys-settings';
+import { ThemeSettings } from '@vivexy/core/settings/theme-settings';
+import { GithubSettings } from '@vivexy/core/settings/github-settings';
 
 const SettingsContent = () => {
   const [isDesktop] = useState(
@@ -149,7 +150,7 @@ const SettingsContent = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <SkillsSettings />
+                <SkillsSettings appName={APP_NAME} />
               </CardContent>
             </Card>
           </TabsContent>
