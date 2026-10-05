@@ -301,9 +301,27 @@ def oauth_login(provider):
         description: Redirect to the provider's consent screen
       404:
         description: Unknown provider
+      503:
+        description: Provider is registered but has no client_id/secret configured yet
     """
     if provider not in ALLOWED_OAUTH_PROVIDERS:
         return jsonify({"error": "Unknown provider"}), 404
+
+    # Authlib's client.authorize_redirect() doesn't validate client_id —
+    # with one unset (None), it still returns a normal 302 straight to the
+    # real provider, whose OWN generic "invalid_client" error page is then
+    # all the user sees, with nothing in our logs pointing at the real
+    # cause. Catch that here with a clear error instead, before a provider
+    # is enabled in ALLOWED_OAUTH_PROVIDERS ahead of its real credentials
+    # being set.
+    client_id_key = f"{provider.upper()}_CLIENT_ID"
+    if not current_app.config.get(client_id_key):
+        current_app.logger.error(
+            "OAuth login requested for provider=%s but %s is not configured",
+            provider,
+            client_id_key,
+        )
+        return jsonify({"error": "OAuth provider is not configured"}), 503
 
     client = oauth.create_client(provider)
     redirect_uri = f"{current_app.config['BACKEND_URL']}/auth/oauth/{provider}/callback"

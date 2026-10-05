@@ -14,6 +14,8 @@ def app():
     app.config["JWT_SECRET_KEY"] = "test-secret"
     app.config["FRONTEND_URL"] = "http://localhost:3000"
     app.config["BACKEND_URL"] = "http://localhost:5000"
+    app.config["GOOGLE_CLIENT_ID"] = "test-google-client-id"
+    app.config["MICROSOFT_CLIENT_ID"] = "test-microsoft-client-id"
     app.register_blueprint(auth_bp)
     db.init_app(app)
     with app.app_context():
@@ -177,6 +179,26 @@ def test_oauth_login_redirects_to_provider(mock_oauth, client):
     mock_client.authorize_redirect.assert_called_once()
     called_redirect_uri = mock_client.authorize_redirect.call_args[0][0]
     assert called_redirect_uri.endswith("/auth/oauth/google/callback")
+
+
+@patch("agents_core.routes.auth.oauth")
+def test_oauth_login_unconfigured_provider_returns_503(mock_oauth, app, client):
+    """A provider can be in ALLOWED_OAUTH_PROVIDERS before its real
+    client_id/secret are set (e.g. mid-rollout) — Authlib itself doesn't
+    validate client_id, so without this guard the user would be silently
+    redirected into the real provider's own confusing error page."""
+    with app.app_context():
+        app.config["MICROSOFT_CLIENT_ID"] = None
+
+    response = client.get("/auth/oauth/microsoft/login")
+
+    assert response.status_code == 503
+    mock_oauth.create_client.assert_not_called()
+
+
+def test_oauth_callback_unknown_provider_returns_404(client):
+    response = client.get("/auth/oauth/facebook/callback")
+    assert response.status_code == 404
 
 
 @patch("agents_core.routes.auth.oauth")
