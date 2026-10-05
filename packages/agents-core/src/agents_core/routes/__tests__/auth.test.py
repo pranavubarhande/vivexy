@@ -13,6 +13,7 @@ def app():
     app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///:memory:"
     app.config["JWT_SECRET_KEY"] = "test-secret"
     app.config["FRONTEND_URL"] = "http://localhost:3000"
+    app.config["BACKEND_URL"] = "http://localhost:5000"
     app.register_blueprint(auth_bp)
     db.init_app(app)
     with app.app_context():
@@ -157,3 +158,107 @@ def test_resend_verification_returns_503_when_redis_unavailable(
     )
 
     assert response.status_code == 503
+
+
+def test_oauth_login_unknown_provider_returns_404(client):
+    response = client.get("/auth/oauth/facebook/login")
+    assert response.status_code == 404
+
+
+@patch("agents_core.routes.auth.oauth")
+def test_oauth_login_redirects_to_provider(mock_oauth, client):
+    mock_client = MagicMock()
+    mock_client.authorize_redirect.return_value = "redirect-response"
+    mock_oauth.create_client.return_value = mock_client
+
+    client.get("/auth/oauth/google/login")
+
+    mock_oauth.create_client.assert_called_once_with("google")
+    mock_client.authorize_redirect.assert_called_once()
+    called_redirect_uri = mock_client.authorize_redirect.call_args[0][0]
+    assert called_redirect_uri.endswith("/auth/oauth/google/callback")
+
+
+@patch("agents_core.routes.auth.oauth")
+def test_oauth_callback_creates_user_and_redirects_with_code(mock_oauth, app, client):
+    mock_client = MagicMock()
+    mock_client.authorize_access_token.return_value = {
+        "userinfo": {
+            "sub": "google-sub-123",
+            "email": "new-sso-user@example.com",
+            "name": "New SSO User",
+        }
+    }
+    mock_oauth.create_client.return_value = mock_client
+
+    response = client.get("/auth/oauth/google/callback")
+
+    assert response.status_code == 302
+    assert response.location.startswith("http://localhost:3000/auth/callback?code=")
+
+    with app.app_context():
+        user = User.query.filter_by(email="new-sso-user@example.com").first()
+        assert user is not None
+        assert user.oauth_provider == "google"
+        assert user.email_verified is True
+
+
+@patch("agents_core.routes.auth.oauth")
+def test_oauth_callback_failure_redirects_to_login_with_error(mock_oauth, client):
+    mock_client = MagicMock()
+    mock_client.authorize_access_token.side_effect = RuntimeError("provider denied")
+    mock_oauth.create_client.return_value = mock_client
+
+    response = client.get("/auth/oauth/google/callback")
+
+    assert response.status_code == 302
+    assert response.location == "http://localhost:3000/login?error=oauth_failed"
+
+
+@patch("agents_core.routes.auth.oauth")
+def test_oauth_exchange_returns_token_for_valid_code(mock_oauth, app, client):
+    mock_client = MagicMock()
+    mock_client.authorize_access_token.return_value = {
+        "userinfo": {
+            "sub": "google-sub-789",
+            "email": "exchange-user@example.com",
+            "name": "Exchange User",
+        }
+    }
+    mock_oauth.create_client.return_value = mock_client
+
+    callback_response = client.get("/auth/oauth/google/callback")
+    code = callback_response.location.split("code=")[1]
+
+    exchange_response = client.post("/auth/oauth/exchange", json={"code": code})
+
+    assert exchange_response.status_code == 200
+    body = exchange_response.get_json()
+    assert body["token"]
+    assert body["user"]["email"] == "exchange-user@example.com"
+
+
+def test_oauth_exchange_invalid_code_returns_400(client):
+    response = client.post("/auth/oauth/exchange", json={"code": "not-a-real-code"})
+    assert response.status_code == 400
+
+
+def test_oauth_exchange_code_is_single_use(app, client):
+    with patch("agents_core.routes.auth.oauth") as mock_oauth:
+        mock_client = MagicMock()
+        mock_client.authorize_access_token.return_value = {
+            "userinfo": {
+                "sub": "google-sub-999",
+                "email": "single-use@example.com",
+                "name": "Single Use",
+            }
+        }
+        mock_oauth.create_client.return_value = mock_client
+        callback_response = client.get("/auth/oauth/google/callback")
+        code = callback_response.location.split("code=")[1]
+
+    first = client.post("/auth/oauth/exchange", json={"code": code})
+    assert first.status_code == 200
+
+    second = client.post("/auth/oauth/exchange", json={"code": code})
+    assert second.status_code == 400

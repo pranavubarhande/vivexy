@@ -4,15 +4,20 @@ from agents_core.schemas import UserCreate, UserLogin, UserResponse
 from agents_core.utils.auth import (
     authenticate_user,
     consume_email_verification_token,
+    consume_oauth_exchange_code,
     create_email_verification_token,
+    create_oauth_exchange_code,
     create_user,
     exclude_password,
+    find_or_create_oauth_user,
     generate_token,
+    get_user_from_token,
     is_resend_on_cooldown,
     set_resend_cooldown,
 )
 from agents_core.utils.email import send_verification_email
-from flask import Blueprint, current_app, jsonify, request
+from agents_core.utils.oauth import oauth
+from flask import Blueprint, current_app, jsonify, redirect, request
 from pydantic import ValidationError
 
 bp = Blueprint("auth", __name__, url_prefix="/auth")
@@ -274,3 +279,133 @@ def resend_verification():
         return jsonify({"error": str(e)}), 503
 
     return jsonify({"success": True})
+
+
+ALLOWED_OAUTH_PROVIDERS = {"google", "microsoft"}
+
+
+@bp.route("/oauth/<provider>/login", methods=["GET"])
+def oauth_login(provider):
+    """Redirect to the provider's OAuth consent screen.
+    ---
+    tags:
+      - Auth
+    parameters:
+      - in: path
+        name: provider
+        required: true
+        type: string
+        enum: [google, microsoft]
+    responses:
+      302:
+        description: Redirect to the provider's consent screen
+      404:
+        description: Unknown provider
+    """
+    if provider not in ALLOWED_OAUTH_PROVIDERS:
+        return jsonify({"error": "Unknown provider"}), 404
+
+    client = oauth.create_client(provider)
+    redirect_uri = f"{current_app.config['BACKEND_URL']}/auth/oauth/{provider}/callback"
+    return client.authorize_redirect(redirect_uri)
+
+
+@bp.route("/oauth/<provider>/callback", methods=["GET"])
+def oauth_callback(provider):
+    """Handle the provider's redirect back, find-or-create the user, and
+    redirect to the frontend with a one-time exchange code.
+    ---
+    tags:
+      - Auth
+    parameters:
+      - in: path
+        name: provider
+        required: true
+        type: string
+        enum: [google, microsoft]
+    responses:
+      302:
+        description: Redirect to the frontend (success → /auth/callback?code=..., failure → /login?error=oauth_failed)
+      404:
+        description: Unknown provider
+    """
+    if provider not in ALLOWED_OAUTH_PROVIDERS:
+        return jsonify({"error": "Unknown provider"}), 404
+
+    frontend_url = current_app.config["FRONTEND_URL"]
+
+    try:
+        client = oauth.create_client(provider)
+        token = client.authorize_access_token()
+        userinfo = token.get("userinfo") if token else None
+        if not userinfo or not userinfo.get("email"):
+            raise ValueError("Provider did not return an email address")
+
+        user = find_or_create_oauth_user(
+            provider=provider,
+            subject_id=userinfo["sub"],
+            email=userinfo["email"],
+            name=userinfo.get("name"),
+        )
+        jwt_token = generate_token(user.id, user.email)
+        code = create_oauth_exchange_code(jwt_token)
+    except Exception:
+        current_app.logger.exception(
+            "OAuth callback failed for provider=%s", provider
+        )
+        return redirect(f"{frontend_url}/login?error=oauth_failed")
+
+    return redirect(f"{frontend_url}/auth/callback?code={code}")
+
+
+@bp.route("/oauth/exchange", methods=["POST"])
+def oauth_exchange():
+    """Trade a one-time OAuth exchange code for the real JWT.
+    ---
+    tags:
+      - Auth
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - code
+          properties:
+            code:
+              type: string
+    responses:
+      200:
+        description: Exchange successful
+        schema:
+          type: object
+          properties:
+            user:
+              type: object
+            token:
+              type: string
+      400:
+        description: Invalid or expired code
+      503:
+        description: Redis unavailable — try again shortly
+    """
+    data = request.get_json() or {}
+    code = data.get("code")
+    if not code:
+        return jsonify({"error": "Code is required"}), 400
+
+    try:
+        jwt_token = consume_oauth_exchange_code(code)
+    except RuntimeError as e:
+        return jsonify({"error": str(e)}), 503
+    if not jwt_token:
+        return jsonify({"error": "Invalid or expired code"}), 400
+
+    try:
+        user = get_user_from_token(jwt_token)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+    user_data = exclude_password(user)
+    return jsonify({"user": user_data, "token": jwt_token})
