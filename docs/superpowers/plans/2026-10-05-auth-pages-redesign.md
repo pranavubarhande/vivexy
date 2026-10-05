@@ -227,7 +227,7 @@ git commit -m "feat: add AuthSplitLayout for the login/register pages"
 - Modify: `apps/frontend/app/login/page.tsx`
 - Modify: `apps/frontend/app/register/page.tsx`
 
-- [ ] **Step 1: Update the login page**
+- [x] **Step 1: Update the login page**
 
 Replace the full contents of `apps/frontend/app/login/page.tsx`:
 
@@ -262,7 +262,7 @@ export default function LoginPage() {
 This removes the page's own "Welcome back" heading entirely —
 `LoginForm` (Task 4) becomes the page's only heading.
 
-- [ ] **Step 2: Update the register page**
+- [x] **Step 2: Update the register page**
 
 Replace the full contents of `apps/frontend/app/register/page.tsx`:
 
@@ -294,14 +294,14 @@ export default function RegisterPage() {
 }
 ```
 
-- [ ] **Step 3: Typecheck**
+- [x] **Step 3: Typecheck**
 
 Run: `cd apps/frontend && npx tsc --noEmit`
 Expected: no errors. (Both pages will visually look broken/double-headed
 until Tasks 4-5 land — that's expected mid-plan, not a regression to fix
 here.)
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add apps/frontend/app/login/page.tsx apps/frontend/app/register/page.tsx
