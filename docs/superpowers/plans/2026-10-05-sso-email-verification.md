@@ -20,7 +20,7 @@
 - Modify: `packages/agents-core/src/agents_core/schemas/user.py`
 - Modify: `packages/agents-core/src/agents_core/utils/auth.py` (`exclude_password`)
 
-- [ ] **Step 1: Write the migration**
+- [x] **Step 1: Write the migration**
 
 The current head is `a1b2c3d4e5f7` (confirmed via `uv run alembic heads` in `apps/agents-service`). Create:
 
@@ -72,7 +72,7 @@ def downgrade() -> None:
     op.alter_column("users", "password", existing_type=sa.String(), nullable=False)
 ```
 
-- [ ] **Step 2: Run the migration against your local DB**
+- [x] **Step 2: Run the migration against your local DB**
 
 Run (from `apps/agents-service`): `uv run alembic upgrade head`
 Expected: no errors; last line mentions revision `b2c3d4e5f6a8`.
@@ -82,7 +82,7 @@ Verify the columns landed:
 Run: `psql "$DATABASE_URL" -c "\d users"` (or `psql postgresql://postgres:pranav@localhost:5432/vivexy -c "\d users"` if `DATABASE_URL` isn't exported in your shell)
 Expected: `password` listed without "not null"; `email_verified`, `oauth_provider`, `oauth_subject_id` present.
 
-- [ ] **Step 3: Update the User model to match**
+- [x] **Step 3: Update the User model to match**
 
 Edit `packages/agents-core/src/agents_core/models/user.py`:
 
@@ -127,7 +127,7 @@ class User(db.Model):
 
 (Only `password` nullability and the three new columns changed vs. the original.)
 
-- [ ] **Step 4: Add `email_verified` to the response schema**
+- [x] **Step 4: Add `email_verified` to the response schema**
 
 Edit `packages/agents-core/src/agents_core/schemas/user.py` — add the field to `UserResponse` only (not `UserBase`, so it can never be accepted as register input):
 
@@ -162,7 +162,7 @@ class UserResponse(UserBase):
         }
 ```
 
-- [ ] **Step 5: Add `emailVerified` to `exclude_password`**
+- [x] **Step 5: Add `emailVerified` to `exclude_password`**
 
 Edit `packages/agents-core/src/agents_core/utils/auth.py`:
 
@@ -181,12 +181,12 @@ def exclude_password(user: User) -> dict:
     }
 ```
 
-- [ ] **Step 6: Run the existing auth test suite to confirm nothing broke**
+- [x] **Step 6: Run the existing auth test suite to confirm nothing broke**
 
 Run: `cd packages/agents-core && uv run --project ../../apps/agents-service pytest src/agents_core/utils/__tests__/auth.test.py src/agents_core/middlewares/__tests__/auth_middleware.test.py -v`
 Expected: all existing tests still PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add apps/agents-service/alembic/versions/b2c3d4e5f6a8_add_sso_and_verification_fields.py \
@@ -205,7 +205,7 @@ git commit -m "feat: add SSO and email-verification columns to User"
 - Modify: `apps/agents-service/configs/flask_config.py`
 - Modify: `apps/agents-service/.env.example`
 
-- [ ] **Step 1: Add the new dependencies**
+- [x] **Step 1: Add the new dependencies**
 
 Edit `packages/agents-core/pyproject.toml`, in the `dependencies` list (anywhere alongside the other third-party deps, e.g. near `bcrypt`/`pyjwt`):
 
@@ -214,12 +214,12 @@ Edit `packages/agents-core/pyproject.toml`, in the `dependencies` list (anywhere
     "resend>=2.5.1",
 ```
 
-- [ ] **Step 2: Sync and verify both install cleanly**
+- [x] **Step 2: Sync and verify both install cleanly**
 
 Run (from repo root): `uv sync`
 Expected: resolves and installs `authlib` and `resend` with no conflicts.
 
-- [ ] **Step 3: Add the new config values**
+- [x] **Step 3: Add the new config values**
 
 Edit `apps/agents-service/configs/flask_config.py` — add a new section after the existing `JWT` section:
 
@@ -249,7 +249,7 @@ Edit `apps/agents-service/configs/flask_config.py` — add a new section after t
     FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 ```
 
-- [ ] **Step 4: Add the new env vars to the example file**
+- [x] **Step 4: Add the new env vars to the example file**
 
 Edit `apps/agents-service/.env.example`, appending near the other provider keys:
 
@@ -270,7 +270,7 @@ BACKEND_URL="http://localhost:5000"
 FRONTEND_URL="http://localhost:3000"
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add packages/agents-core/pyproject.toml apps/agents-service/configs/flask_config.py apps/agents-service/.env.example
@@ -289,7 +289,7 @@ git commit -m "feat: add SSO/email-verification config and dependencies"
 
 These three kinds of short-lived tokens (email verification, resend cooldown, OAuth exchange code) all follow the same shape: a Redis key with a TTL. This task adds the helpers; later tasks wire them into routes.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to `packages/agents-core/src/agents_core/utils/__tests__/auth.test.py`:
 
@@ -385,12 +385,12 @@ def test_token_helpers_raise_when_redis_unavailable(mock_get_redis):
 
 Add `import pytest` to the top of the test file if it isn't already there (it is, from the existing tests — confirm, don't duplicate).
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `cd packages/agents-core && uv run --project ../../apps/agents-service pytest src/agents_core/utils/__tests__/auth.test.py -v`
 Expected: FAIL with `ImportError` / `AttributeError` — the functions don't exist yet.
 
-- [ ] **Step 3: Implement the helpers**
+- [x] **Step 3: Implement the helpers**
 
 Add to `packages/agents-core/src/agents_core/utils/auth.py`, near the top (after the existing imports, before `hash_password`):
 
@@ -480,12 +480,12 @@ def consume_oauth_exchange_code(code: str) -> str | None:
     return jwt_token
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `cd packages/agents-core && uv run --project ../../apps/agents-service pytest src/agents_core/utils/__tests__/auth.test.py -v`
 Expected: all PASS, including the pre-existing `test_hash_and_verify_password` / `test_generate_token`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add packages/agents-core/src/agents_core/utils/auth.py packages/agents-core/src/agents_core/utils/__tests__/auth.test.py
@@ -500,7 +500,7 @@ git commit -m "feat: add Redis-backed token helpers for verification and OAuth e
 - Create: `packages/agents-core/src/agents_core/utils/email.py`
 - Test: `packages/agents-core/src/agents_core/utils/__tests__/email.test.py`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 from unittest.mock import MagicMock, patch
@@ -524,12 +524,12 @@ def test_send_verification_email(mock_resend, monkeypatch):
     assert "https://app.vivexy.com/verify-email?token=abc" in call_args["html"]
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `cd packages/agents-core && uv run --project ../../apps/agents-service pytest src/agents_core/utils/__tests__/email.test.py -v`
 Expected: FAIL — `agents_core.utils.email` doesn't exist.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Create `packages/agents-core/src/agents_core/utils/email.py`:
 
@@ -560,12 +560,12 @@ def send_verification_email(to_email: str, verification_url: str) -> None:
     )
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `cd packages/agents-core && uv run --project ../../apps/agents-service pytest src/agents_core/utils/__tests__/email.test.py -v`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add packages/agents-core/src/agents_core/utils/email.py packages/agents-core/src/agents_core/utils/__tests__/email.test.py
@@ -580,12 +580,12 @@ git commit -m "feat: add Resend email utility for verification emails"
 - Modify: `packages/agents-core/src/agents_core/routes/auth.py`
 - Test: `packages/agents-core/src/agents_core/routes/__tests__/auth.test.py` (create if it doesn't exist)
 
-- [ ] **Step 1: Check whether a route test file already exists**
+- [x] **Step 1: Check whether a route test file already exists**
 
 Run: `ls packages/agents-core/src/agents_core/routes/__tests__/ 2>/dev/null | grep auth`
 If a file exists, read it first and add to it rather than overwriting. If not, Step 3 creates it from scratch.
 
-- [ ] **Step 2: Write the failing tests**
+- [x] **Step 2: Write the failing tests**
 
 Create (or add to) `packages/agents-core/src/agents_core/routes/__tests__/auth.test.py`:
 
@@ -679,12 +679,12 @@ def test_resend_verification_rate_limited(mock_send, client):
 
 This fixture uses a real in-memory sqlite `db` rather than mocking the ORM — matches how `routes/chat.py` and similar route tests already exercise real model behavior rather than mocking SQLAlchemy. Redis is NOT mocked here; these tests require a real local Redis (same as the rest of this app's test suite assumes Redis is reachable at `REDIS_URL`/default `localhost:6379` — same dependency `routes/chat.py`'s own tests already have).
 
-- [ ] **Step 3: Run tests to verify they fail**
+- [x] **Step 3: Run tests to verify they fail**
 
 Run: `cd packages/agents-core && uv run --project ../../apps/agents-service pytest src/agents_core/routes/__tests__/auth.test.py -v`
 Expected: FAIL — `/auth/verify-email` and `/auth/resend-verification` return 404, `send_verification_email` isn't imported in routes/auth.py yet.
 
-- [ ] **Step 4: Implement**
+- [x] **Step 4: Implement**
 
 Rewrite `packages/agents-core/src/agents_core/routes/auth.py` in full:
 
@@ -939,17 +939,17 @@ def resend_verification():
 
 (`consume_email_verification_token` is imported inline inside `verify_email()` rather than in the top-level import block purely to keep this diff minimal against the plan's earlier Task 3 import list — either placement is fine; moving it to the top-level import line alongside the others is also correct and arguably cleaner. Either way, it must be imported before use.)
 
-- [ ] **Step 5: Run tests to verify they pass**
+- [x] **Step 5: Run tests to verify they pass**
 
 Run: `cd packages/agents-core && uv run --project ../../apps/agents-service pytest src/agents_core/routes/__tests__/auth.test.py -v`
 Expected: all PASS. If any fail with a Redis connection error, start Redis locally first (`redis-server` or `redis-stack-server` — this repo needs the RediSearch module for other features, see `packages/agents-core/src/agents_core/routes/chat.py`'s checkpoint usage, but plain Redis is sufficient for these specific tests).
 
-- [ ] **Step 6: Run the full agents-core suite to check for regressions**
+- [x] **Step 6: Run the full agents-core suite to check for regressions**
 
 Run: `cd packages/agents-core && uv run --project ../../apps/agents-service pytest -v`
 Expected: all PASS (no regressions in unrelated modules).
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add packages/agents-core/src/agents_core/routes/auth.py packages/agents-core/src/agents_core/routes/__tests__/auth.test.py
@@ -964,7 +964,7 @@ git commit -m "feat: add email verification endpoints (verify-email, resend-veri
 - Create: `packages/agents-core/src/agents_core/utils/oauth.py`
 - Modify: `apps/agents-service/app/__init__.py`
 
-- [ ] **Step 1: Implement the OAuth client registry**
+- [x] **Step 1: Implement the OAuth client registry**
 
 Create `packages/agents-core/src/agents_core/utils/oauth.py`:
 
@@ -1006,7 +1006,7 @@ def init_oauth(app) -> None:
     )
 ```
 
-- [ ] **Step 2: Wire it into `create_app()`**
+- [x] **Step 2: Wire it into `create_app()`**
 
 Edit `apps/agents-service/app/__init__.py`. Add the import near the other `agents_core` imports:
 
@@ -1023,7 +1023,7 @@ And call it right after `app.config.from_object(config_object or Config)` (befor
     CORS(app, supports_credentials=True, origins=app.config.get("CORS_ORIGINS", ["*"]))
 ```
 
-- [ ] **Step 3: Verify the app still boots**
+- [x] **Step 3: Verify the app still boots**
 
 Run (from `apps/agents-service`, with placeholder OAuth env vars so `init_oauth` doesn't crash on missing config):
 
@@ -1035,7 +1035,7 @@ uv run python -c "from app import create_app; app = create_app(); print('OK', li
 
 Expected: prints `OK` followed by the blueprint list including `auth` — no exceptions. (Authlib's `oauth.register()` only fetches each provider's discovery document lazily, on first actual OAuth request, so this works without real network access or real credentials.)
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add packages/agents-core/src/agents_core/utils/oauth.py apps/agents-service/app/__init__.py
