@@ -1844,7 +1844,7 @@ git commit -m "feat: add Google/Microsoft SSO buttons to login and register form
 
 These are Next.js App Router pages — this codebase's existing frontend test setup (Task 10's `login-form.test.tsx`, `chat-header.test.tsx`) tests *components*, not page-level route files directly. Following that same established pattern, these two pages stay thin (just data-fetching + redirect glue) with no dedicated test file of their own — the behavior they call (`useExchangeOAuthCode`, `useVerifyEmail`) is already covered by Task 9's underlying service calls and Task 8's backend route tests. Manual verification (Step 3 in each) substitutes for an automated test here, consistent with the spec's own testing section calling out that the full OAuth round-trip needs a manual click-through regardless.
 
-- [ ] **Step 1: Create the OAuth callback page**
+- [x] **Step 1: Create the OAuth callback page**
 
 Create `apps/frontend/app/auth/callback/page.tsx`:
 
@@ -1901,7 +1901,7 @@ export default function OAuthCallbackPage() {
 }
 ```
 
-- [ ] **Step 2: Create the verify-email page**
+- [x] **Step 2: Create the verify-email page**
 
 Create `apps/frontend/app/verify-email/page.tsx`:
 
@@ -1974,19 +1974,19 @@ export default function VerifyEmailPage() {
 }
 ```
 
-- [ ] **Step 3: Manually verify both pages render**
+- [x] **Step 3: Manually verify both pages render**
 
 Run: `cd apps/frontend && npm run dev`, then in a browser:
 - Visit `http://localhost:3000/auth/callback` with no `code` param — expect an immediate redirect to `/login?error=oauth_failed`.
 - Visit `http://localhost:3000/verify-email` with no `token` param — expect the "Link expired" state to render (no redirect, this page shows its own error state in place).
 - Visit `http://localhost:3000/verify-email?token=garbage` — expect a brief "Verifying..." then the "Link expired" state (the backend call returns 400 for an unknown token).
 
-- [ ] **Step 4: Run typecheck/build to catch any type errors**
+- [x] **Step 4: Run typecheck/build to catch any type errors**
 
 Run: `cd apps/frontend && npm run build`
 Expected: builds successfully, no TypeScript errors on either new page.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add apps/frontend/app/auth/callback/page.tsx apps/frontend/app/verify-email/page.tsx
