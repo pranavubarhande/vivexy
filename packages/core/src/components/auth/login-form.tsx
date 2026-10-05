@@ -36,6 +36,20 @@ const loginSchema = z.object({
 
 type LoginFormData = z.infer<typeof loginSchema>;
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+
+function handleSSOLogin(provider: 'google' | 'microsoft') {
+  // Bound to the exchange code by the backend (see utils/auth.py's
+  // create_oauth_exchange_code) so a bare code alone can't be redeemed by
+  // a browser other than the one that actually completed this login —
+  // closes an OAuth login-CSRF gap. The /auth/callback page reads this
+  // same sessionStorage key back out and sends it to the exchange
+  // endpoint; it must match exactly what we store here.
+  const state = crypto.randomUUID();
+  sessionStorage.setItem('oauth_state', state);
+  window.location.href = `${API_URL}/auth/oauth/${provider}/login?state=${encodeURIComponent(state)}`;
+}
+
 export function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const loginMutation = useLogin();
@@ -68,6 +82,34 @@ export function LoginForm() {
         </CardDescription>
       </CardHeader>
       <CardContent>
+        <div className="space-y-2 mb-4">
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={() => handleSSOLogin('google')}
+          >
+            Continue with Google
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={() => handleSSOLogin('microsoft')}
+          >
+            Continue with Microsoft
+          </Button>
+        </div>
+        <div className="relative mb-4">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-card px-2 text-muted-foreground">
+              Or continue with email
+            </span>
+          </div>
+        </div>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             {loginMutation.error && (
