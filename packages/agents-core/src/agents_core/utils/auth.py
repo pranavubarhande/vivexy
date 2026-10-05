@@ -6,6 +6,7 @@ import bcrypt
 import jwt
 import redis as redis_lib
 from flask import current_app
+from sqlalchemy.exc import IntegrityError
 
 from agents_core.constants.redis_keys import (
     REDIS_KEY_EMAIL_VERIFY,
@@ -195,10 +196,13 @@ def find_or_create_oauth_user(
     """Find-or-create a User for an OAuth/SSO login.
 
     Lookup order: (1) an existing OAuth identity match, (2) an existing
-    password-based account with the same email (auto-linked), (3) a brand
-    new SSO-only account. SSO accounts are treated as pre-verified since
-    the provider already verified the email before allowing sign-in with
-    it — see the design spec's "SSO + verification" decision.
+    password-based account with the same email (auto-linked, overwriting
+    any prior oauth_provider/oauth_subject_id — email stays the real
+    source of identity truth, see the design spec's "multi-provider
+    identity" simplification), (3) a brand new SSO-only account. SSO
+    accounts are treated as pre-verified since the provider already
+    verified the email before allowing sign-in with it — see the design
+    spec's "SSO + verification" decision.
     """
     user = User.query.filter_by(
         oauth_provider=provider, oauth_subject_id=subject_id
@@ -223,5 +227,17 @@ def find_or_create_oauth_user(
         email_verified=True,
     )
     db.session.add(user)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except IntegrityError:
+        # Two near-simultaneous callbacks for the same brand-new user (e.g.
+        # a double-click or a retried OAuth redirect) can both pass the
+        # lookups above before either commits. users.email has a DB-level
+        # unique constraint, so the loser hits this instead of silently
+        # creating a duplicate row — treat it as a normal cache hit: roll
+        # back this attempt and return the row the winner just created.
+        db.session.rollback()
+        user = User.query.filter_by(email=email).first()
+        if user is None:
+            raise
     return user

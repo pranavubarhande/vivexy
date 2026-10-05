@@ -2,8 +2,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from flask import Flask
+from sqlalchemy.exc import IntegrityError
 
-from agents_core.models import db
+from agents_core.models import User, db
 from agents_core.utils.auth import hash_password, verify_password
 
 
@@ -202,3 +203,54 @@ def test_find_or_create_oauth_user_auto_links_by_email(app_with_db):
         assert linked_user.oauth_provider == "microsoft"
         assert linked_user.oauth_subject_id == "ms-sub-456"
         assert linked_user.email_verified is True
+
+
+def test_find_or_create_oauth_user_handles_race_on_new_user(app_with_db):
+    """Two near-simultaneous callbacks for the same brand-new user can
+    both pass the lookups before either commits (e.g. a double-click or a
+    retried OAuth redirect). users.email has a DB-level unique
+    constraint, so the loser's INSERT raises IntegrityError instead of
+    silently creating a duplicate row — this must recover and return the
+    winner's row, not propagate the error."""
+    from agents_core.utils.auth import find_or_create_oauth_user
+
+    with app_with_db.app_context():
+        winner = User(
+            email="race@example.com",
+            name="Race User",
+            password=None,
+            oauth_provider="google",
+            oauth_subject_id="google-sub-race",
+            email_verified=True,
+        )
+        db.session.add(winner)
+        db.session.commit()
+        winner_id = winner.id
+
+        empty_result = MagicMock()
+        empty_result.first.return_value = None
+        winner_result = MagicMock()
+        winner_result.first.return_value = winner
+
+        mock_query = MagicMock()
+        mock_query.filter_by.side_effect = [
+            empty_result,  # (provider, subject_id) lookup -- miss
+            empty_result,  # email lookup -- miss (race: as seen from this call)
+            winner_result,  # recovery lookup after IntegrityError -- hit
+        ]
+
+        with (
+            patch("agents_core.utils.auth.User.query", mock_query),
+            patch(
+                "agents_core.utils.auth.db.session.commit",
+                side_effect=IntegrityError("duplicate email", None, None),
+            ),
+        ):
+            result = find_or_create_oauth_user(
+                provider="microsoft",
+                subject_id="ms-sub-race",
+                email="race@example.com",
+                name="Race User",
+            )
+
+        assert result.id == winner_id
