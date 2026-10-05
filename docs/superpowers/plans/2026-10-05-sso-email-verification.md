@@ -1642,6 +1642,8 @@ git commit -m "feat: add frontend types/service/hooks for SSO and email verifica
 
 ## Task 10: SSO buttons on login and register forms
 
+> **Amendment (added after Task 9's code review):** review found a real OAuth login-CSRF gap in Task 8's exchange-code design — a bare exchange code had no binding to the browser that completed the provider's consent screen, so anyone who could observe their OWN real code could hand a victim a link that silently logs the victim into the attacker's account. Fixed in the backend (already committed) by requiring a `state` nonce, generated client-side, that the exchange code gets bound to. **This task's `handleSSOLogin` below now generates that nonce and stores it in `sessionStorage` before redirecting** — this is not in the original design, it's the frontend half of that fix. Task 11's `/auth/callback` page reads it back out.
+
 **Files:**
 - Modify: `packages/core/src/components/auth/login-form.tsx`
 - Modify: `packages/core/src/components/auth/register-form.tsx`
@@ -1681,6 +1683,30 @@ describe('LoginForm SSO buttons', () => {
     expect(googleButton).toBeInTheDocument();
     expect(microsoftButton).toBeInTheDocument();
   });
+
+  it('generates and stores an OAuth state nonce before redirecting, and includes it in the login URL', () => {
+    vi.stubEnv('NEXT_PUBLIC_API_URL', 'http://localhost:5000');
+    const setItemSpy = vi.spyOn(Storage.prototype, 'setItem');
+    // jsdom doesn't implement window.location navigation; stub the setter
+    // this component actually calls so we can assert what it tried to
+    // navigate to without jsdom throwing "not implemented".
+    const hrefSetter = vi.fn();
+    Object.defineProperty(window, 'location', {
+      value: { ...window.location, set href(v: string) { hrefSetter(v); } },
+      writable: true,
+    });
+
+    renderWithQueryClient(<LoginForm />);
+    screen.getByRole('button', { name: /continue with google/i }).click();
+
+    expect(setItemSpy).toHaveBeenCalledWith('oauth_state', expect.any(String));
+    const storedState = setItemSpy.mock.calls.find(
+      (call) => call[0] === 'oauth_state'
+    )?.[1];
+    expect(hrefSetter).toHaveBeenCalledWith(
+      `http://localhost:5000/auth/oauth/google/login?state=${encodeURIComponent(storedState as string)}`
+    );
+  });
 });
 ```
 
@@ -1697,7 +1723,15 @@ Edit `packages/core/src/components/auth/login-form.tsx`. Add a helper above the 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
 function handleSSOLogin(provider: 'google' | 'microsoft') {
-  window.location.href = `${API_URL}/auth/oauth/${provider}/login`;
+  // Bound to the exchange code by the backend (see utils/auth.py's
+  // create_oauth_exchange_code) so a bare code alone can't be redeemed by
+  // a browser other than the one that actually completed this login —
+  // closes an OAuth login-CSRF gap. Task 11's /auth/callback page reads
+  // this same sessionStorage key back out and sends it to the exchange
+  // endpoint; it must match exactly what we store here.
+  const state = crypto.randomUUID();
+  sessionStorage.setItem('oauth_state', state);
+  window.location.href = `${API_URL}/auth/oauth/${provider}/login?state=${encodeURIComponent(state)}`;
 }
 ```
 
@@ -1741,13 +1775,15 @@ Expected: PASS.
 
 - [ ] **Step 5: Apply the same change to register-form.tsx**
 
-Edit `packages/core/src/components/auth/register-form.tsx`. Add this helper above the component (same as login-form.tsx's Step 3):
+Edit `packages/core/src/components/auth/register-form.tsx`. Add this helper above the component (identical to login-form.tsx's Step 3, including the nonce generation):
 
 ```tsx
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
 function handleSSOLogin(provider: 'google' | 'microsoft') {
-  window.location.href = `${API_URL}/auth/oauth/${provider}/login`;
+  const state = crypto.randomUUID();
+  sessionStorage.setItem('oauth_state', state);
+  window.location.href = `${API_URL}/auth/oauth/${provider}/login?state=${encodeURIComponent(state)}`;
 }
 ```
 
@@ -1800,6 +1836,8 @@ git commit -m "feat: add Google/Microsoft SSO buttons to login and register form
 
 ## Task 11: OAuth callback and verify-email pages
 
+> **Amendment (added after Task 9's code review, same fix as Task 10's amendment):** the OAuth callback page below now reads the nonce Task 10's `handleSSOLogin` stored in `sessionStorage` and sends it alongside `code` to `exchangeOAuthCode` — the backend rejects the exchange without it. This is the other half of the OAuth login-CSRF fix; see Task 10's amendment note for the full explanation of what it closes.
+
 **Files:**
 - Create: `apps/frontend/app/auth/callback/page.tsx`
 - Create: `apps/frontend/app/verify-email/page.tsx`
@@ -1831,15 +1869,27 @@ export default function OAuthCallbackPage() {
     hasRun.current = true;
 
     const code = searchParams.get('code');
-    if (!code) {
+    // Single-use, same as the exchange code itself: read once, clear
+    // immediately. A missing nonce here means this page was reached
+    // without going through handleSSOLogin's redirect (direct navigation,
+    // or someone else's captured code/link) — the backend would reject
+    // the exchange anyway, but failing fast here avoids a pointless
+    // network round-trip and gives the same clear error path.
+    const state = sessionStorage.getItem('oauth_state');
+    sessionStorage.removeItem('oauth_state');
+
+    if (!code || !state) {
       router.replace('/login?error=oauth_failed');
       return;
     }
 
-    exchangeMutation.mutate(code, {
-      onSuccess: () => router.replace('/chat'),
-      onError: () => router.replace('/login?error=oauth_failed'),
-    });
+    exchangeMutation.mutate(
+      { code, state },
+      {
+        onSuccess: () => router.replace('/chat'),
+        onError: () => router.replace('/login?error=oauth_failed'),
+      }
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
