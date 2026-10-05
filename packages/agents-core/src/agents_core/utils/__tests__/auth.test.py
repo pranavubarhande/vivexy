@@ -231,6 +231,73 @@ def test_find_or_create_oauth_user_auto_links_by_email(app_with_db):
         assert linked_user.email_verified is True
 
 
+def test_find_or_create_oauth_user_invalidates_password_when_linking_unverified_account(
+    app_with_db,
+):
+    """Pre-hijacking guard: an attacker can register someone else's email
+    before the real owner does (registration is open, verification is
+    soft). If auto-link finds an UNVERIFIED row, nothing has ever proven
+    that row's existing password belongs to this email's real owner --
+    only the IdP has now proven that. The old password must stop working,
+    or the attacker retains permanent silent access alongside the real
+    owner's new SSO login."""
+    from agents_core.utils.auth import create_user, find_or_create_oauth_user
+    from agents_core.schemas import UserCreate
+
+    with app_with_db.app_context():
+        squatted_user = create_user(
+            UserCreate(
+                name="Attacker-controlled",
+                email="victim@example.com",
+                password="attackers-password",
+            )
+        )
+        assert squatted_user.email_verified is False
+        assert squatted_user.password is not None
+
+        linked_user = find_or_create_oauth_user(
+            provider="google",
+            subject_id="google-sub-victim",
+            email="victim@example.com",
+            name="Real Victim",
+        )
+
+        assert linked_user.id == squatted_user.id
+        assert linked_user.email_verified is True
+        assert linked_user.password is None
+
+
+def test_find_or_create_oauth_user_preserves_password_when_linking_verified_account(
+    app_with_db,
+):
+    """The legitimate case: a user who already verified their own password
+    account (proven ownership) later adds SSO as a second login method.
+    Their existing password must keep working -- this is not the
+    pre-hijacking scenario, there's no attacker here."""
+    from agents_core.utils.auth import create_user, find_or_create_oauth_user
+    from agents_core.schemas import UserCreate
+
+    with app_with_db.app_context():
+        verified_user = create_user(
+            UserCreate(
+                name="Legit Owner", email="owner@example.com", password="my-real-password"
+            )
+        )
+        verified_user.email_verified = True
+        db.session.commit()
+
+        linked_user = find_or_create_oauth_user(
+            provider="google",
+            subject_id="google-sub-owner",
+            email="owner@example.com",
+            name="Legit Owner",
+        )
+
+        assert linked_user.id == verified_user.id
+        assert linked_user.email_verified is True
+        assert linked_user.password is not None
+
+
 def test_find_or_create_oauth_user_handles_race_on_new_user(app_with_db):
     """Two near-simultaneous callbacks for the same brand-new user can
     both pass the lookups before either commits (e.g. a double-click or a

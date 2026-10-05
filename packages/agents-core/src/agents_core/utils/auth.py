@@ -226,6 +226,21 @@ def find_or_create_oauth_user(
     accounts are treated as pre-verified since the provider already
     verified the email before allowing sign-in with it — see the design
     spec's "SSO + verification" decision.
+
+    Account pre-hijacking guard: registration is open and the email
+    verification gate is soft (an unverified account is fully usable
+    immediately — see the design spec), so an attacker can register
+    someone else's email before they do. If auto-link found an existing
+    row that was NOT already verified, nothing has ever proven that
+    row's password actually belongs to this email's real owner — only
+    the IdP has now proven that, by letting this login happen. So the
+    old password is invalidated here, not just left in place: without
+    this, the attacker's original password would keep working forever,
+    giving them permanent, silent access alongside the real owner's SSO
+    login to what the real owner now believes is "their" account. An
+    already-verified row is left untouched — a prior verified password
+    registration is itself valid proof of ownership, so this is just
+    the legitimate "add SSO to my own account" case.
     """
     user = User.query.filter_by(
         oauth_provider=provider, oauth_subject_id=subject_id
@@ -235,6 +250,8 @@ def find_or_create_oauth_user(
 
     user = User.query.filter_by(email=email).first()
     if user:
+        if not user.email_verified:
+            user.password = None
         user.oauth_provider = provider
         user.oauth_subject_id = subject_id
         user.email_verified = True
