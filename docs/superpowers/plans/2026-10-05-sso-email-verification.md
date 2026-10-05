@@ -1200,7 +1200,7 @@ git commit -m "feat: add find-or-create logic for SSO users"
 - Modify: `packages/agents-core/src/agents_core/routes/auth.py`
 - Test: `packages/agents-core/src/agents_core/routes/__tests__/auth.test.py`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to `packages/agents-core/src/agents_core/routes/__tests__/auth.test.py`:
 
@@ -1311,7 +1311,7 @@ def test_oauth_exchange_code_is_single_use(app, client):
 
 Also set `app.config["BACKEND_URL"] = "http://localhost:5000"` in the `app` fixture (Step 2 of Task 5 created it without `BACKEND_URL` — add that line there too, since the login-redirect test needs it).
 
-- [ ] **Step 2: Update the `app` fixture**
+- [x] **Step 2: Update the `app` fixture**
 
 Edit the `app` fixture in `packages/agents-core/src/agents_core/routes/__tests__/auth.test.py` (added in Task 5) to also set `BACKEND_URL`:
 
@@ -1330,12 +1330,12 @@ def app():
         yield app
 ```
 
-- [ ] **Step 3: Run tests to verify they fail**
+- [x] **Step 3: Run tests to verify they fail**
 
 Run: `cd packages/agents-core && uv run --project ../../apps/agents-service pytest src/agents_core/routes/__tests__/auth.test.py -v -k oauth`
 Expected: FAIL — `/auth/oauth/*` routes don't exist, `oauth` isn't imported in `routes/auth.py`.
 
-- [ ] **Step 4: Implement**
+- [x] **Step 4: Implement**
 
 Add these imports to the top of `packages/agents-core/src/agents_core/routes/auth.py` (alongside the existing ones from Task 5):
 
@@ -1496,17 +1496,17 @@ def oauth_exchange():
     return jsonify({"user": user_data, "token": jwt_token})
 ```
 
-- [ ] **Step 5: Run tests to verify they pass**
+- [x] **Step 5: Run tests to verify they pass**
 
 Run: `cd packages/agents-core && uv run --project ../../apps/agents-service pytest src/agents_core/routes/__tests__/auth.test.py -v`
 Expected: all PASS.
 
-- [ ] **Step 6: Run the full agents-core suite**
+- [x] **Step 6: Run the full agents-core suite**
 
 Run: `cd packages/agents-core && uv run --project ../../apps/agents-service pytest -v`
 Expected: all PASS, no regressions.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add packages/agents-core/src/agents_core/routes/auth.py packages/agents-core/src/agents_core/routes/__tests__/auth.test.py
