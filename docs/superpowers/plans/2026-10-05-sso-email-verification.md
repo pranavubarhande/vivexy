@@ -1194,6 +1194,8 @@ git commit -m "feat: add find-or-create logic for SSO users"
 
 ## Task 8: OAuth routes (login, callback, exchange)
 
+> **Amendment (added after Task 5's code review):** Task 5's review found that `verify_email`/`resend_verification` didn't catch the `RuntimeError("Redis unavailable")` that Task 3's Redis helpers raise, which would've surfaced as Flask's default HTML 500 page instead of this API's usual JSON error shape. `oauth_callback` below was already safe (its broad `except Exception` already covers a Redis-down `create_oauth_exchange_code` call), but `oauth_exchange`'s `consume_oauth_exchange_code(code)` call had the identical unguarded gap — fixed directly in Step 4's code below (wrapped in `try/except RuntimeError`, returns 503) before this task ever ran, so unlike Task 5 this shouldn't need a second review pass for the same issue.
+
 **Files:**
 - Modify: `packages/agents-core/src/agents_core/routes/auth.py`
 - Test: `packages/agents-core/src/agents_core/routes/__tests__/auth.test.py`
@@ -1470,13 +1472,18 @@ def oauth_exchange():
               type: string
       400:
         description: Invalid or expired code
+      503:
+        description: Redis unavailable — try again shortly
     """
     data = request.get_json() or {}
     code = data.get("code")
     if not code:
         return jsonify({"error": "Code is required"}), 400
 
-    jwt_token = consume_oauth_exchange_code(code)
+    try:
+        jwt_token = consume_oauth_exchange_code(code)
+    except RuntimeError as e:
+        return jsonify({"error": str(e)}), 503
     if not jwt_token:
         return jsonify({"error": "Invalid or expired code"}), 400
 
