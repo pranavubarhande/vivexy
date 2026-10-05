@@ -18,19 +18,25 @@ from pydantic import ValidationError
 bp = Blueprint("auth", __name__, url_prefix="/auth")
 
 
-def _send_verification_email_for(user) -> None:
-    """Best-effort: a Resend outage must never fail registration — the
-    verification gate is soft, the user can always request a resend later."""
+def _send_verification_email_for(user) -> bool:
+    """Best-effort: a Resend (or Redis) outage must never fail registration —
+    the verification gate is soft, the user can always request a resend
+    later. Returns whether the send actually succeeded so resend_verification
+    (whose entire purpose is the send) can report failure accurately instead
+    of silently claiming success and burning the caller's cooldown window;
+    register() intentionally ignores the return value."""
     try:
         token = create_email_verification_token(user.id)
         verification_url = (
             f"{current_app.config['FRONTEND_URL']}/verify-email?token={token}"
         )
         send_verification_email(user.email, verification_url)
+        return True
     except Exception:
         current_app.logger.exception(
             "Failed to send verification email to user_id=%s", user.id
         )
+        return False
 
 
 @bp.route("/login", methods=["POST"])
@@ -194,13 +200,19 @@ def verify_email():
         description: Email verified
       400:
         description: Invalid or expired token
+      503:
+        description: Redis unavailable — try again shortly
     """
     data = request.get_json() or {}
     token = data.get("token")
     if not token:
         return jsonify({"error": "Token is required"}), 400
 
-    user_id = consume_email_verification_token(token)
+    try:
+        user_id = consume_email_verification_token(token)
+    except RuntimeError as e:
+        return jsonify({"error": str(e)}), 503
+
     if not user_id:
         return jsonify({"error": "Invalid or expired verification link"}), 400
 
@@ -230,16 +242,35 @@ def resend_verification():
         description: Email is already verified
       429:
         description: Rate limited — please wait before retrying
+      502:
+        description: Failed to send the verification email
+      503:
+        description: Redis unavailable — try again shortly
     """
     user = request.user
 
     if user.email_verified:
         return jsonify({"error": "Email is already verified"}), 400
 
-    if is_resend_on_cooldown(user.id):
+    try:
+        on_cooldown = is_resend_on_cooldown(user.id)
+    except RuntimeError as e:
+        return jsonify({"error": str(e)}), 503
+
+    if on_cooldown:
         return jsonify({"error": "Please wait before requesting another email"}), 429
 
-    _send_verification_email_for(user)
-    set_resend_cooldown(user.id)
+    if not _send_verification_email_for(user):
+        return (
+            jsonify(
+                {"error": "Failed to send verification email. Please try again shortly."}
+            ),
+            502,
+        )
+
+    try:
+        set_resend_cooldown(user.id)
+    except RuntimeError as e:
+        return jsonify({"error": str(e)}), 503
 
     return jsonify({"success": True})
