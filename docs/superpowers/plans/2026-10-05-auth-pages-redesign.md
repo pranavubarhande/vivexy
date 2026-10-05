@@ -87,7 +87,7 @@ git commit -m "feat: add real Google/Microsoft SVG icons for SSO buttons"
 - Create: `packages/core/src/components/auth/auth-split-layout.tsx`
 - Test: `packages/core/src/components/auth/__tests__/auth-split-layout.test.tsx`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `packages/core/src/components/auth/__tests__/auth-split-layout.test.tsx`:
 
@@ -130,12 +130,12 @@ describe('AuthSplitLayout', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `cd packages/core && npx vitest run src/components/auth/__tests__/auth-split-layout.test.tsx`
 Expected: FAIL — `auth-split-layout.tsx` doesn't exist.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Create `packages/core/src/components/auth/auth-split-layout.tsx`:
 
@@ -207,12 +207,12 @@ Notes on why this works without extra responsive plumbing:
   maps `--color-primary-900`/`--color-primary-foreground` from the
   corresponding CSS custom properties — no new color tokens needed.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `cd packages/core && npx vitest run src/components/auth/__tests__/auth-split-layout.test.tsx`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add packages/core/src/components/auth/auth-split-layout.tsx packages/core/src/components/auth/__tests__/auth-split-layout.test.tsx
