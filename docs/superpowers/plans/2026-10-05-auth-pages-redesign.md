@@ -17,7 +17,7 @@
 **Files:**
 - Create: `packages/core/src/components/auth/sso-icons.tsx`
 
-- [ ] **Step 1: Implement**
+- [x] **Step 1: Implement**
 
 Create `packages/core/src/components/auth/sso-icons.tsx`:
 
@@ -67,12 +67,12 @@ dedicated tests for icon components elsewhere (e.g. the `lucide-react`
 icons already used throughout `login-form.tsx`/`register-form.tsx` aren't
 tested either).
 
-- [ ] **Step 2: Typecheck**
+- [x] **Step 2: Typecheck**
 
 Run: `cd packages/core && npx tsc --noEmit`
 Expected: no errors.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add packages/core/src/components/auth/sso-icons.tsx
