@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { LoginForm } from '../login-form';
 
 // LoginForm calls useRouter() unconditionally for the post-login redirect.
@@ -20,6 +20,11 @@ function renderWithQueryClient(ui: React.ReactElement) {
 }
 
 describe('LoginForm SSO buttons', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllEnvs();
+  });
+
   it('renders Google and Microsoft SSO buttons that navigate to the backend OAuth login URL', () => {
     vi.stubEnv('NEXT_PUBLIC_API_URL', 'http://localhost:5000');
     renderWithQueryClient(<LoginForm />);
