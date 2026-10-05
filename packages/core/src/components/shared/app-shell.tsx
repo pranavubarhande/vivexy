@@ -7,7 +7,7 @@ import { AppSidebar } from '@vivexy/core/dashboard/sidebar';
 import { SidebarProvider, useSidebar } from '@vivexy/ui/sidebar';
 import { DashboardHeader } from '@vivexy/core/dashboard/header';
 import { WorkspaceProvider } from '@vivexy/core/desktop/workspace-provider';
-import { VerifyEmailBanner } from './verify-email-banner';
+import { VerifyEmailBanner } from '@vivexy/core/shared/verify-email-banner';
 import { cn } from '@vivexy/ui/utils';
 import { PanelLeft } from 'lucide-react';
 
