@@ -1523,7 +1523,7 @@ git commit -m "feat: add OAuth login/callback/exchange routes"
 - Modify: `packages/core/src/hooks/useAuth.ts`
 - Modify: `packages/core/src/constants/routes.ts`
 
-- [ ] **Step 1: Add `emailVerified` to `AuthUser`**
+- [x] **Step 1: Add `emailVerified` to `AuthUser`**
 
 Edit `packages/core/src/types/user.ts`:
 
@@ -1540,7 +1540,7 @@ export interface AuthUser {
 
 (Only the `AuthUser` interface changes — `User`, `LoginCredentials`, `RegisterCredentials`, `AuthResponse` stay as they are.)
 
-- [ ] **Step 2: Add the three new service calls**
+- [x] **Step 2: Add the three new service calls**
 
 Edit `packages/core/src/services/auth.service.ts`, adding to the `authService` object (before the closing `};`):
 
@@ -1572,7 +1572,7 @@ Edit `packages/core/src/services/auth.service.ts`, adding to the `authService` o
   },
 ```
 
-- [ ] **Step 3: Add the three new hooks**
+- [x] **Step 3: Add the three new hooks**
 
 Edit `packages/core/src/hooks/useAuth.ts`, adding after the existing `useLogin`:
 
@@ -1612,7 +1612,7 @@ export const useResendVerification = () => {
 };
 ```
 
-- [ ] **Step 4: Register the two new routes as chrome-free**
+- [x] **Step 4: Register the two new routes as chrome-free**
 
 Edit `packages/core/src/constants/routes.ts`:
 
@@ -1626,12 +1626,12 @@ export const AUTH_ROUTES: string[] = [
 ];
 ```
 
-- [ ] **Step 5: Run the frontend test suite to confirm nothing broke**
+- [x] **Step 5: Run the frontend test suite to confirm nothing broke**
 
 Run: `cd packages/core && npm run test`
 Expected: all existing tests PASS (no new tests yet — this task is additive, type/service/hook plumbing only).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add packages/core/src/types/user.ts packages/core/src/services/auth.service.ts packages/core/src/hooks/useAuth.ts packages/core/src/constants/routes.ts
