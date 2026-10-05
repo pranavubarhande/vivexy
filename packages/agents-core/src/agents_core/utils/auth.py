@@ -7,16 +7,18 @@ import jwt
 import redis as redis_lib
 from flask import current_app
 
+from agents_core.constants.redis_keys import (
+    REDIS_KEY_EMAIL_VERIFY,
+    REDIS_KEY_OAUTH_EXCHANGE,
+    REDIS_KEY_RESEND_COOLDOWN,
+)
 from agents_core.models import User, db
 from agents_core.schemas import UserCreate, UserResponse
 
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379")
 
-EMAIL_VERIFY_PREFIX = "email_verify:"
 EMAIL_VERIFY_TTL_SECONDS = 24 * 60 * 60  # 24h
-RESEND_COOLDOWN_PREFIX = "resend_cooldown:"
 RESEND_COOLDOWN_TTL_SECONDS = 60
-OAUTH_EXCHANGE_PREFIX = "oauth_exchange:"
 OAUTH_EXCHANGE_TTL_SECONDS = 60
 
 
@@ -35,35 +37,39 @@ def create_email_verification_token(user_id: str) -> str:
     if not r:
         raise RuntimeError("Redis unavailable")
     token = secrets.token_urlsafe(32)
-    r.setex(f"{EMAIL_VERIFY_PREFIX}{token}", EMAIL_VERIFY_TTL_SECONDS, user_id)
+    r.setex(
+        REDIS_KEY_EMAIL_VERIFY.format(token=token), EMAIL_VERIFY_TTL_SECONDS, user_id
+    )
     return token
 
 
 def consume_email_verification_token(token: str) -> str | None:
-    """Look up and delete a verification token. Single-use: returns the
-    user_id on first call, None on any call after (or if invalid/expired)."""
+    """Atomically look up and delete a verification token (GETDEL, not a
+    separate GET+DELETE — two concurrent consumes of the same token must
+    not both succeed). Single-use: returns the user_id on first call, None
+    on any call after (or if invalid/expired)."""
     r = _get_redis()
     if not r:
         raise RuntimeError("Redis unavailable")
-    key = f"{EMAIL_VERIFY_PREFIX}{token}"
-    user_id = r.get(key)
-    if user_id is not None:
-        r.delete(key)
-    return user_id
+    return r.getdel(REDIS_KEY_EMAIL_VERIFY.format(token=token))
 
 
 def is_resend_on_cooldown(user_id: str) -> bool:
     r = _get_redis()
     if not r:
         raise RuntimeError("Redis unavailable")
-    return r.exists(f"{RESEND_COOLDOWN_PREFIX}{user_id}") == 1
+    return r.exists(REDIS_KEY_RESEND_COOLDOWN.format(user_id=user_id)) == 1
 
 
 def set_resend_cooldown(user_id: str) -> None:
     r = _get_redis()
     if not r:
         raise RuntimeError("Redis unavailable")
-    r.setex(f"{RESEND_COOLDOWN_PREFIX}{user_id}", RESEND_COOLDOWN_TTL_SECONDS, "1")
+    r.setex(
+        REDIS_KEY_RESEND_COOLDOWN.format(user_id=user_id),
+        RESEND_COOLDOWN_TTL_SECONDS,
+        "1",
+    )
 
 
 def create_oauth_exchange_code(jwt_token: str) -> str:
@@ -73,21 +79,21 @@ def create_oauth_exchange_code(jwt_token: str) -> str:
     if not r:
         raise RuntimeError("Redis unavailable")
     code = secrets.token_urlsafe(32)
-    r.setex(f"{OAUTH_EXCHANGE_PREFIX}{code}", OAUTH_EXCHANGE_TTL_SECONDS, jwt_token)
+    r.setex(
+        REDIS_KEY_OAUTH_EXCHANGE.format(code=code), OAUTH_EXCHANGE_TTL_SECONDS, jwt_token
+    )
     return code
 
 
 def consume_oauth_exchange_code(code: str) -> str | None:
-    """Single-use: returns the JWT on first call, None on any call after
-    (or if invalid/expired)."""
+    """Atomically look up and delete an exchange code (GETDEL — see
+    consume_email_verification_token's docstring for why this must be
+    atomic, not a separate GET+DELETE). Single-use: returns the JWT on
+    first call, None on any call after (or if invalid/expired)."""
     r = _get_redis()
     if not r:
         raise RuntimeError("Redis unavailable")
-    key = f"{OAUTH_EXCHANGE_PREFIX}{code}"
-    jwt_token = r.get(key)
-    if jwt_token is not None:
-        r.delete(key)
-    return jwt_token
+    return r.getdel(REDIS_KEY_OAUTH_EXCHANGE.format(code=code))
 
 
 def hash_password(password: str) -> str:

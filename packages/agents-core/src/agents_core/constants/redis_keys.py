@@ -19,3 +19,12 @@ REDIS_STREAM_CHAT = "chat:xstream:{stream_id}"  # Redis stream key for event pay
 
 # Cancellation flag: key TTL 300s
 REDIS_KEY_CANCEL_TOOL = "cancel_tool:{chat_id}:{tool_name}"
+
+# Email verification token: key TTL 24h, single-use (deleted on consume)
+REDIS_KEY_EMAIL_VERIFY = "email_verify:{token}"
+
+# Resend-verification-email rate limit: key TTL 60s
+REDIS_KEY_RESEND_COOLDOWN = "resend_cooldown:{user_id}"
+
+# One-time OAuth exchange code: key TTL 60s, single-use (deleted on consume)
+REDIS_KEY_OAUTH_EXCHANGE = "oauth_exchange:{code}"
