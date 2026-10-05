@@ -22,6 +22,10 @@ import logging
 import os
 import signal
 
+from agents_core.worker.env import load_worker_env
+
+load_worker_env()
+
 import redis as redis_lib
 from agents_core.constants.queues import CHAT_QUEUE, RAG_QUEUE, SCHEDULED_TASK_QUEUE
 from agents_core.constants.redis_keys import REDIS_STREAM_CHAT
@@ -65,7 +69,7 @@ def _setup_flask_context():
     app = Flask(__name__)
     app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
         "DATABASE_URL",
-        "postgresql://postgres:pranav@localhost:5432/vivexy?schema=public",
+        "postgresql://postgres:pranav@localhost:5432/vivexy",
     )
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {

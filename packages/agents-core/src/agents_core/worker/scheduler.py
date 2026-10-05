@@ -14,6 +14,10 @@ import time
 import warnings
 from datetime import datetime
 
+from agents_core.worker.env import load_worker_env
+
+load_worker_env()
+
 warnings.filterwarnings("ignore", message="urllib3")
 
 logger = logging.getLogger(__name__)
@@ -43,7 +47,7 @@ def _setup_flask_context():
     app = Flask(__name__)
     app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
         "DATABASE_URL",
-        "postgresql://postgres:pranav@localhost:5432/vivexy?schema=public",
+        "postgresql://postgres:pranav@localhost:5432/vivexy",
     )
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {

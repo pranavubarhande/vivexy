@@ -15,7 +15,7 @@ class Config:
     # Database
     SQLALCHEMY_DATABASE_URI = os.getenv(
         "DATABASE_URL",
-        "postgresql://postgres:pranav@localhost:5432/vivexy?schema=public",
+        "postgresql://postgres:pranav@localhost:5432/vivexy",
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     # Bounded pool per process, not SQLAlchemy's defaults: each pod runs
