@@ -1050,7 +1050,7 @@ git commit -m "feat: register Google/Microsoft OAuth clients via Authlib"
 - Modify: `packages/agents-core/src/agents_core/utils/auth.py`
 - Test: `packages/agents-core/src/agents_core/utils/__tests__/auth.test.py`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to `packages/agents-core/src/agents_core/utils/__tests__/auth.test.py`:
 
@@ -1130,12 +1130,12 @@ def test_find_or_create_oauth_user_auto_links_by_email(app_with_db):
 
 Add `from agents_core.models import db` and `from flask import Flask` to the top of the test file if not already present (the earlier Task 3 test additions don't need them; this is the first use of a real app/db fixture in this file — check before adding to avoid duplicate imports).
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `cd packages/agents-core && uv run --project ../../apps/agents-service pytest src/agents_core/utils/__tests__/auth.test.py -v -k oauth_user`
 Expected: FAIL — `find_or_create_oauth_user` doesn't exist.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Add to `packages/agents-core/src/agents_core/utils/auth.py`, after `create_user`:
 
@@ -1178,12 +1178,12 @@ def find_or_create_oauth_user(
     return user
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `cd packages/agents-core && uv run --project ../../apps/agents-service pytest src/agents_core/utils/__tests__/auth.test.py -v`
 Expected: all PASS, including every earlier test in this file.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add packages/agents-core/src/agents_core/utils/auth.py packages/agents-core/src/agents_core/utils/__tests__/auth.test.py
