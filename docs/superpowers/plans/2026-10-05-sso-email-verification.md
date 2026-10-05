@@ -2002,7 +2002,7 @@ git commit -m "feat: add OAuth callback and verify-email pages"
 - Modify: `packages/core/src/components/shared/app-shell.tsx`
 - Test: `packages/core/src/components/shared/__tests__/verify-email-banner.test.tsx`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `packages/core/src/components/shared/__tests__/verify-email-banner.test.tsx`:
 
@@ -2067,12 +2067,12 @@ describe('VerifyEmailBanner', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `cd packages/core && npx vitest run src/components/shared/__tests__/verify-email-banner.test.tsx`
 Expected: FAIL — `verify-email-banner.tsx` doesn't exist.
 
-- [ ] **Step 3: Implement the banner**
+- [x] **Step 3: Implement the banner**
 
 Create `packages/core/src/components/shared/verify-email-banner.tsx`:
 
@@ -2120,12 +2120,12 @@ export function VerifyEmailBanner() {
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `cd packages/core && npx vitest run src/components/shared/__tests__/verify-email-banner.test.tsx`
 Expected: PASS.
 
-- [ ] **Step 5: Wire the banner into AppShell**
+- [x] **Step 5: Wire the banner into AppShell**
 
 Edit `packages/core/src/components/shared/app-shell.tsx`. Add the import:
 
@@ -2145,16 +2145,16 @@ And render it as the first child inside the `<div className="flex flex-1 flex-co
           )}
 ```
 
-- [ ] **Step 6: Run the full frontend test suite**
+- [x] **Step 6: Run the full frontend test suite**
 
 Run: `cd packages/core && npm run test`
 Expected: all PASS, no regressions.
 
-- [ ] **Step 7: Manually verify the banner in the browser**
+- [x] **Step 7: Manually verify the banner in the browser**
 
 Run: `cd apps/frontend && npm run dev`, register a brand-new account, and confirm the "Please verify your email address" banner appears at the top of the dashboard immediately after registering. Click "Resend email" and confirm a toast confirms the send (check your Resend dashboard or terminal logs for the actual email, depending on your `RESEND_API_KEY` setup).
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add packages/core/src/components/shared/verify-email-banner.tsx packages/core/src/components/shared/app-shell.tsx packages/core/src/components/shared/__tests__/verify-email-banner.test.tsx
