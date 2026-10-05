@@ -59,6 +59,7 @@ def exclude_password(user: User) -> dict:
         "name": user.name,
         "role": user.role.value,
         "avatar": user.avatar,
+        "emailVerified": user.email_verified,
         "createdAt": user.created_at.isoformat() if user.created_at else None,
         "updatedAt": user.updated_at.isoformat() if user.updated_at else None,
     }

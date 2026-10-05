@@ -19,6 +19,7 @@ class UserCreate(UserBase):
 
 class UserResponse(UserBase):
     id: str
+    email_verified: bool = False
     created_at: datetime
     updated_at: datetime
 
@@ -36,6 +37,7 @@ class UserResponse(UserBase):
                 data["role"].value if hasattr(data["role"], "value") else data["role"]
             ),
             "avatar": data.get("avatar"),
+            "emailVerified": data.get("email_verified", False),
             "createdAt": (
                 data["created_at"].isoformat() if data.get("created_at") else None
             ),
