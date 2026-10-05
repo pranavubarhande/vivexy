@@ -49,6 +49,12 @@ type RegisterFormData = z.infer<typeof registerSchema>;
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
 function handleSSOLogin(provider: 'google' | 'microsoft') {
+  // Bound to the exchange code by the backend (see utils/auth.py's
+  // create_oauth_exchange_code) so a bare code alone can't be redeemed by
+  // a browser other than the one that actually completed this login —
+  // closes an OAuth login-CSRF gap. The /auth/callback page reads this
+  // same sessionStorage key back out and sends it to the exchange
+  // endpoint; it must match exactly what we store here.
   const state = crypto.randomUUID();
   sessionStorage.setItem('oauth_state', state);
   window.location.href = `${API_URL}/auth/oauth/${provider}/login?state=${encodeURIComponent(state)}`;
