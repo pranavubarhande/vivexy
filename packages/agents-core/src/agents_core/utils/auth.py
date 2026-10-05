@@ -68,7 +68,10 @@ def exclude_password(user: User) -> dict:
 def authenticate_user(email: str, password: str) -> User:
     """Authenticate a user with email and password."""
     user = User.query.filter_by(email=email).first()
-    if user and verify_password(password, user.password):
+    # SSO-only accounts have no password (user.password is None) — without
+    # this check, verify_password's hashed.encode("utf-8") would raise
+    # AttributeError instead of a clean "wrong credentials" result.
+    if user and user.password and verify_password(password, user.password):
         return user
     return None
 
