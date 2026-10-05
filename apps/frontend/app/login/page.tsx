@@ -3,6 +3,8 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { LoginForm } from '@vivexy/core/auth/login-form';
+import { AuthSplitLayout } from '@vivexy/core/auth/auth-split-layout';
+import { APP_NAME } from '@/constants/project';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -16,16 +18,8 @@ export default function LoginPage() {
   if (process.env.NEXT_PUBLIC_AUTH_ENABLED === 'false') return null;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
-      <div className="w-full max-w-md space-y-8">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold">Welcome back</h1>
-          <p className="text-muted-foreground mt-2">
-            Sign in to your account to continue
-          </p>
-        </div>
-        <LoginForm />
-      </div>
-    </div>
+    <AuthSplitLayout appName={APP_NAME}>
+      <LoginForm />
+    </AuthSplitLayout>
   );
 }
