@@ -16,4 +16,9 @@ export const ROUTES = {
 export const PUBLIC_ROUTES: string[] = ['/'];
 
 // Auth-only entry pages. If the user is already logged in, redirect away from these.
-export const AUTH_ROUTES: string[] = ['/login', '/register'];
+export const AUTH_ROUTES: string[] = [
+  '/login',
+  '/register',
+  '/auth/callback',
+  '/verify-email',
+];

@@ -39,4 +39,30 @@ export const authService = {
   logout: async (): Promise<void> => {
     localStorage.clear();
   },
+
+  // Exchange a one-time OAuth code for the real session token
+  exchangeOAuthCode: async (code: string): Promise<AuthResponse> => {
+    const response = await axiosInstance.post<AuthResponse>(
+      '/auth/oauth/exchange',
+      { code }
+    );
+    return response.data;
+  },
+
+  // Verify an emailed verification token
+  verifyEmail: async (token: string): Promise<{ success: boolean }> => {
+    const response = await axiosInstance.post<{ success: boolean }>(
+      '/auth/verify-email',
+      { token }
+    );
+    return response.data;
+  },
+
+  // Resend the verification email (requires an authenticated session)
+  resendVerification: async (): Promise<{ success: boolean }> => {
+    const response = await axiosInstance.post<{ success: boolean }>(
+      '/auth/resend-verification'
+    );
+    return response.data;
+  },
 };
