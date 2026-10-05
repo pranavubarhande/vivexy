@@ -325,6 +325,20 @@ def test_oauth_exchange_missing_code_or_state_returns_400(client):
     assert response.status_code == 400
 
 
+def test_oauth_exchange_non_string_state_returns_400_not_500(client):
+    """A non-string state passes a bare truthiness check but would crash
+    secrets.compare_digest downstream -- must be rejected cleanly here."""
+    response = client.post(
+        "/auth/oauth/exchange", json={"code": "some-code", "state": 12345}
+    )
+    assert response.status_code == 400
+
+    response = client.post(
+        "/auth/oauth/exchange", json={"code": "some-code", "state": ["a", "b"]}
+    )
+    assert response.status_code == 400
+
+
 def test_oauth_exchange_invalid_code_returns_400(client):
     response = client.post(
         "/auth/oauth/exchange", json={"code": "not-a-real-code", "state": "whatever"}

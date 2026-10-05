@@ -42,4 +42,10 @@ def downgrade() -> None:
     op.drop_column("users", "oauth_subject_id")
     op.drop_column("users", "oauth_provider")
     op.drop_column("users", "email_verified")
-    op.alter_column("users", "password", existing_type=sa.String(), nullable=False)
+    # Deliberately NOT restoring `nullable=False` on password: any SSO-only
+    # user created while this migration was applied has password=NULL, and
+    # re-imposing NOT NULL here would make the downgrade itself fail outright
+    # (or require silently deleting/mutating those rows, which a schema
+    # downgrade should never do). Leaving it nullable is a strict superset of
+    # the original constraint and doesn't break anything that depended on it
+    # being NOT NULL, since every pre-existing row already has a password.

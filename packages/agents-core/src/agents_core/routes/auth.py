@@ -446,7 +446,11 @@ def oauth_exchange():
     data = request.get_json() or {}
     code = data.get("code")
     state = data.get("state")
-    if not code or not state:
+    # isinstance checks, not just truthiness: a non-string state (e.g. a
+    # JSON number or array) would pass `not state` but then throw inside
+    # secrets.compare_digest in consume_oauth_exchange_code, turning a bad
+    # request into an unhandled 500 instead of a clean 400.
+    if not isinstance(code, str) or not code or not isinstance(state, str) or not state:
         return jsonify({"error": "Code and state are required"}), 400
 
     try:
