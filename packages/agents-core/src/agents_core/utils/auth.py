@@ -1,3 +1,4 @@
+import json
 import os
 import secrets
 from datetime import datetime, timedelta
@@ -73,28 +74,50 @@ def set_resend_cooldown(user_id: str) -> None:
     )
 
 
-def create_oauth_exchange_code(jwt_token: str) -> str:
+def create_oauth_exchange_code(jwt_token: str, state: str) -> str:
     """Store a freshly-issued JWT behind a one-time opaque code (60s TTL) so
-    the OAuth callback's redirect never puts the real JWT in a URL."""
+    the OAuth callback's redirect never puts the real JWT in a URL.
+
+    Also binds the code to `state` — the nonce the frontend generated
+    before starting the OAuth redirect (relayed through the whole round
+    trip as the actual OAuth `state` parameter, so the provider echoes it
+    back to us and Authlib's own session-bound check already validated it
+    hasn't been tampered with). Without this binding, the bare code is a
+    pure bearer credential good for logging in as whoever it belongs to:
+    anyone who could observe their OWN real code (e.g. by completing a
+    legitimate login as themselves and reading it off the redirect) could
+    hand a victim a link that silently logs the victim into the
+    attacker's account. consume_oauth_exchange_code requires the caller
+    to present this same state back, so only the browser that actually
+    went through this login attempt can redeem the code."""
     r = _get_redis()
     if not r:
         raise RuntimeError("Redis unavailable")
     code = secrets.token_urlsafe(32)
-    r.setex(
-        REDIS_KEY_OAUTH_EXCHANGE.format(code=code), OAUTH_EXCHANGE_TTL_SECONDS, jwt_token
-    )
+    payload = json.dumps({"jwt": jwt_token, "state": state})
+    r.setex(REDIS_KEY_OAUTH_EXCHANGE.format(code=code), OAUTH_EXCHANGE_TTL_SECONDS, payload)
     return code
 
 
-def consume_oauth_exchange_code(code: str) -> str | None:
+def consume_oauth_exchange_code(code: str, state: str) -> str | None:
     """Atomically look up and delete an exchange code (GETDEL — see
     consume_email_verification_token's docstring for why this must be
-    atomic, not a separate GET+DELETE). Single-use: returns the JWT on
-    first call, None on any call after (or if invalid/expired)."""
+    atomic, not a separate GET+DELETE), then verify the presented `state`
+    matches the one the code was bound to at creation. Single-use: returns
+    the JWT only when the code is valid/unexpired AND state matches; None
+    otherwise. Deliberately doesn't distinguish which check failed (wrong
+    code vs. wrong state), to avoid giving an attacker who has a valid
+    code a signal about whether a guessed state is getting closer."""
     r = _get_redis()
     if not r:
         raise RuntimeError("Redis unavailable")
-    return r.getdel(REDIS_KEY_OAUTH_EXCHANGE.format(code=code))
+    raw = r.getdel(REDIS_KEY_OAUTH_EXCHANGE.format(code=code))
+    if raw is None:
+        return None
+    payload = json.loads(raw)
+    if not secrets.compare_digest(payload["state"], state):
+        return None
+    return payload["jwt"]
 
 
 def hash_password(password: str) -> str:

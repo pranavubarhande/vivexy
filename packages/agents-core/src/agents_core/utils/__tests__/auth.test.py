@@ -112,14 +112,40 @@ def test_create_and_consume_oauth_exchange_code(mock_get_redis):
     mock_redis.getdel.side_effect = lambda key: store.pop(key, None)
     mock_get_redis.return_value = mock_redis
 
-    code = create_oauth_exchange_code("fake.jwt.token")
+    code = create_oauth_exchange_code("fake.jwt.token", "nonce-abc")
     assert isinstance(code, str) and len(code) > 10
 
-    jwt_token = consume_oauth_exchange_code(code)
+    jwt_token = consume_oauth_exchange_code(code, "nonce-abc")
     assert jwt_token == "fake.jwt.token"
 
     # Single-use.
-    assert consume_oauth_exchange_code(code) is None
+    assert consume_oauth_exchange_code(code, "nonce-abc") is None
+
+
+@patch("agents_core.utils.auth._get_redis")
+def test_consume_oauth_exchange_code_rejects_state_mismatch(mock_get_redis):
+    from agents_core.utils.auth import (
+        consume_oauth_exchange_code,
+        create_oauth_exchange_code,
+    )
+
+    store = {}
+    mock_redis = MagicMock()
+    mock_redis.setex.side_effect = lambda key, ttl, value: store.__setitem__(key, value)
+    mock_redis.getdel.side_effect = lambda key: store.pop(key, None)
+    mock_get_redis.return_value = mock_redis
+
+    code = create_oauth_exchange_code("fake.jwt.token", "real-nonce")
+
+    # Wrong state -- must be rejected even though the code itself is valid
+    # and unexpired. This is the core protection against OAuth login CSRF:
+    # a bare correct code is not sufficient to redeem a session.
+    assert consume_oauth_exchange_code(code, "attacker-guessed-nonce") is None
+
+    # The mismatch attempt must still have consumed the code (GETDEL ran
+    # unconditionally before the state check) -- a correct retry afterward
+    # must also fail, not succeed on a second try.
+    assert consume_oauth_exchange_code(code, "real-nonce") is None
 
 
 @patch("agents_core.utils.auth._get_redis")

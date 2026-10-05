@@ -173,12 +173,18 @@ def test_oauth_login_redirects_to_provider(mock_oauth, client):
     mock_client.authorize_redirect.return_value = "redirect-response"
     mock_oauth.create_client.return_value = mock_client
 
-    client.get("/auth/oauth/google/login")
+    client.get("/auth/oauth/google/login?state=frontend-nonce-123")
 
     mock_oauth.create_client.assert_called_once_with("google")
     mock_client.authorize_redirect.assert_called_once()
     called_redirect_uri = mock_client.authorize_redirect.call_args[0][0]
     assert called_redirect_uri.endswith("/auth/oauth/google/callback")
+    assert mock_client.authorize_redirect.call_args[1]["state"] == "frontend-nonce-123"
+
+
+def test_oauth_login_missing_state_returns_400(client):
+    response = client.get("/auth/oauth/google/login")
+    assert response.status_code == 400
 
 
 @patch("agents_core.routes.auth.oauth")
@@ -213,7 +219,7 @@ def test_oauth_callback_creates_user_and_redirects_with_code(mock_oauth, app, cl
     }
     mock_oauth.create_client.return_value = mock_client
 
-    response = client.get("/auth/oauth/google/callback")
+    response = client.get("/auth/oauth/google/callback?state=frontend-nonce-123")
 
     assert response.status_code == 302
     assert response.location.startswith("http://localhost:3000/auth/callback?code=")
@@ -226,12 +232,30 @@ def test_oauth_callback_creates_user_and_redirects_with_code(mock_oauth, app, cl
 
 
 @patch("agents_core.routes.auth.oauth")
+def test_oauth_callback_missing_state_redirects_to_login_with_error(mock_oauth, client):
+    mock_client = MagicMock()
+    mock_client.authorize_access_token.return_value = {
+        "userinfo": {
+            "sub": "google-sub-no-state",
+            "email": "no-state@example.com",
+            "name": "No State",
+        }
+    }
+    mock_oauth.create_client.return_value = mock_client
+
+    response = client.get("/auth/oauth/google/callback")
+
+    assert response.status_code == 302
+    assert response.location == "http://localhost:3000/login?error=oauth_failed"
+
+
+@patch("agents_core.routes.auth.oauth")
 def test_oauth_callback_failure_redirects_to_login_with_error(mock_oauth, client):
     mock_client = MagicMock()
     mock_client.authorize_access_token.side_effect = RuntimeError("provider denied")
     mock_oauth.create_client.return_value = mock_client
 
-    response = client.get("/auth/oauth/google/callback")
+    response = client.get("/auth/oauth/google/callback?state=frontend-nonce-123")
 
     assert response.status_code == 302
     assert response.location == "http://localhost:3000/login?error=oauth_failed"
@@ -249,10 +273,14 @@ def test_oauth_exchange_returns_token_for_valid_code(mock_oauth, app, client):
     }
     mock_oauth.create_client.return_value = mock_client
 
-    callback_response = client.get("/auth/oauth/google/callback")
+    callback_response = client.get(
+        "/auth/oauth/google/callback?state=frontend-nonce-789"
+    )
     code = callback_response.location.split("code=")[1]
 
-    exchange_response = client.post("/auth/oauth/exchange", json={"code": code})
+    exchange_response = client.post(
+        "/auth/oauth/exchange", json={"code": code, "state": "frontend-nonce-789"}
+    )
 
     assert exchange_response.status_code == 200
     body = exchange_response.get_json()
@@ -260,8 +288,47 @@ def test_oauth_exchange_returns_token_for_valid_code(mock_oauth, app, client):
     assert body["user"]["email"] == "exchange-user@example.com"
 
 
+@patch("agents_core.routes.auth.oauth")
+def test_oauth_exchange_wrong_state_returns_400(mock_oauth, app, client):
+    """The core protection against OAuth login CSRF: even a genuinely
+    valid, unexpired code must be rejected if the caller doesn't present
+    the exact nonce it was bound to -- proves a bare correct code alone
+    isn't enough to redeem someone else's login."""
+    mock_client = MagicMock()
+    mock_client.authorize_access_token.return_value = {
+        "userinfo": {
+            "sub": "google-sub-csrf",
+            "email": "csrf-target@example.com",
+            "name": "CSRF Target",
+        }
+    }
+    mock_oauth.create_client.return_value = mock_client
+
+    callback_response = client.get(
+        "/auth/oauth/google/callback?state=real-nonce-from-victim-browser"
+    )
+    code = callback_response.location.split("code=")[1]
+
+    response = client.post(
+        "/auth/oauth/exchange",
+        json={"code": code, "state": "attacker-guessed-or-reused-nonce"},
+    )
+
+    assert response.status_code == 400
+
+
+def test_oauth_exchange_missing_code_or_state_returns_400(client):
+    response = client.post("/auth/oauth/exchange", json={"code": "some-code"})
+    assert response.status_code == 400
+
+    response = client.post("/auth/oauth/exchange", json={"state": "some-state"})
+    assert response.status_code == 400
+
+
 def test_oauth_exchange_invalid_code_returns_400(client):
-    response = client.post("/auth/oauth/exchange", json={"code": "not-a-real-code"})
+    response = client.post(
+        "/auth/oauth/exchange", json={"code": "not-a-real-code", "state": "whatever"}
+    )
     assert response.status_code == 400
 
 
@@ -276,11 +343,17 @@ def test_oauth_exchange_code_is_single_use(app, client):
             }
         }
         mock_oauth.create_client.return_value = mock_client
-        callback_response = client.get("/auth/oauth/google/callback")
+        callback_response = client.get(
+            "/auth/oauth/google/callback?state=frontend-nonce-999"
+        )
         code = callback_response.location.split("code=")[1]
 
-    first = client.post("/auth/oauth/exchange", json={"code": code})
+    first = client.post(
+        "/auth/oauth/exchange", json={"code": code, "state": "frontend-nonce-999"}
+    )
     assert first.status_code == 200
 
-    second = client.post("/auth/oauth/exchange", json={"code": code})
+    second = client.post(
+        "/auth/oauth/exchange", json={"code": code, "state": "frontend-nonce-999"}
+    )
     assert second.status_code == 400
