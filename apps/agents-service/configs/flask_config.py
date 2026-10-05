@@ -50,6 +50,27 @@ class Config:
     # JWT
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-jwt-secret-key")
 
+    # SSO (Google / Microsoft OAuth2 via Authlib)
+    GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+    GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
+    MICROSOFT_CLIENT_ID = os.getenv("MICROSOFT_CLIENT_ID")
+    MICROSOFT_CLIENT_SECRET = os.getenv("MICROSOFT_CLIENT_SECRET")
+    # "common" accepts both work/school and personal Microsoft accounts.
+    MICROSOFT_TENANT = os.getenv("MICROSOFT_TENANT", "common")
+
+    # Email (Resend) — verification emails
+    RESEND_API_KEY = os.getenv("RESEND_API_KEY")
+    RESEND_FROM_EMAIL = os.getenv("RESEND_FROM_EMAIL", "Vivexy <noreply@vivexy.app>")
+
+    # Used to build OAuth callback redirect_uris (BACKEND_URL) and links
+    # that go out in emails / the final post-OAuth browser redirect
+    # (FRONTEND_URL). Deliberately explicit env vars rather than inferring
+    # from the request (e.g. via Flask's url_for(..., _external=True)) —
+    # behind a proxy/ingress, scheme/host inference is easy to get wrong
+    # and an OAuth redirect_uri mismatch just fails outright.
+    BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:5000")
+    FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+
     # Redis (shared with worker)
     REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
 
