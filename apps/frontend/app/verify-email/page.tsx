@@ -70,7 +70,9 @@ export default function VerifyEmailPage() {
     <Suspense
       fallback={
         <div className="min-h-screen flex items-center justify-center bg-background px-4">
-          <p className="text-muted-foreground">Verifying your email...</p>
+          <div className="text-center space-y-4 max-w-md">
+            <p className="text-muted-foreground">Verifying your email...</p>
+          </div>
         </div>
       }
     >
