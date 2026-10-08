@@ -9,14 +9,6 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@vivexy/ui/button';
 import { Input } from '@vivexy/ui/input';
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@vivexy/ui/card';
-import {
   Form,
   FormControl,
   FormField,
@@ -28,6 +20,7 @@ import { Alert, AlertDescription } from '@vivexy/ui/alert';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { GoogleIcon, MicrosoftIcon } from './sso-icons';
 
 const registerSchema = z
   .object({
@@ -93,21 +86,22 @@ export function RegisterForm() {
   };
 
   return (
-    <Card className="w-full">
-      <CardHeader className="space-y-1">
-        <CardTitle className="text-2xl text-center">Sign up</CardTitle>
-        <CardDescription className="text-center">
+    <div className="space-y-6">
+      <div className="space-y-2">
+        <h1 className="font-serif text-4xl tracking-tight">Sign up</h1>
+        <p className="text-sm text-muted-foreground">
           Enter your information to create your account
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-2 mb-4">
+        </p>
+      </div>
+      <div>
+        <div className="space-y-2 mb-6">
           <Button
             type="button"
             variant="outline"
             className="w-full"
             onClick={() => handleSSOLogin('google')}
           >
+            <GoogleIcon />
             Continue with Google
           </Button>
           <Button
@@ -116,15 +110,16 @@ export function RegisterForm() {
             className="w-full"
             onClick={() => handleSSOLogin('microsoft')}
           >
+            <MicrosoftIcon />
             Continue with Microsoft
           </Button>
         </div>
-        <div className="relative mb-4">
+        <div className="relative mb-6">
           <div className="absolute inset-0 flex items-center">
             <span className="w-full border-t" />
           </div>
           <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-card px-2 text-muted-foreground">
+            <span className="bg-background px-3 tracking-wider text-muted-foreground">
               Or continue with email
             </span>
           </div>
@@ -144,7 +139,7 @@ export function RegisterForm() {
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Full Name</FormLabel>
+                  <FormLabel>Full name</FormLabel>
                   <FormControl>
                     <Input placeholder="Enter your full name" {...field} />
                   </FormControl>
@@ -209,7 +204,7 @@ export function RegisterForm() {
               name="confirmPassword"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Confirm Password</FormLabel>
+                  <FormLabel>Confirm password</FormLabel>
                   <FormControl>
                     <div className="relative">
                       <Input
@@ -255,15 +250,18 @@ export function RegisterForm() {
             </Button>
           </form>
         </Form>
-      </CardContent>
-      <CardFooter className="flex flex-col space-y-2">
+      </div>
+      <div>
         <div className="text-sm text-muted-foreground text-center">
           Already have an account?{' '}
-          <Link href="/login" className="text-primary hover:underline">
+          <Link
+            href="/login"
+            className="font-medium text-foreground underline decoration-lime decoration-2 underline-offset-4 hover:decoration-foreground"
+          >
             Sign in
           </Link>
         </div>
-      </CardFooter>
-    </Card>
+      </div>
+    </div>
   );
 }

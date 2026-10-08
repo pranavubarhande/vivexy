@@ -14,8 +14,10 @@ import { PanelLeft } from 'lucide-react';
 function titleFromPath(pathname: string) {
   const parts = pathname.split('/').filter(Boolean);
   if (parts.length === 0) return 'Home';
-  const first = parts[0];
-  return first.charAt(0).toUpperCase() + first.slice(1);
+  return parts[0]
+    .split('-')
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
 }
 
 /** Floating sidebar trigger shown only on mobile when sidebar is closed */
@@ -59,21 +61,21 @@ export function AppShell({
     <WorkspaceProvider>
       <SidebarProvider>
         <AppSidebar appName={appName} className="relative" />
-        <div className="flex flex-1 flex-col min-w-0">
+        <div className="flex h-svh flex-1 flex-col min-w-0 bg-background">
           <VerifyEmailBanner />
           {!isChatPage && (
             <DashboardHeader heading={titleFromPath(pathname)}>
               <MobileSidebarTrigger />
             </DashboardHeader>
           )}
-          <div
+          <main
             className={cn(
-              'flex flex-col gap-4 p-4 pt-0 h-[calc(100vh-3.5rem)] overflow-auto',
-              isChatPage && 'h-[calc(100vh)] p-0'
+              'flex flex-1 flex-col min-h-0 overflow-auto px-4 md:px-8 custom-scrollbar',
+              isChatPage && 'p-0 md:p-0'
             )}
           >
             {children}
-          </div>
+          </main>
         </div>
       </SidebarProvider>
     </WorkspaceProvider>

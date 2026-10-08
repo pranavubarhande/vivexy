@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useExchangeOAuthCode } from '@vivexy/core/hooks/useAuth';
+import { AuthStatus } from '@vivexy/core/auth/auth-status';
 
 function OAuthCallbackPageInner() {
   const router = useRouter();
@@ -43,21 +44,17 @@ function OAuthCallbackPageInner() {
   }, []);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <p className="text-muted-foreground">Signing you in...</p>
-    </div>
+    <AuthStatus
+      pending
+      title="Signing you in…"
+      description="Hang tight while we finish connecting your account."
+    />
   );
 }
 
 export default function OAuthCallbackPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen flex items-center justify-center bg-background">
-          <p className="text-muted-foreground">Signing you in...</p>
-        </div>
-      }
-    >
+    <Suspense fallback={<AuthStatus pending title="Signing you in…" />}>
       <OAuthCallbackPageInner />
     </Suspense>
   );

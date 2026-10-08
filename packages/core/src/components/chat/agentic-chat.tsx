@@ -36,7 +36,7 @@ import {
   Message,
   chatService,
 } from '@vivexy/core/services/chat.service';
-import { File } from 'lucide-react';
+import { File, FileText, Mail, Search, Table2 } from 'lucide-react';
 import type { PanelType } from '@vivexy/core/chat/chat-panels';
 
 function GitHubIcon({ size = 16 }: { size?: number }) {
@@ -52,6 +52,30 @@ function GitHubIcon({ size = 16 }: { size?: number }) {
     </svg>
   );
 }
+
+const STARTER_PROMPTS = [
+  {
+    label: 'Summarize a document',
+    prompt:
+      'Summarize the key points, risks and action items in this document: ',
+    icon: FileText,
+  },
+  {
+    label: 'Draft an email',
+    prompt: 'Draft a concise, professional email to ',
+    icon: Mail,
+  },
+  {
+    label: 'Analyze a spreadsheet',
+    prompt: 'Analyze this spreadsheet and highlight trends and anomalies: ',
+    icon: Table2,
+  },
+  {
+    label: 'Research a topic',
+    prompt: 'Research and give me a briefing on ',
+    icon: Search,
+  },
+];
 
 function getGreeting() {
   const h = new Date().getHours();
@@ -159,14 +183,14 @@ function ChatInputToolbar({
             className={cn(
               'flex items-center gap-1 h-7 px-2 rounded-lg text-xs font-medium transition-all',
               showSidePanel === 'artifacts'
-                ? 'bg-primary/10 text-primary'
+                ? 'bg-primary/10 text-ink'
                 : 'text-muted-foreground hover:text-foreground hover:bg-muted'
             )}
           >
             <File size={12} />
             <span className="hidden xs:inline sm:inline">Files</span>
             {!!artifactsCount && artifactsCount > 0 && (
-              <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-primary/20 text-primary text-[9px] font-bold">
+              <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-primary/20 text-ink text-[9px] font-bold">
                 {artifactsCount}
               </span>
             )}
@@ -178,7 +202,7 @@ function ChatInputToolbar({
             className={cn(
               'flex items-center gap-1 h-7 px-2 rounded-lg text-xs font-medium transition-all',
               showSidePanel === 'github'
-                ? 'bg-primary/10 text-primary'
+                ? 'bg-primary/10 text-ink'
                 : 'text-muted-foreground hover:text-foreground hover:bg-muted'
             )}
             title="GitHub repositories"
@@ -724,16 +748,23 @@ export const AgenticChat = ({
 
         {isEmpty ? (
           /* ── Empty state: greeting + single bordered box ── */
-          <div className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 animate-in fade-in duration-500">
-            <div className="w-full max-w-2xl">
+          <div className="relative flex-1 flex flex-col items-center justify-center overflow-hidden px-4 sm:px-6 animate-in fade-in duration-500">
+            <div className="pointer-events-none absolute left-1/2 top-1/2 size-144 -translate-x-1/2 -translate-y-[60%] rounded-full bg-lime/15 blur-3xl" />
+            <div className="relative w-full max-w-2xl">
               {/* Greeting */}
-              <h1 className="text-3xl font-serif font-light tracking-tight text-center mb-6">
+              <h1 className="text-4xl sm:text-5xl font-serif tracking-tight text-center mb-8">
                 {getGreeting()}
-                {firstName ? `, ${firstName}` : ''}
+                {firstName ? (
+                  <>
+                    , <span className="italic text-ink">{firstName}</span>
+                  </>
+                ) : (
+                  ''
+                )}
               </h1>
 
               {/* Single bordered container */}
-              <div className="rounded-2xl border border-border bg-background shadow-sm focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary/30 transition-all overflow-hidden">
+              <div className="rounded-3xl border border-border bg-background shadow-[0_8px_30px_-12px_rgb(0_0_0/0.15)] focus-within:ring-4 focus-within:ring-lime/30 focus-within:border-primary-600/50 transition-all overflow-hidden">
                 <ChatInput
                   onSend={handleSend}
                   chatId={chatId || undefined}
@@ -755,6 +786,21 @@ export const AgenticChat = ({
                   showSidePanel={showSidePanel}
                   onToggleGithub={toggleGithubPanel}
                 />
+              </div>
+
+              {/* Starter prompts */}
+              <div className="mt-5 flex flex-wrap justify-center gap-2">
+                {STARTER_PROMPTS.map(({ label, prompt, icon: Icon }) => (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={() => setFillValue(prompt)}
+                    className="inline-flex items-center gap-2 rounded-full border border-border bg-background/80 px-3.5 py-1.5 text-sm text-muted-foreground backdrop-blur transition-all hover:-translate-y-px hover:border-foreground/20 hover:text-foreground hover:shadow-sm"
+                  >
+                    <Icon className="size-3.5" />
+                    {label}
+                  </button>
+                ))}
               </div>
             </div>
           </div>

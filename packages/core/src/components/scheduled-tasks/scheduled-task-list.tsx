@@ -14,6 +14,7 @@ import {
 import { Button } from '@vivexy/ui/button';
 import { Switch } from '@vivexy/ui/switch';
 import { Badge } from '@vivexy/ui/badge';
+import { EmptyState } from '@vivexy/ui/page-header';
 import { scheduledTasksService } from '@vivexy/core/services/scheduled-tasks.service';
 import type { ScheduledTask } from '@vivexy/core/types/scheduled-task';
 
@@ -119,18 +120,17 @@ export function ScheduledTaskList({
 
   if (tasks.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-center">
-        <CalendarClock className="h-12 w-12 text-muted-foreground/40 mb-4" />
-        <h3 className="text-lg font-medium mb-1">No scheduled tasks yet</h3>
-        <p className="text-sm text-muted-foreground mb-6 max-w-sm">
-          Schedule a chat prompt to run automatically — daily, weekly, or at a
-          specific time.
-        </p>
-        <Button onClick={onNew}>
-          <Plus className="h-4 w-4 mr-1.5" />
-          New Scheduled Task
-        </Button>
-      </div>
+      <EmptyState
+        icon={<CalendarClock />}
+        title="Nothing scheduled yet"
+        description="Schedule a chat prompt to run automatically — daily, weekly, or at a specific time. Results land in your chat history."
+        action={
+          <Button onClick={onNew}>
+            <Plus className="h-4 w-4" />
+            New scheduled task
+          </Button>
+        }
+      />
     );
   }
 
@@ -139,7 +139,7 @@ export function ScheduledTaskList({
       {tasks.map((task) => (
         <div
           key={task.id}
-          className="rounded-xl border border-border bg-background p-4 flex flex-col sm:flex-row sm:items-start gap-4 hover:border-primary/30 transition-colors"
+          className="rounded-2xl border border-border/80 bg-card p-5 flex flex-col sm:flex-row sm:items-start gap-4 shadow-[0_1px_2px_rgb(0_0_0/0.04)] hover:shadow-md hover:border-foreground/15 transition-all"
         >
           {/* Active toggle */}
           <div className="flex items-center gap-2 shrink-0 pt-0.5">

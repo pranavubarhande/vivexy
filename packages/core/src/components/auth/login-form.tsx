@@ -68,8 +68,8 @@ export function LoginForm() {
 
   return (
     <div className="space-y-6">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-serif font-semibold">Welcome back</h1>
+      <div className="space-y-2">
+        <h1 className="font-serif text-4xl tracking-tight">Welcome back</h1>
         <p className="text-sm text-muted-foreground">
           Sign in to your account to continue
         </p>
@@ -101,7 +101,7 @@ export function LoginForm() {
           <span className="w-full border-t" />
         </div>
         <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-background px-2 text-muted-foreground">
+          <span className="bg-background px-3 tracking-wider text-muted-foreground">
             Or continue with email
           </span>
         </div>
@@ -111,9 +111,7 @@ export function LoginForm() {
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           {loginMutation.error && (
             <Alert variant="destructive">
-              <AlertDescription>
-                {loginMutation.error.message}
-              </AlertDescription>
+              <AlertDescription>{loginMutation.error.message}</AlertDescription>
             </Alert>
           )}
 
@@ -124,7 +122,11 @@ export function LoginForm() {
               <FormItem>
                 <FormLabel>Email</FormLabel>
                 <FormControl>
-                  <Input type="email" placeholder="Enter your email" {...field} />
+                  <Input
+                    type="email"
+                    placeholder="Enter your email"
+                    {...field}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -164,7 +166,11 @@ export function LoginForm() {
             )}
           />
 
-          <Button type="submit" className="w-full" disabled={loginMutation.isPending}>
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={loginMutation.isPending}
+          >
             {loginMutation.isPending ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -179,7 +185,10 @@ export function LoginForm() {
 
       <div className="text-sm text-muted-foreground text-center">
         Don&apos;t have an account?{' '}
-        <Link href="/register" className="text-primary hover:underline">
+        <Link
+          href="/register"
+          className="font-medium text-foreground underline decoration-lime decoration-2 underline-offset-4 hover:decoration-foreground"
+        >
           Sign up
         </Link>
       </div>

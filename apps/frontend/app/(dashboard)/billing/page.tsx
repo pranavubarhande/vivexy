@@ -8,6 +8,8 @@ import {
 } from '@vivexy/ui/card';
 import { Button } from '@vivexy/ui/button';
 import { Badge } from '@vivexy/ui/badge';
+import { PageContainer, PageHeader } from '@vivexy/ui/page-header';
+import { cn } from '@vivexy/ui/utils';
 import {
   Table,
   TableBody,
@@ -45,6 +47,7 @@ import {
   MoreHorizontal,
   Calendar,
   DollarSign,
+  Check,
   CheckCircle,
   XCircle,
   Clock,
@@ -134,46 +137,63 @@ const PlanCard = ({
   const config = plans.find((p) => p.key === plan) as PlanConfig;
 
   return (
-    <Card className={`relative ${isCurrent ? 'border-primary' : ''}`}>
-      {isCurrent && (
-        <div className="absolute -top-2 left-1/2 -translate-x-1/2">
-          <Badge className="bg-primary">Current Plan</Badge>
-        </div>
+    <Card
+      className={cn(
+        'relative flex flex-col p-6',
+        isCurrent &&
+          'border-transparent bg-night text-white shadow-xl ring-1 ring-night'
       )}
-      <CardHeader>
+    >
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          {plan === 'ENTERPRISE' && (
-            <Crown className="h-5 w-5 text-yellow-500" />
+          {plan === 'ENTERPRISE' && <Crown className="h-4 w-4" />}
+          {plan === 'PRO' && <Zap className="h-4 w-4" />}
+          {plan === 'FREE' && <Building className="h-4 w-4" />}
+          <span className="font-medium">{config.name}</span>
+        </div>
+        {isCurrent && <Badge variant="lime">Current plan</Badge>}
+      </div>
+      <div className="mt-6 flex items-baseline gap-1">
+        <span
+          className={cn(
+            'font-serif text-5xl tracking-tight',
+            isCurrent && 'text-lime'
           )}
-          {plan === 'PRO' && <Zap className="h-5 w-5 text-blue-500" />}
-          {plan === 'FREE' && <Building className="h-5 w-5 text-gray-500" />}
-          <CardTitle className="text-lg">{config.name}</CardTitle>
-        </div>
-        <div className="text-3xl font-bold">
-          ${config.priceMonthly}
-          <span className="text-sm font-normal text-muted-foreground">
-            /month
-          </span>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <ul className="space-y-2 mb-4">
-          {config.features.map((feature, index) => (
-            <li key={index} className="flex items-center gap-2 text-sm">
-              <CheckCircle className="h-4 w-4 text-green-500" />
-              {feature}
-            </li>
-          ))}
-        </ul>
-        <Button
-          onClick={() => onSelect(plan)}
-          disabled={isCurrent}
-          className="w-full"
-          variant={isCurrent ? 'outline' : 'default'}
         >
-          {isCurrent ? 'Current Plan' : `Choose ${config.name}`}
-        </Button>
-      </CardContent>
+          ${config.priceMonthly}
+        </span>
+        <span
+          className={cn(
+            'text-sm',
+            isCurrent ? 'text-white/60' : 'text-muted-foreground'
+          )}
+        >
+          /month
+        </span>
+      </div>
+      <ul className="mt-6 mb-8 space-y-2.5">
+        {config.features.map((feature, index) => (
+          <li key={index} className="flex items-center gap-2.5 text-sm">
+            <span
+              className={cn(
+                'flex size-4 items-center justify-center rounded-full',
+                isCurrent ? 'bg-lime text-lime-foreground' : 'bg-muted'
+              )}
+            >
+              <Check className="size-3" />
+            </span>
+            {feature}
+          </li>
+        ))}
+      </ul>
+      <Button
+        onClick={() => onSelect(plan)}
+        disabled={isCurrent}
+        className="mt-auto w-full"
+        variant={isCurrent ? 'secondary' : 'outline'}
+      >
+        {isCurrent ? 'Your current plan' : `Choose ${config.name}`}
+      </Button>
     </Card>
   );
 };
@@ -196,19 +216,6 @@ const SubscriptionStatus = ({
     }
   };
 
-  const getStatusColor = () => {
-    switch (subscription.status) {
-      case 'ACTIVE':
-        return 'bg-green-100 text-green-800';
-      case 'PAST_DUE':
-        return 'bg-red-100 text-red-800';
-      case 'CANCELED':
-        return 'bg-gray-100 text-gray-800';
-      default:
-        return 'bg-yellow-100 text-yellow-800';
-    }
-  };
-
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -216,7 +223,11 @@ const SubscriptionStatus = ({
           {getStatusIcon()}
           <span className="font-medium">Current Subscription</span>
         </div>
-        <Badge className={getStatusColor()}>{subscription.status}</Badge>
+        <Badge
+          variant={subscription.status === 'ACTIVE' ? 'success' : 'secondary'}
+        >
+          {subscription.status}
+        </Badge>
       </div>
 
       <div className="grid grid-cols-2 gap-4 text-sm">
@@ -363,53 +374,39 @@ export default function BillingPage() {
     }
   };
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Billing</h1>
-          <p className="text-muted-foreground">
-            Manage your subscription and billing information.
-          </p>
-        </div>
-        <ChangePlanDialog />
-      </div>
+    <PageContainer className="space-y-8">
+      <PageHeader
+        className="mb-0"
+        eyebrow="Billing"
+        title="Plans & billing"
+        description="Manage your subscription, payment method and invoices."
+        actions={<ChangePlanDialog />}
+      />
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Current Subscription</CardTitle>
-            <CardDescription>Your active subscription details</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <SubscriptionStatus subscription={mockSubscription} />
-          </CardContent>
-        </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Current subscription</CardTitle>
+          <CardDescription>Your active subscription details</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <SubscriptionStatus subscription={mockSubscription} />
+        </CardContent>
+      </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Available Plans</CardTitle>
-            <CardDescription>
-              Choose the plan that best fits your needs
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {(['FREE', 'PRO', 'ENTERPRISE'] as Plan[]).map((p) => (
-                <PlanCard
-                  key={p}
-                  plan={p}
-                  currentPlan={mockSubscription.plan}
-                  onSelect={handleSelectPlan}
-                />
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid gap-4 md:grid-cols-3">
+        {(['FREE', 'PRO', 'ENTERPRISE'] as Plan[]).map((p) => (
+          <PlanCard
+            key={p}
+            plan={p}
+            currentPlan={mockSubscription.plan}
+            onSelect={handleSelectPlan}
+          />
+        ))}
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Billing History</CardTitle>
+          <CardTitle>Billing history</CardTitle>
           <CardDescription>
             Your past invoices and payment history
           </CardDescription>
@@ -453,7 +450,7 @@ export default function BillingPage() {
                   <TableCell>
                     <Badge
                       variant={
-                        invoice.status === 'PAID' ? 'default' : 'secondary'
+                        invoice.status === 'PAID' ? 'success' : 'secondary'
                       }
                     >
                       {invoice.status}
@@ -468,6 +465,6 @@ export default function BillingPage() {
           </Table>
         </CardContent>
       </Card>
-    </div>
+    </PageContainer>
   );
 }

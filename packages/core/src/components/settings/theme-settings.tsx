@@ -7,11 +7,11 @@ import { Check } from 'lucide-react';
 const themes = [
   {
     id: 'skin',
-    label: 'Skin & Olive',
-    description: 'Warm cream with olive green — the default editorial palette',
-    bg: '#FFFCEB',
-    primary: '#5E6738',
-    accent: '#A8B57A',
+    label: 'Lime',
+    description: 'Clean white canvas, ink type and electric lime — the default',
+    bg: '#FFFFFF',
+    primary: '#1A1A17',
+    accent: '#D6F531',
   },
   {
     id: 'dark',

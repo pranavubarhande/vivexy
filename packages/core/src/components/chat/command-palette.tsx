@@ -88,9 +88,9 @@ export const CommandPalette = ({
       {/* Header */}
       <div className="flex items-center gap-1.5 px-3 py-2 border-b bg-muted/40">
         {isSkill ? (
-          <Zap className="h-3.5 w-3.5 text-primary" />
+          <Zap className="h-3.5 w-3.5 text-ink" />
         ) : (
-          <FileText className="h-3.5 w-3.5 text-primary" />
+          <FileText className="h-3.5 w-3.5 text-ink" />
         )}
         <span className="text-xs font-medium text-muted-foreground">
           {label}
@@ -132,7 +132,7 @@ export const CommandPalette = ({
             >
               <span className="shrink-0 mt-0.5">
                 {item.type === 'skill' ? (
-                  <Zap className="h-3.5 w-3.5 text-primary" />
+                  <Zap className="h-3.5 w-3.5 text-ink" />
                 ) : (
                   <FileText className="h-3.5 w-3.5 text-muted-foreground" />
                 )}

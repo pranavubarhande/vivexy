@@ -219,7 +219,7 @@ export function FileUpload({
         <div className="text-muted-foreground">
           <span className="text-2xl block mb-2">📎</span>
           <p className="text-sm">
-            Drop files here or <span className="text-primary">browse</span>
+            Drop files here or <span className="text-ink">browse</span>
           </p>
           <p className="text-xs mt-1">
             Max {maxFiles} files, {maxSizeMB}MB each

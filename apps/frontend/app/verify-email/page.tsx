@@ -5,6 +5,8 @@ import { useSearchParams } from 'next/navigation';
 import { useVerifyEmail } from '@vivexy/core/hooks/useAuth';
 import { Button } from '@vivexy/ui/button';
 import Link from 'next/link';
+import { MailCheck, MailX } from 'lucide-react';
+import { AuthStatus } from '@vivexy/core/auth/auth-status';
 
 function VerifyEmailPageInner() {
   const searchParams = useSearchParams();
@@ -31,51 +33,42 @@ function VerifyEmailPageInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
-      <div className="text-center space-y-4 max-w-md">
-        {status === 'pending' && (
-          <p className="text-muted-foreground">Verifying your email...</p>
-        )}
-        {status === 'success' && (
-          <>
-            <h1 className="text-xl font-bold">Email verified</h1>
-            <p className="text-muted-foreground">
-              Your email address has been verified.
-            </p>
-            <Link href="/chat">
-              <Button>Continue</Button>
-            </Link>
-          </>
-        )}
-        {status === 'error' && (
-          <>
-            <h1 className="text-xl font-bold">Link expired</h1>
-            <p className="text-muted-foreground">
-              This verification link is invalid or has expired. You can request
-              a new one from inside the app.
-            </p>
-            <Link href="/login">
-              <Button variant="outline">Back to sign in</Button>
-            </Link>
-          </>
-        )}
-      </div>
-    </div>
-  );
+  if (status === 'success') {
+    return (
+      <AuthStatus
+        icon={<MailCheck />}
+        title="Email verified"
+        description="Your email address has been verified. You're all set."
+        action={
+          <Button asChild>
+            <Link href="/chat">Continue to workspace</Link>
+          </Button>
+        }
+      />
+    );
+  }
+
+  if (status === 'error') {
+    return (
+      <AuthStatus
+        icon={<MailX />}
+        title="Link expired"
+        description="This verification link is invalid or has expired. You can request a new one from inside the app."
+        action={
+          <Button variant="outline" asChild>
+            <Link href="/login">Back to sign in</Link>
+          </Button>
+        }
+      />
+    );
+  }
+
+  return <AuthStatus pending title="Verifying your email…" />;
 }
 
 export default function VerifyEmailPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen flex items-center justify-center bg-background px-4">
-          <div className="text-center space-y-4 max-w-md">
-            <p className="text-muted-foreground">Verifying your email...</p>
-          </div>
-        </div>
-      }
-    >
+    <Suspense fallback={<AuthStatus pending title="Verifying your email…" />}>
       <VerifyEmailPageInner />
     </Suspense>
   );

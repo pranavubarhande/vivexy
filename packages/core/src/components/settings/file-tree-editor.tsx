@@ -73,7 +73,7 @@ export const FileTreeEditor = ({
               onClick={() => setSelectedFile(filename)}
               className={`group flex items-center gap-1.5 px-2 py-1.5 cursor-pointer text-xs rounded mx-1 ${
                 selectedFile === filename
-                  ? 'bg-primary/10 text-primary font-medium'
+                  ? 'bg-primary/10 text-ink font-medium'
                   : 'hover:bg-muted/60 text-foreground/80'
               }`}
             >
@@ -107,10 +107,7 @@ export const FileTreeEditor = ({
                 className="h-6 text-xs px-1.5"
                 autoFocus
               />
-              <button
-                onClick={addFile}
-                className="text-primary hover:text-primary/80"
-              >
+              <button onClick={addFile} className="text-ink hover:text-ink/80">
                 <ChevronRight className="h-3.5 w-3.5" />
               </button>
             </div>

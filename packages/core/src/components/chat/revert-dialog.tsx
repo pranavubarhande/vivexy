@@ -68,7 +68,7 @@ function OptionCard({
               ? 'bg-muted text-muted-foreground'
               : destructive
                 ? 'bg-destructive/10 text-destructive group-hover:bg-destructive/15'
-                : 'bg-primary/10 text-primary group-hover:bg-primary/15'
+                : 'bg-primary/10 text-ink group-hover:bg-primary/15'
           )}
         >
           {loading ? <Loader2 size={14} className="animate-spin" /> : icon}

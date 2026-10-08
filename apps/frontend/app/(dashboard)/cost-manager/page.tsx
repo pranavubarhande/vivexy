@@ -13,17 +13,10 @@ import {
   CardHeader,
   CardTitle,
 } from '@vivexy/ui/card';
-import { Tabs, TabsList, TabsTrigger } from '@vivexy/ui/tabs';
-import { Badge } from '@vivexy/ui/badge';
+import { PageContainer, PageHeader } from '@vivexy/ui/page-header';
+import { cn } from '@vivexy/ui/utils';
 import { Skeleton } from '@vivexy/ui/skeleton';
-import {
-  Coins,
-  Zap,
-  MessageSquare,
-  TrendingUp,
-  ArrowUpRight,
-  ArrowDownRight,
-} from 'lucide-react';
+import { Coins, Zap, MessageSquare, TrendingUp, BarChart3 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -58,15 +51,8 @@ interface StatCardProps {
   sub?: string;
   icon: React.ReactNode;
   loading?: boolean;
-  accent?: 'green' | 'blue' | 'violet' | 'amber';
+  featured?: boolean;
 }
-
-const accentClasses: Record<string, string> = {
-  green: 'text-emerald-500 bg-emerald-500/10',
-  blue: 'text-blue-500 bg-blue-500/10',
-  violet: 'text-violet-500 bg-violet-500/10',
-  amber: 'text-amber-500 bg-amber-500/10',
-};
 
 function StatCard({
   title,
@@ -74,31 +60,93 @@ function StatCard({
   sub,
   icon,
   loading,
-  accent = 'blue',
+  featured,
 }: StatCardProps) {
   return (
-    <Card>
-      <CardContent className="pt-5 pb-4">
-        <div className="flex items-start justify-between">
-          <div className="space-y-1.5">
-            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
-              {title}
-            </p>
-            {loading ? (
-              <Skeleton className="h-7 w-24" />
-            ) : (
-              <p className="text-2xl font-bold">{value}</p>
-            )}
-            {sub && !loading && (
-              <p className="text-xs text-muted-foreground">{sub}</p>
-            )}
-          </div>
-          <div className={`p-2.5 rounded-xl ${accentClasses[accent]}`}>
-            {icon}
-          </div>
+    <Card
+      className={cn(
+        'relative overflow-hidden p-5',
+        featured &&
+          'border-transparent bg-night text-white ring-1 ring-white/10'
+      )}
+    >
+      {featured && (
+        <div className="pointer-events-none absolute -right-10 -top-10 size-36 rounded-full bg-lime/25 blur-2xl" />
+      )}
+      <div className="relative flex items-center justify-between">
+        <p
+          className={cn(
+            'text-xs font-medium uppercase tracking-[0.12em]',
+            featured ? 'text-white/60' : 'text-muted-foreground'
+          )}
+        >
+          {title}
+        </p>
+        <div
+          className={cn(
+            'flex size-8 items-center justify-center rounded-full [&_svg]:size-4',
+            featured
+              ? 'bg-lime text-lime-foreground'
+              : 'bg-muted text-foreground'
+          )}
+        >
+          {icon}
         </div>
-      </CardContent>
+      </div>
+      <div className="relative mt-6">
+        {loading ? (
+          <Skeleton className={cn('h-9 w-28', featured && 'bg-white/10')} />
+        ) : (
+          <p
+            className={cn(
+              'font-serif text-4xl tracking-tight tabular-nums',
+              featured && 'text-lime'
+            )}
+          >
+            {value}
+          </p>
+        )}
+        {sub && !loading && (
+          <p
+            className={cn(
+              'mt-1 text-xs',
+              featured ? 'text-white/60' : 'text-muted-foreground'
+            )}
+          >
+            {sub}
+          </p>
+        )}
+      </div>
     </Card>
+  );
+}
+
+function Segmented<T extends string | number>({
+  options,
+  value,
+  onChange,
+}: {
+  options: { label: string; value: T }[];
+  value: T;
+  onChange: (v: T) => void;
+}) {
+  return (
+    <div className="inline-flex items-center gap-0.5 rounded-full border border-border bg-muted/60 p-1">
+      {options.map((o) => (
+        <button
+          key={o.value}
+          onClick={() => onChange(o.value)}
+          className={cn(
+            'rounded-full px-3.5 py-1 text-sm font-medium capitalize transition-all',
+            value === o.value
+              ? 'bg-background text-foreground shadow-sm'
+              : 'text-muted-foreground hover:text-foreground'
+          )}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -119,8 +167,9 @@ function DailyBarChart({ data, metric }: DailyBarChartProps) {
 
   if (data.length === 0) {
     return (
-      <div className="flex items-center justify-center h-32 text-sm text-muted-foreground">
-        No data for this period
+      <div className="flex h-32 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border text-sm text-muted-foreground">
+        <BarChart3 className="h-5 w-5 opacity-50" />
+        No usage in this period yet
       </div>
     );
   }
@@ -143,7 +192,7 @@ function DailyBarChart({ data, metric }: DailyBarChartProps) {
               style={{ height: 96 }}
             >
               <div
-                className="w-full rounded-t-sm bg-primary/20 group-hover:bg-primary/40 transition-all duration-150"
+                className="w-full rounded-t-md bg-lime/60 group-hover:bg-lime transition-all duration-150"
                 style={{ height: `${Math.max(pct, 2)}%` }}
               />
               {/* Tooltip on hover */}
@@ -215,33 +264,20 @@ export default function CostManagerPage() {
   const avgCostPerMsg = msgCount > 0 ? totalCost / msgCount : 0;
 
   return (
-    <div className="p-6 space-y-6 max-w-5xl">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Cost Manager</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Token usage and spend across all your AI conversations
-          </p>
-        </div>
-
-        {/* Period selector */}
-        <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
-          {PERIODS.map((p) => (
-            <button
-              key={p.value}
-              onClick={() => setDays(p.value)}
-              className={`px-3 py-1.5 text-sm rounded-md font-medium transition-all ${
-                days === p.value
-                  ? 'bg-background shadow-sm text-foreground'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
-      </div>
+    <PageContainer className="space-y-6">
+      <PageHeader
+        className="mb-2"
+        eyebrow="Usage"
+        title="Cost manager"
+        description="Token usage and spend across all your AI conversations."
+        actions={
+          <Segmented
+            options={PERIODS.map((p) => ({ label: p.label, value: p.value }))}
+            value={days}
+            onChange={setDays}
+          />
+        }
+      />
 
       {/* Stat cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -251,7 +287,7 @@ export default function CostManagerPage() {
           sub={`Last ${days} days`}
           icon={<Coins size={18} />}
           loading={summaryLoading}
-          accent="green"
+          featured
         />
         <StatCard
           title="Total Tokens"
@@ -259,7 +295,6 @@ export default function CostManagerPage() {
           sub={`${fmt.tokens(summary?.inputTokens ?? 0)} in · ${fmt.tokens(summary?.outputTokens ?? 0)} out`}
           icon={<Zap size={18} />}
           loading={summaryLoading}
-          accent="blue"
         />
         <StatCard
           title="Messages"
@@ -267,7 +302,6 @@ export default function CostManagerPage() {
           sub="AI responses tracked"
           icon={<MessageSquare size={18} />}
           loading={summaryLoading}
-          accent="violet"
         />
         <StatCard
           title="Avg per Message"
@@ -275,7 +309,6 @@ export default function CostManagerPage() {
           sub="Cost per AI response"
           icon={<TrendingUp size={18} />}
           loading={summaryLoading}
-          accent="amber"
         />
       </div>
 
@@ -290,21 +323,14 @@ export default function CostManagerPage() {
                 last {days} days
               </CardDescription>
             </div>
-            <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
-              {(['cost', 'tokens'] as const).map((m) => (
-                <button
-                  key={m}
-                  onClick={() => setChartMetric(m)}
-                  className={`px-3 py-1 text-xs rounded-md font-medium transition-all capitalize ${
-                    chartMetric === m
-                      ? 'bg-background shadow-sm text-foreground'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  {m}
-                </button>
-              ))}
-            </div>
+            <Segmented
+              options={[
+                { label: 'Cost', value: 'cost' as const },
+                { label: 'Tokens', value: 'tokens' as const },
+              ]}
+              value={chartMetric}
+              onChange={setChartMetric}
+            />
           </div>
         </CardHeader>
         <CardContent>
@@ -391,7 +417,7 @@ export default function CostManagerPage() {
                           {/* Cost share bar */}
                           <div className="mt-1.5 h-1 bg-muted rounded-full overflow-hidden w-full max-w-[200px]">
                             <div
-                              className="h-full bg-primary/50 rounded-full"
+                              className="h-full bg-lime rounded-full"
                               style={{ width: `${sharePct}%` }}
                             />
                           </div>
@@ -459,13 +485,13 @@ export default function CostManagerPage() {
       </Card>
 
       {/* Cost note */}
-      <p className="text-xs text-muted-foreground text-center pb-2">
+      <p className="mx-auto max-w-3xl text-xs leading-relaxed text-muted-foreground text-center pb-2">
         Token counts include <strong>all LLM calls</strong> per message — tool
         calls (e.g. Set Chat Title, web search) each consume tokens in addition
         to the final response. Input tokens include the full system prompt and
         conversation history sent on each call. Costs are estimates based on
         per-model pricing; free/local models show $0.
       </p>
-    </div>
+    </PageContainer>
   );
 }
