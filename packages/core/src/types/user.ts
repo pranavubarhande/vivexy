@@ -29,6 +29,7 @@ export interface AuthUser {
   name: string | null;
   role: Role;
   avatar: string | null;
+  emailVerified: boolean;
 }
 
 export interface AuthResponse {

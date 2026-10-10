@@ -200,7 +200,7 @@ export const ChatHeader = ({
         <div
           className={cn(
             'flex items-center gap-1.5 text-xs font-medium text-muted-foreground px-2',
-            isStreaming && 'text-primary'
+            isStreaming && 'text-ink'
           )}
         >
           <div

@@ -208,7 +208,7 @@ export function AgentSelector({
             {/* Header */}
             <div className="flex items-center gap-3 px-5 pt-4 pb-3.5 border-b border-border/50">
               <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                <Bot size={16} className="text-primary" />
+                <Bot size={16} className="text-ink" />
               </div>
               <div className="flex-1 min-w-0">
                 <h2 className="text-[13px] font-semibold tracking-tight">

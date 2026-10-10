@@ -1,15 +1,9 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@vivexy/ui/card';
+import { Card } from '@vivexy/ui/card';
+import { EmptyState, PageContainer, PageHeader } from '@vivexy/ui/page-header';
 import { Button } from '@vivexy/ui/button';
-import { Badge } from '@vivexy/ui/badge';
 import { Input } from '@vivexy/ui/input';
 import { Link2, Link2Off, Search, Plug } from 'lucide-react';
 import { toast } from 'sonner';
@@ -137,26 +131,19 @@ const CONNECTORS: {
 
 function ConnectorSkeleton() {
   return (
-    <Card className="flex flex-col animate-pulse">
-      <CardHeader className="pb-3">
-        <div className="flex justify-between items-start">
-          <div className="flex items-center gap-3">
-            <div className="h-11 w-11 rounded-lg bg-muted" />
-            <div className="space-y-1.5">
-              <div className="h-4 w-24 rounded bg-muted" />
-              <div className="h-3 w-16 rounded bg-muted" />
-            </div>
-          </div>
-          <div className="h-5 w-20 rounded-full bg-muted" />
+    <Card className="flex flex-col gap-4 p-5 animate-pulse">
+      <div className="flex items-center gap-3">
+        <div className="h-12 w-12 rounded-xl bg-muted" />
+        <div className="space-y-1.5">
+          <div className="h-4 w-24 rounded bg-muted" />
+          <div className="h-3 w-16 rounded bg-muted" />
         </div>
-        <div className="space-y-1.5 pt-1">
-          <div className="h-3 w-full rounded bg-muted" />
-          <div className="h-3 w-3/4 rounded bg-muted" />
-        </div>
-      </CardHeader>
-      <CardContent className="mt-auto pt-0">
-        <div className="h-9 w-full rounded-md bg-muted" />
-      </CardContent>
+      </div>
+      <div className="space-y-1.5">
+        <div className="h-3 w-full rounded bg-muted" />
+        <div className="h-3 w-3/4 rounded bg-muted" />
+      </div>
+      <div className="h-9 w-full rounded-full bg-muted" />
     </Card>
   );
 }
@@ -170,6 +157,12 @@ interface ConnectorCardProps {
   onDisconnect: () => void;
 }
 
+function Spinner() {
+  return (
+    <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+  );
+}
+
 function ConnectorCard({
   connector,
   isConnected,
@@ -181,92 +174,78 @@ function ConnectorCard({
   return (
     <Card
       className={cn(
-        'flex flex-col transition-all duration-200 hover:shadow-md',
-        isConnected && 'border-l-4 border-l-green-500'
+        'group flex flex-col gap-4 p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg',
+        isConnected &&
+          'border-primary-500/60 bg-[linear-gradient(180deg,var(--color-primary-50),var(--color-card)_55%)]'
       )}
     >
-      <CardHeader className="pb-3">
-        <div className="flex justify-between items-start gap-2">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="h-11 w-11 shrink-0 overflow-hidden rounded-lg flex items-center justify-center bg-muted/50 border border-border p-1.5">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={connector.logo}
-                alt={connector.name}
-                className="h-full w-full object-contain"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = 'none';
-                }}
-              />
-            </div>
-            <div className="min-w-0">
-              <CardTitle className="text-base leading-tight">
-                {connector.name}
-              </CardTitle>
-              <span className="text-xs text-muted-foreground">
-                {connector.category}
-              </span>
-            </div>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-background p-2 shadow-xs">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={connector.logo}
+              alt={connector.name}
+              className="h-full w-full object-contain"
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = 'none';
+              }}
+            />
           </div>
-          {isConnected ? (
-            <Badge className="bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/30 shrink-0 hover:bg-green-500/15">
-              Connected
-            </Badge>
-          ) : (
-            <Badge
-              variant="secondary"
-              className="shrink-0 text-muted-foreground"
-            >
-              Not Connected
-            </Badge>
-          )}
+          <div className="min-w-0">
+            <h3 className="truncate font-semibold leading-tight">
+              {connector.name}
+            </h3>
+            <span className="text-xs text-muted-foreground whitespace-nowrap">
+              {connector.category}
+            </span>
+          </div>
         </div>
-        <CardDescription className="line-clamp-2 min-h-[36px] text-sm">
-          {connector.description}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="mt-auto pt-0">
+        <span
+          className={cn(
+            'mt-1 inline-flex shrink-0 items-center gap-1.5 text-xs font-medium',
+            isConnected ? 'text-ink' : 'text-muted-foreground/70'
+          )}
+        >
+          <span
+            className={cn(
+              'size-1.5 rounded-full',
+              isConnected
+                ? 'bg-lime ring-2 ring-lime/30'
+                : 'bg-muted-foreground/30'
+            )}
+          />
+          {isConnected ? 'Connected' : 'Off'}
+        </span>
+      </div>
+      <p className="line-clamp-2 min-h-10 text-sm text-muted-foreground">
+        {connector.description}
+      </p>
+      <div className="mt-auto">
         {isConnected ? (
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
-            className="w-full text-destructive hover:text-destructive hover:bg-destructive/5 border-destructive/20"
+            className="w-full text-muted-foreground hover:text-destructive hover:bg-destructive/5"
             onClick={onDisconnect}
             disabled={isDisconnecting}
           >
-            {isDisconnecting ? (
-              <>
-                <div className="animate-spin mr-2 h-3.5 w-3.5 border-2 border-current border-t-transparent rounded-full" />
-                Disconnecting...
-              </>
-            ) : (
-              <>
-                <Link2Off className="mr-2 h-3.5 w-3.5" />
-                Disconnect
-              </>
-            )}
+            {isDisconnecting ? <Spinner /> : <Link2Off />}
+            {isDisconnecting ? 'Disconnecting…' : 'Disconnect'}
           </Button>
         ) : (
           <Button
+            variant="outline"
             size="sm"
-            className="w-full"
+            className="w-full group-hover:border-foreground/30"
             onClick={onConnect}
             disabled={isConnecting}
           >
-            {isConnecting ? (
-              <>
-                <div className="animate-spin mr-2 h-3.5 w-3.5 border-2 border-current border-t-transparent rounded-full" />
-                Connecting...
-              </>
-            ) : (
-              <>
-                <Link2 className="mr-2 h-3.5 w-3.5" />
-                Connect
-              </>
-            )}
+            {isConnecting ? <Spinner /> : <Link2 />}
+            {isConnecting ? 'Connecting…' : 'Connect'}
           </Button>
         )}
-      </CardContent>
+      </div>
     </Card>
   );
 }
@@ -329,50 +308,50 @@ export default function ConnectorsPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">
-            Integrations & Connectors
-          </h2>
-          <p className="text-muted-foreground mt-1">
-            Connect your favorite tools to allow the AI agent to interact with
-            them securely.
-          </p>
-        </div>
-        {!isLoading && (
-          <div className="shrink-0 flex items-center gap-2 bg-muted/60 rounded-lg px-4 py-2.5 text-sm">
-            <Plug className="h-4 w-4 text-muted-foreground" />
-            <span className="font-semibold">{connectedCount}</span>
-            <span className="text-muted-foreground">
-              / {CONNECTORS.length} connected
-            </span>
-          </div>
-        )}
-      </div>
+    <PageContainer size="wide">
+      <PageHeader
+        eyebrow="Integrations"
+        title="Connect your tools"
+        description="Give your agents secure access to the apps your team already uses. Connections are scoped to your account and can be revoked any time."
+        actions={
+          !isLoading && (
+            <div className="flex items-center gap-3 rounded-full border border-border bg-background py-1.5 pl-1.5 pr-4 text-sm shadow-xs">
+              <span className="flex size-7 items-center justify-center rounded-full bg-lime text-lime-foreground">
+                <Plug className="h-3.5 w-3.5" />
+              </span>
+              <span>
+                <span className="font-semibold">{connectedCount}</span>
+                <span className="text-muted-foreground">
+                  {' '}
+                  of {CONNECTORS.length} connected
+                </span>
+              </span>
+            </div>
+          )
+        }
+      />
 
       {/* Search + Category filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+      <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center">
+        <div className="relative w-full lg:max-w-xs">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
           <Input
-            placeholder="Search integrations..."
+            placeholder="Search integrations…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
+            className="rounded-full pl-10"
           />
         </div>
-        <div className="flex gap-1.5 flex-wrap">
+        <div className="no-scrollbar flex gap-1.5 overflow-x-auto">
           {CATEGORIES.map((cat) => (
             <button
               key={cat}
               onClick={() => setActiveCategory(cat)}
               className={cn(
-                'px-3 py-1.5 rounded-full text-sm font-medium transition-colors',
+                'whitespace-nowrap rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors',
                 activeCategory === cat
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground'
+                  ? 'border-foreground bg-foreground text-background'
+                  : 'border-border bg-background text-muted-foreground hover:border-foreground/25 hover:text-foreground'
               )}
             >
               {cat}
@@ -389,15 +368,11 @@ export default function ConnectorsPage() {
           ))}
         </div>
       ) : filteredConnectors.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <Search className="h-10 w-10 text-muted-foreground/40 mb-3" />
-          <p className="font-medium text-muted-foreground">
-            No integrations found
-          </p>
-          <p className="text-sm text-muted-foreground/70 mt-1">
-            Try a different search or category
-          </p>
-        </div>
+        <EmptyState
+          icon={<Search />}
+          title="No integrations found"
+          description="Try a different search term or category."
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filteredConnectors.map((connector) => (
@@ -419,6 +394,6 @@ export default function ConnectorsPage() {
           ))}
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 }

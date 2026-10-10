@@ -29,7 +29,7 @@ function StatusIcon({ status }: { status: Todo['status'] }) {
   if (status === 'COMPLETED')
     return <CheckCircle2 size={16} className="text-emerald-500" />;
   if (status === 'IN_PROGRESS')
-    return <Loader2 size={16} className="text-primary animate-spin" />;
+    return <Loader2 size={16} className="text-ink animate-spin" />;
   if (status === 'CANCELLED')
     return <XCircle size={16} className="text-muted-foreground/50" />;
   return <Circle size={16} className="text-muted-foreground/40" />;

@@ -330,7 +330,7 @@ export const ChatInput = ({
         {/* Drag overlay hint */}
         {isDragging && (
           <div className="absolute inset-0 z-10 flex items-center justify-center rounded-inherit bg-primary/5 pointer-events-none">
-            <p className="text-sm font-medium text-primary">Drop files here</p>
+            <p className="text-sm font-medium text-ink">Drop files here</p>
           </div>
         )}
 

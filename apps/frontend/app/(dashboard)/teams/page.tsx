@@ -9,6 +9,8 @@ import {
 } from '@vivexy/ui/card';
 import { Button } from '@vivexy/ui/button';
 import { Badge } from '@vivexy/ui/badge';
+import { Skeleton } from '@vivexy/ui/skeleton';
+import { EmptyState, PageContainer, PageHeader } from '@vivexy/ui/page-header';
 import {
   Table,
   TableBody,
@@ -48,7 +50,6 @@ import {
   Plus,
   MoreHorizontal,
   Users,
-  Calendar,
   Edit,
   Trash2,
   UserPlus,
@@ -71,73 +72,80 @@ import { Team, TeamMember, TeamRole } from '@vivexy/core/types/team';
 export default function TeamsPage() {
   const { data: teams, isLoading } = useTeams();
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <div className="text-muted-foreground">Loading teams...</div>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between mt-2">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Teams</h1>
-        </div>
-        <CreateTeamDialog />
-      </div>
+    <PageContainer>
+      <PageHeader
+        eyebrow="Organization"
+        title="Teams"
+        description="Bring colleagues into shared workspaces, manage roles and keep everyone working from the same context."
+        actions={teams && teams.length > 0 ? <CreateTeamDialog /> : null}
+      />
 
-      {teams && teams.length > 0 ? (
+      {isLoading ? (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} className="h-48 rounded-2xl" />
+          ))}
+        </div>
+      ) : teams && teams.length > 0 ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {teams.map((team) => (
-            <Card key={team.id} className="relative">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">{team.name}</CardTitle>
+            <Card
+              key={team.id}
+              className="group relative flex flex-col transition-all hover:-translate-y-0.5 hover:shadow-lg"
+            >
+              <CardHeader className="pb-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-lime font-serif text-xl text-lime-foreground">
+                      {team.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <CardTitle className="truncate text-base">
+                        {team.name}
+                      </CardTitle>
+                      <p className="text-xs text-muted-foreground">
+                        Created{' '}
+                        {new Date(team.createdAt).toLocaleDateString(
+                          undefined,
+                          { month: 'short', day: 'numeric', year: 'numeric' }
+                        )}
+                      </p>
+                    </div>
+                  </div>
                   <TeamActions team={team} />
                 </div>
-                {team.description && (
-                  <CardDescription>{team.description}</CardDescription>
-                )}
+                <CardDescription className="line-clamp-2 min-h-10 pt-2">
+                  {team.description || 'No description yet.'}
+                </CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between text-sm text-muted-foreground">
-                  <div className="flex items-center gap-2">
-                    <Users className="h-4 w-4" />
-                    {team._count?.members || 0} members
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4" />
-                    {new Date(team.createdAt).toLocaleDateString()}
-                  </div>
+              <CardContent className="mt-auto">
+                <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
+                  <Users className="h-4 w-4" />
+                  <span>
+                    <span className="font-medium text-foreground">
+                      {team._count?.members || 0}
+                    </span>{' '}
+                    {team._count?.members === 1 ? 'member' : 'members'}
+                  </span>
                 </div>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <div className="flex-1 min-w-[120px]">
-                    <TeamMembersDialog team={team} />
-                  </div>
-                  <div className="flex-1 min-w-[120px]">
-                    <InviteMemberDialog team={team} />
-                  </div>
+                <div className="grid grid-cols-2 gap-2 border-t border-border/70 pt-4">
+                  <TeamMembersDialog team={team} />
+                  <InviteMemberDialog team={team} />
                 </div>
               </CardContent>
             </Card>
           ))}
         </div>
       ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle>No Teams Yet</CardTitle>
-            <CardDescription>
-              Create your first team to start collaborating with others.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <CreateTeamDialog />
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={<Users />}
+          title="No teams yet"
+          description="Create your first team to share chats, agents and integrations with your colleagues."
+          action={<CreateTeamDialog />}
+        />
       )}
-    </div>
+    </PageContainer>
   );
 }
 
@@ -162,8 +170,8 @@ const CreateTeamDialog = () => {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          Create Team
+          <Plus className="h-4 w-4" />
+          Create team
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
@@ -174,25 +182,20 @@ const CreateTeamDialog = () => {
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="name" className="text-right">
-                Name
-              </Label>
+          <div className="grid gap-4 py-2">
+            <div className="grid gap-2">
+              <Label htmlFor="name">Name</Label>
               <Input
                 id="name"
                 value={formData.name}
                 onChange={(e) =>
                   setFormData((prev) => ({ ...prev, name: e.target.value }))
                 }
-                className="col-span-3"
                 required
               />
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="description" className="text-right">
-                Description
-              </Label>
+            <div className="grid gap-2">
+              <Label htmlFor="description">Description</Label>
               <Textarea
                 id="description"
                 value={formData.description}
@@ -202,7 +205,6 @@ const CreateTeamDialog = () => {
                     description: e.target.value,
                   }))
                 }
-                className="col-span-3"
                 rows={3}
               />
             </div>
@@ -251,25 +253,20 @@ const EditTeamDialog = ({ team }: { team: Team }) => {
           <DialogDescription>Update your team information.</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="edit-name" className="text-right">
-                Name
-              </Label>
+          <div className="grid gap-4 py-2">
+            <div className="grid gap-2">
+              <Label htmlFor="edit-name">Name</Label>
               <Input
                 id="edit-name"
                 value={formData.name}
                 onChange={(e) =>
                   setFormData((prev) => ({ ...prev, name: e.target.value }))
                 }
-                className="col-span-3"
                 required
               />
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="edit-description" className="text-right">
-                Description
-              </Label>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-description">Description</Label>
               <Textarea
                 id="edit-description"
                 value={formData.description}
@@ -279,7 +276,6 @@ const EditTeamDialog = ({ team }: { team: Team }) => {
                     description: e.target.value,
                   }))
                 }
-                className="col-span-3"
                 rows={3}
               />
             </div>
@@ -320,7 +316,7 @@ const InviteMemberDialog = ({ team }: { team: Team }) => {
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="w-full">
           <UserPlus className="h-4 w-4" />
-          Invite Member
+          Invite
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
@@ -331,11 +327,9 @@ const InviteMemberDialog = ({ team }: { team: Team }) => {
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="invite-email" className="text-right">
-                Email
-              </Label>
+          <div className="grid gap-4 py-2">
+            <div className="grid gap-2">
+              <Label htmlFor="invite-email">Email</Label>
               <Input
                 id="invite-email"
                 type="email"
@@ -343,22 +337,19 @@ const InviteMemberDialog = ({ team }: { team: Team }) => {
                 onChange={(e) =>
                   setFormData((prev) => ({ ...prev, email: e.target.value }))
                 }
-                className="col-span-3"
                 placeholder="user@example.com"
                 required
               />
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="invite-role" className="text-right">
-                Role
-              </Label>
+            <div className="grid gap-2">
+              <Label htmlFor="invite-role">Role</Label>
               <Select
                 value={formData.role}
                 onValueChange={(value: TeamRole) =>
                   setFormData((prev) => ({ ...prev, role: value }))
                 }
               >
-                <SelectTrigger className="col-span-3">
+                <SelectTrigger>
                   <SelectValue placeholder="Select a role" />
                 </SelectTrigger>
                 <SelectContent>
@@ -445,12 +436,12 @@ const TeamMembersDialog = ({ team }: { team: Team }) => {
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="w-full">
           <Users className="h-4 w-4" />
-          Members ({team._count?.members || 0})
+          Members
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>Team Members - {team.name}</DialogTitle>
+          <DialogTitle>{team.name} members</DialogTitle>
           <DialogDescription>
             Manage team members and their roles.
           </DialogDescription>
@@ -472,8 +463,8 @@ const TeamMembersDialog = ({ team }: { team: Team }) => {
               <TableBody>
                 {members?.map((member: TeamMember) => (
                   <TableRow key={member.id}>
-                    <TableCell className="flex items-center gap-2">
-                      <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
+                    <TableCell className="flex items-center gap-3">
+                      <div className="h-8 w-8 shrink-0 rounded-full bg-lime text-lime-foreground flex items-center justify-center">
                         {member.user.avatar ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img

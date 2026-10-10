@@ -321,7 +321,7 @@ export const ArtifactContent = ({ artifact }: { artifact: Artifact }) => {
             This is a binary file and cannot be previewed directly in the
             browser without a public URL.
           </p>
-          <p className="mt-3 text-xs text-primary font-medium">
+          <p className="mt-3 text-xs text-ink font-medium">
             Use the download button above to save and view.
           </p>
         </div>

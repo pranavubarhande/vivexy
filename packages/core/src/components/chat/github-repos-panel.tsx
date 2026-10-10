@@ -100,7 +100,7 @@ function FileTreeNode({
         }
         className={cn(
           'flex items-center gap-1.5 w-full text-left py-0.5 rounded transition-colors text-xs',
-          isSelected ? 'bg-primary/15 text-primary' : 'hover:bg-muted/60'
+          isSelected ? 'bg-primary/15 text-ink' : 'hover:bg-muted/60'
         )}
         style={{ paddingLeft: `${8 + depth * 14}px` }}
       >
@@ -135,7 +135,7 @@ function FileTreeNode({
               size={12}
               className={cn(
                 'shrink-0',
-                isSelected ? 'text-primary' : 'text-muted-foreground'
+                isSelected ? 'text-ink' : 'text-muted-foreground'
               )}
             />
           </>
@@ -450,7 +450,7 @@ function LinkedRepoCard({
                 </Badge>
               )}
               {isActive && (
-                <Badge className="text-[10px] px-1.5 py-0 gap-1 bg-primary/15 text-primary border-primary/30">
+                <Badge className="text-[10px] px-1.5 py-0 gap-1 bg-primary/15 text-ink border-primary/30">
                   <Radio size={8} /> Active
                 </Badge>
               )}
@@ -532,7 +532,7 @@ function LinkedRepoCard({
               className={cn(
                 'w-full flex items-center justify-center gap-2 py-1.5 rounded-lg text-xs font-medium border transition-all',
                 isActive && activeContext?.branch === selectedBranch
-                  ? 'bg-primary/10 text-primary border-primary/30 hover:bg-primary/20'
+                  ? 'bg-primary/10 text-ink border-primary/30 hover:bg-primary/20'
                   : 'bg-muted/40 text-muted-foreground border-border hover:bg-muted hover:text-foreground'
               )}
             >
@@ -795,7 +795,7 @@ function AllRepoRow({ repo, isLinked }: AllRepoRowProps) {
           <button
             onClick={() => linkMutation.mutate(repo.fullName)}
             disabled={linkMutation.isPending}
-            className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors disabled:opacity-50"
+            className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg bg-primary/10 text-ink hover:bg-primary/20 transition-colors disabled:opacity-50"
           >
             {linkMutation.isPending ? (
               <Loader2 size={11} className="animate-spin" />
@@ -927,9 +927,7 @@ function GitTreeNode({
                 onClick={() => onOpenFile(childPath)}
                 className={cn(
                   'flex items-center gap-1.5 w-full text-left py-0.5 rounded transition-colors text-xs',
-                  isSelected
-                    ? 'bg-primary/15 text-primary'
-                    : 'hover:bg-muted/60'
+                  isSelected ? 'bg-primary/15 text-ink' : 'hover:bg-muted/60'
                 )}
                 style={{ paddingLeft: `${8 + (depth + 1) * 14}px` }}
               >
@@ -938,7 +936,7 @@ function GitTreeNode({
                   size={12}
                   className={cn(
                     'shrink-0',
-                    isSelected ? 'text-primary' : 'text-muted-foreground'
+                    isSelected ? 'text-ink' : 'text-muted-foreground'
                   )}
                 />
                 <span className="truncate">{item.name}</span>
@@ -1029,7 +1027,7 @@ function GitFileBrowser({
             onClick={() => onOpenFile(childPath)}
             className={cn(
               'flex items-center gap-1.5 w-full text-left py-0.5 px-2 rounded transition-colors text-xs',
-              isSelected ? 'bg-primary/15 text-primary' : 'hover:bg-muted/60'
+              isSelected ? 'bg-primary/15 text-ink' : 'hover:bg-muted/60'
             )}
           >
             <span className="w-[11px] shrink-0" />
@@ -1037,7 +1035,7 @@ function GitFileBrowser({
               size={12}
               className={cn(
                 'shrink-0',
-                isSelected ? 'text-primary' : 'text-muted-foreground'
+                isSelected ? 'text-ink' : 'text-muted-foreground'
               )}
             />
             <span className="truncate">{item.name}</span>
@@ -1610,11 +1608,11 @@ function LocalGitPanel({
         {/* Repo info card */}
         <div className="rounded-xl border bg-background p-3 space-y-2">
           <div className="flex items-center gap-2">
-            <Terminal size={14} className="text-primary shrink-0" />
+            <Terminal size={14} className="text-ink shrink-0" />
             <span className="font-medium text-sm truncate">
               {repo?.repoName}
             </span>
-            <Badge className="text-[10px] px-1.5 py-0 bg-primary/15 text-primary border-primary/30 shrink-0">
+            <Badge className="text-[10px] px-1.5 py-0 bg-primary/15 text-ink border-primary/30 shrink-0">
               Local
             </Badge>
           </div>
@@ -1809,12 +1807,12 @@ export function GithubReposPanel({
                 className="text-muted-foreground shrink-0"
               />
             ) : (
-              <Radio size={11} className="text-primary shrink-0" />
+              <Radio size={11} className="text-ink shrink-0" />
             )}
             <span
               className={cn(
                 'text-xs font-medium truncate',
-                locked ? 'text-muted-foreground' : 'text-primary'
+                locked ? 'text-muted-foreground' : 'text-ink'
               )}
             >
               {activeContext.fullName}
@@ -1858,7 +1856,7 @@ export function GithubReposPanel({
                 <Link2 size={11} />
                 Linked
                 {linkedRepos.length > 0 && (
-                  <span className="ml-0.5 px-1.5 py-0 rounded-full bg-primary/20 text-primary text-[9px] font-bold">
+                  <span className="ml-0.5 px-1.5 py-0 rounded-full bg-primary/20 text-ink text-[9px] font-bold">
                     {linkedRepos.length}
                   </span>
                 )}

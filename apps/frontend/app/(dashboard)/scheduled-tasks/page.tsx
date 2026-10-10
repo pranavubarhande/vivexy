@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus } from 'lucide-react';
 import { Button } from '@vivexy/ui/button';
+import { PageContainer, PageHeader } from '@vivexy/ui/page-header';
 import { ScheduledTaskList } from '@vivexy/core/scheduled-tasks/scheduled-task-list';
 import { ScheduledTaskForm } from '@vivexy/core/scheduled-tasks/scheduled-task-form';
 import { TaskRunHistory } from '@vivexy/core/scheduled-tasks/task-run-history';
@@ -45,43 +46,39 @@ export default function ScheduledTasksPage() {
   };
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
-      <div className="mx-auto w-full px-4 space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold">Scheduled Tasks</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Run chat prompts automatically on a schedule. Results appear in
-              your Chat history.
-            </p>
-          </div>
-          <Button onClick={handleNew}>
-            <Plus className="h-4 w-4 mr-1.5" />
-            New Task
-          </Button>
-        </div>
+    <PageContainer size="narrow" className="max-w-4xl">
+      <PageHeader
+        eyebrow="Automation"
+        title="Scheduled tasks"
+        description="Run chat prompts automatically on a schedule. Results appear in your chat history."
+        actions={
+          tasks.length > 0 && (
+            <Button onClick={handleNew}>
+              <Plus className="h-4 w-4" />
+              New task
+            </Button>
+          )
+        }
+      />
 
-        {/* List */}
-        {isLoading ? (
-          <div className="space-y-3">
-            {[...Array(3)].map((_, i) => (
-              <div
-                key={i}
-                className="h-24 rounded-xl border border-border bg-muted/30 animate-pulse"
-              />
-            ))}
-          </div>
-        ) : (
-          <ScheduledTaskList
-            tasks={tasks}
-            onRefresh={refresh}
-            onEdit={handleEdit}
-            onViewRuns={setHistoryTask}
-            onNew={handleNew}
-          />
-        )}
-      </div>
+      {isLoading ? (
+        <div className="space-y-3">
+          {[...Array(3)].map((_, i) => (
+            <div
+              key={i}
+              className="h-24 rounded-2xl border border-border bg-muted/30 animate-pulse"
+            />
+          ))}
+        </div>
+      ) : (
+        <ScheduledTaskList
+          tasks={tasks}
+          onRefresh={refresh}
+          onEdit={handleEdit}
+          onViewRuns={setHistoryTask}
+          onNew={handleNew}
+        />
+      )}
 
       {/* Form dialog */}
       <ScheduledTaskForm
@@ -96,6 +93,6 @@ export default function ScheduledTasksPage() {
 
       {/* Run history sheet */}
       <TaskRunHistory task={historyTask} onClose={() => setHistoryTask(null)} />
-    </div>
+    </PageContainer>
   );
 }

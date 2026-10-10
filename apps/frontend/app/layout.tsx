@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Geist, Geist_Mono, Inter, Fraunces } from 'next/font/google';
+import { Geist_Mono, Inter_Tight, Newsreader } from 'next/font/google';
 import { APP_NAME } from '@/constants/project';
 import './globals.css';
 import { ThemeProvider } from '@vivexy/core/shared/theme-provider';
@@ -9,20 +9,15 @@ import { Toaster } from 'sonner';
 import { AppShell } from '@vivexy/core/shared/app-shell';
 import { Analytics } from '@vercel/analytics/next';
 
-const inter = Inter({
-  variable: '--font-inter',
+const interTight = Inter_Tight({
+  variable: '--font-inter-tight',
   subsets: ['latin'],
 });
 
-const fraunces = Fraunces({
-  variable: '--font-fraunces',
+const newsreader = Newsreader({
+  variable: '--font-newsreader',
   subsets: ['latin'],
-  axes: ['opsz', 'WONK'],
-});
-
-const geistSans = Geist({
-  variable: '--font-geist-sans',
-  subsets: ['latin'],
+  axes: ['opsz'],
 });
 
 const geistMono = Geist_Mono({
@@ -44,7 +39,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${inter.variable} ${fraunces.variable} ${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${interTight.variable} ${newsreader.variable} ${geistMono.variable} antialiased`}
       >
         <ThemeProvider
           attribute="class"

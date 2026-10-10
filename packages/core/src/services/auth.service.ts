@@ -39,4 +39,41 @@ export const authService = {
   logout: async (): Promise<void> => {
     localStorage.clear();
   },
+
+  // Exchange a one-time OAuth code for the real session token. `state` is
+  // the nonce generated before redirecting to /auth/oauth/<provider>/login
+  // (stored in sessionStorage) — the backend requires it to match what the
+  // code was bound to, closing an OAuth login-CSRF gap where a bare code
+  // alone would be redeemable by any browser, not just the one that
+  // completed the provider's consent screen.
+  exchangeOAuthCode: async ({
+    code,
+    state,
+  }: {
+    code: string;
+    state: string;
+  }): Promise<AuthResponse> => {
+    const response = await axiosInstance.post<AuthResponse>(
+      '/auth/oauth/exchange',
+      { code, state }
+    );
+    return response.data;
+  },
+
+  // Verify an emailed verification token
+  verifyEmail: async (token: string): Promise<{ success: boolean }> => {
+    const response = await axiosInstance.post<{ success: boolean }>(
+      '/auth/verify-email',
+      { token }
+    );
+    return response.data;
+  },
+
+  // Resend the verification email (requires an authenticated session)
+  resendVerification: async (): Promise<{ success: boolean }> => {
+    const response = await axiosInstance.post<{ success: boolean }>(
+      '/auth/resend-verification'
+    );
+    return response.data;
+  },
 };

@@ -4,10 +4,12 @@ interface DashboardHeaderProps {
   children?: React.ReactNode;
 }
 
+/** Mobile-only top bar; on desktop each page renders its own PageHeader. */
 export function DashboardHeader({ heading, children }: DashboardHeaderProps) {
   return (
-    <header className="flex py-2 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
-      {children && <div className="ml-auto px-4">{children}</div>}
+    <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border/60 px-3 md:hidden">
+      {children}
+      <span className="text-sm font-medium">{heading}</span>
     </header>
   );
 }

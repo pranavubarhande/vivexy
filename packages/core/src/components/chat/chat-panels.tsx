@@ -88,15 +88,15 @@ export const ChatPanels = ({
     <div className="flex items-center justify-between px-4 py-3 border-b bg-background/95 backdrop-blur-sm shrink-0">
       <div className="flex items-center gap-2">
         {showSidePanel === 'github' ? (
-          <Github size={15} className="text-primary" />
+          <Github size={15} className="text-ink" />
         ) : (
-          <File size={15} className="text-primary" />
+          <File size={15} className="text-ink" />
         )}
         <h3 className="font-semibold text-sm">
           {showSidePanel === 'github' ? 'GitHub' : 'Artifacts'}
         </h3>
         {showSidePanel === 'artifacts' && (
-          <span className="text-xs px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+          <span className="text-xs px-1.5 py-0.5 rounded-full bg-primary/10 text-ink font-medium">
             {artifacts.length}
           </span>
         )}

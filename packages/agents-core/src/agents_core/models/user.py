@@ -13,9 +13,12 @@ class User(db.Model):
     id = db.Column(db.String, primary_key=True, default=lambda: str(uuid.uuid4()))
     email = db.Column(db.String, unique=True, nullable=False)
     name = db.Column(db.String)
-    password = db.Column(db.String, nullable=False)
+    password = db.Column(db.String, nullable=True)
     role = db.Column(SQLEnum(Role), default=Role.USER)
     avatar = db.Column(db.String)
+    email_verified = db.Column(db.Boolean, default=False, nullable=False)
+    oauth_provider = db.Column(db.String, nullable=True)
+    oauth_subject_id = db.Column(db.String, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow

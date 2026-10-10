@@ -59,3 +59,37 @@ export const useLogout = () => {
     },
   });
 };
+
+// Exchange an OAuth code for a session (used by the /auth/callback page)
+export const useExchangeOAuthCode = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: authService.exchangeOAuthCode,
+    onSuccess: (data) => {
+      if (data.token) {
+        localStorage.setItem('token', data.token);
+      }
+      queryClient.invalidateQueries({ queryKey: ['currentUser'] });
+    },
+  });
+};
+
+// Verify an emailed verification token (used by the /verify-email page)
+export const useVerifyEmail = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: authService.verifyEmail,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['currentUser'] });
+    },
+  });
+};
+
+// Resend the verification email
+export const useResendVerification = () => {
+  return useMutation({
+    mutationFn: authService.resendVerification,
+  });
+};

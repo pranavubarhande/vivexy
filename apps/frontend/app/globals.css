@@ -8,7 +8,16 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans;
+    font-feature-settings: 'ss01', 'cv11';
+  }
+
+  h1,
+  h2,
+  h3,
+  .font-serif {
+    font-optical-sizing: auto;
+    letter-spacing: -0.02em;
   }
 }
 

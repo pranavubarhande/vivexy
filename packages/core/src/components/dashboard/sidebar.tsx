@@ -12,6 +12,7 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -19,7 +20,6 @@ import {
   SidebarTrigger,
 } from '@vivexy/ui/sidebar';
 import {
-  LayoutDashboard,
   Users,
   MessageSquare,
   Blocks,
@@ -27,6 +27,9 @@ import {
   ChevronRight,
   CalendarClock,
   Coins,
+  Settings,
+  Plus,
+  type LucideIcon,
 } from 'lucide-react';
 import { NavUser } from './nav-user';
 import {
@@ -36,6 +39,37 @@ import {
   TooltipTrigger,
 } from '@vivexy/ui/tooltip';
 
+interface NavItem {
+  label: string;
+  href: string;
+  icon: LucideIcon;
+}
+
+const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
+  {
+    label: 'Workspace',
+    items: [
+      { label: 'Chat', href: ROUTES.chat(), icon: MessageSquare },
+      {
+        label: 'Scheduled Tasks',
+        href: ROUTES.scheduledTasks,
+        icon: CalendarClock,
+      },
+      { label: 'Integrations', href: ROUTES.connectors, icon: Blocks },
+    ],
+  },
+  {
+    label: 'Organization',
+    items: [
+      { label: 'Teams', href: ROUTES.teams, icon: Users },
+      // Note: Add this when we want to add billing
+      // { label: 'Billing', href: ROUTES.billing, icon: CreditCard },
+      { label: 'Cost Manager', href: ROUTES.costManager, icon: Coins },
+      { label: 'Settings', href: ROUTES.settings, icon: Settings },
+    ],
+  },
+];
+
 export function AppSidebar({
   appName = 'App',
   ...props
@@ -44,91 +78,78 @@ export function AppSidebar({
   const { workspacePath, workspaceInfo, isDesktop, changeWorkspace } =
     useWorkspace();
 
-  const mainItems = [
-    {
-      label: 'Chat',
-      href: ROUTES.chat(),
-      icon: MessageSquare,
-    },
-    {
-      label: 'Teams',
-      href: ROUTES.teams,
-      icon: Users,
-    },
-    // Note: Add this when we want to add billing
-    // {
-    //   label: 'Billing',
-    //   href: ROUTES.billing,
-    //   icon: CreditCard,
-    // },
-    {
-      label: 'Integrations',
-      href: ROUTES.connectors,
-      icon: Blocks,
-    },
-    {
-      label: 'Scheduled Tasks',
-      href: ROUTES.scheduledTasks,
-      icon: CalendarClock,
-    },
-    {
-      label: 'Cost Manager',
-      href: ROUTES.costManager,
-      icon: Coins,
-    },
-  ];
-
-  const iconFor = (href: string) => {
-    const item = mainItems.find((item) => item.href === href);
-    return item ? <item.icon size={16} /> : <LayoutDashboard size={16} />;
-  };
+  const isActive = (href: string) =>
+    pathname === href || !!pathname?.startsWith(href + '/');
 
   return (
     <Sidebar collapsible="icon" {...props}>
-      <SidebarHeader>
-        <div className="flex items-center justify-between group-data-[collapsible=icon]:justify-center p-1">
-          <div className="flex items-center gap-2 px-2 group-data-[collapsible=icon]:hidden">
-            <Image
-              src="/logo.png"
-              alt={appName}
-              width={24}
-              height={24}
-              className="rounded-sm object-contain shrink-0"
-            />
-            <span className="font-semibold text-lg truncate">{appName}</span>
-          </div>
-          <SidebarTrigger />
+      <SidebarHeader className="gap-3 px-3 pt-4">
+        <div className="flex items-center justify-between group-data-[collapsible=icon]:justify-center">
+          <Link
+            href={ROUTES.chat()}
+            className="flex items-center gap-2.5 px-1 group-data-[collapsible=icon]:hidden"
+          >
+            <span className="flex size-8 items-center justify-center rounded-xl bg-night shadow-sm ring-1 ring-black/5">
+              <Image
+                src="/logo.png"
+                alt={appName}
+                width={18}
+                height={18}
+                className="object-contain invert"
+              />
+            </span>
+            <span className="text-[17px] font-semibold tracking-tight truncate">
+              {appName}
+            </span>
+          </Link>
+          <SidebarTrigger className="text-muted-foreground" />
         </div>
+
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              asChild
+              tooltip="New chat"
+              className="h-10 justify-center rounded-full bg-foreground font-medium text-background shadow-sm hover:bg-foreground/85 hover:text-background active:bg-foreground active:text-background group-data-[collapsible=icon]:rounded-lg"
+            >
+              <Link href={ROUTES.chat()}>
+                <Plus />
+                <span>New chat</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarHeader>
-      <SidebarContent>
-        {/* Main Navigation */}
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {mainItems.map((item) => {
-                const active =
-                  pathname === item.href ||
-                  pathname?.startsWith(item.href + '/');
-                return (
+
+      <SidebarContent className="px-1">
+        {NAV_GROUPS.map((group) => (
+          <SidebarGroup key={group.label}>
+            <SidebarGroupLabel className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground/70">
+              {group.label}
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu className="gap-0.5">
+                {group.items.map((item) => (
                   <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton asChild isActive={!!active}>
-                      <Link
-                        href={item.href}
-                        className="flex items-center gap-2"
-                      >
-                        {iconFor(item.href)}
+                    <SidebarMenuButton
+                      asChild
+                      isActive={isActive(item.href)}
+                      tooltip={item.label}
+                    >
+                      <Link href={item.href}>
+                        <item.icon />
                         <span>{item.label}</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ))}
       </SidebarContent>
 
-      <SidebarFooter className="absolute bottom-0 w-full">
+      <SidebarFooter className="px-3 pb-3">
         <SidebarMenu>
           {/* Workspace indicator — Electron only */}
           {isDesktop && workspacePath && (
@@ -141,7 +162,7 @@ export function AppSidebar({
                       className="group-data-[collapsible=icon]:justify-center h-auto py-2"
                     >
                       <div className="shrink-0 w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
-                        <FolderOpen size={14} className="text-primary" />
+                        <FolderOpen size={14} className="text-ink" />
                       </div>
                       <div className="flex-1 min-w-0 group-data-[collapsible=icon]:hidden">
                         <div className="text-xs font-medium truncate">
@@ -169,7 +190,7 @@ export function AppSidebar({
               </TooltipProvider>
             </SidebarMenuItem>
           )}
-          <SidebarMenuItem>
+          <SidebarMenuItem className="rounded-xl border border-sidebar-border bg-background/60 group-data-[collapsible=icon]:border-0 group-data-[collapsible=icon]:bg-transparent">
             <NavUser />
           </SidebarMenuItem>
         </SidebarMenu>

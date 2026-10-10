@@ -146,7 +146,7 @@ export const MessageStream = memo(function MessageStream({
               href={href}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-primary hover:underline"
+              className="text-ink hover:underline"
             >
               {children}
             </a>

@@ -18,6 +18,7 @@ from agents_core.routes.teams import bp as teams_bp
 from agents_core.routes.usage import bp as usage_bp
 from agents_core.routes.users import bp as users_bp
 from agents_core.utils.casing import camel_to_snake, snake_to_camel
+from agents_core.utils.oauth import init_oauth
 from flasgger import Swagger
 from flask import Flask, g, request
 from flask_cors import CORS
@@ -39,6 +40,7 @@ def create_app(config_object=None):
 
     app = Flask(__name__)
     app.config.from_object(config_object or Config)
+    init_oauth(app)
     CORS(app, supports_credentials=True, origins=app.config.get("CORS_ORIGINS", ["*"]))
 
     db.init_app(app)
