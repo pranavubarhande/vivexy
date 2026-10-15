@@ -6,6 +6,7 @@ import {
   TeamAdminOverview,
   TeamInviteSummary,
   TeamMemberWithUsage,
+  TeamSettingsData,
 } from '../types/admin';
 import { TeamRole } from '../types/team';
 
@@ -65,11 +66,9 @@ export const adminService = {
 
   updateSettings: async (
     teamId: string,
-    monthlyBudgetUsd: number | null
+    settings: TeamSettingsData
   ): Promise<void> => {
-    await axiosInstance.patch(`/admin/teams/${teamId}/settings`, {
-      monthlyBudgetUsd,
-    });
+    await axiosInstance.patch(`/admin/teams/${teamId}/settings`, settings);
   },
 
   getAuditLogs: async (

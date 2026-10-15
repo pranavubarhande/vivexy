@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -11,12 +11,15 @@ class TeamMemberRoleUpdate(BaseModel):
 
 class TeamSettingsUpdate(BaseModel):
     monthly_budget_usd: Optional[float] = Field(default=None, ge=0)
+    budget_enforcement: Optional[Literal["warn", "block"]] = None
+    allowed_model_ids: Optional[List[str]] = None
 
 
 class ClientUpdate(BaseModel):
     is_suspended: Optional[bool] = None
     seat_limit: Optional[int] = Field(default=None, ge=1)
     notes: Optional[str] = None
+    feature_flags: Optional[Dict[str, bool]] = None
 
 
 class PlatformUserUpdate(BaseModel):

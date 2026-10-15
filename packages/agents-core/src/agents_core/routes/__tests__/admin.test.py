@@ -65,7 +65,13 @@ def team_setup(app):
             TeamMember(user_id=owner.id, team_id=team.id, role=TeamRole.OWNER),
             TeamMember(user_id=admin.id, team_id=team.id, role=TeamRole.ADMIN),
             TeamMember(user_id=member.id, team_id=team.id, role=TeamRole.MEMBER),
-            TokenUsage(user_id=member.id, total_tokens=1000, total_cost_usd=1.5),
+            TokenUsage(
+                user_id=member.id,
+                team_id=team.id,
+                total_tokens=1000,
+                total_cost_usd=1.5,
+            ),
+            TokenUsage(user_id=member.id, total_tokens=10, total_cost_usd=4.0),
             TokenUsage(user_id=outsider.id, total_tokens=50, total_cost_usd=9.0),
         ]
     )
@@ -119,7 +125,7 @@ def test_member_cannot_open_admin_panel(client, team_setup):
     assert response.status_code == 403
 
 
-def test_admin_overview_sums_only_team_members(client, team_setup):
+def test_admin_overview_counts_only_team_attributed_usage(client, team_setup):
     response = client.get(
         f"/admin/teams/{team_setup['team'].id}/overview",
         headers=_headers(team_setup["admin"]),

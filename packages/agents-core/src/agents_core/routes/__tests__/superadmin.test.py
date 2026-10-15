@@ -45,7 +45,12 @@ def platform(app):
     db.session.add_all(
         [
             TeamMember(user_id=owner.id, team_id=team.id, role=TeamRole.OWNER),
-            TokenUsage(user_id=owner.id, total_tokens=2000, total_cost_usd=3.25),
+            TokenUsage(
+                user_id=owner.id,
+                team_id=team.id,
+                total_tokens=2000,
+                total_cost_usd=3.25,
+            ),
         ]
     )
     db.session.commit()

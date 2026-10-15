@@ -19,6 +19,11 @@ class Team(db.Model):
     seat_limit = db.Column(db.Integer, nullable=True)
     monthly_budget_usd = db.Column(db.Float, nullable=True)
     notes = db.Column(db.Text, nullable=True)
+    budget_enforcement = db.Column(db.String, default="warn", nullable=False)
+    budget_alert_month = db.Column(db.String, nullable=True)
+    budget_alert_threshold = db.Column(db.Integer, nullable=True)
+    allowed_model_ids = db.Column(db.JSON, nullable=True)
+    feature_flags = db.Column(db.JSON, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow

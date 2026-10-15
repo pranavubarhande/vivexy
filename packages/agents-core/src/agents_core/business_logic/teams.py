@@ -2,7 +2,7 @@ import re
 from datetime import datetime
 from typing import Any, Dict, List
 
-from agents_core.models import Team, TeamInvite, TeamMember, User, db
+from agents_core.models import Chat, Team, TeamInvite, TeamMember, User, db
 from agents_core.schemas import TeamCreate, TeamMemberCreate, TeamUpdate
 
 
@@ -218,6 +218,8 @@ def delete_team(team_id: str, user_id: str) -> Dict[str, Any]:
     team = Team.query.filter_by(id=team_id, owner_id=user_id).first()
     if not team:
         raise ValueError("Access denied. Only team owners can delete teams.")
+
+    Chat.query.filter_by(team_id=team_id).update({Chat.team_id: None})
 
     # Delete team invites first (due to foreign key constraint)
     TeamInvite.query.filter_by(team_id=team_id).delete()

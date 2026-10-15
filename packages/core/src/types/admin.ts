@@ -1,6 +1,14 @@
 import { Role } from './user';
 import { TeamRole } from './team';
 
+export type BudgetEnforcement = 'warn' | 'block';
+
+export interface TeamSettingsData {
+  monthlyBudgetUsd?: number | null;
+  budgetEnforcement?: BudgetEnforcement;
+  allowedModelIds?: string[] | null;
+}
+
 export interface UsageTotals {
   totalTokens: number;
   totalCostUsd: number;
@@ -58,6 +66,9 @@ export interface TeamAdminOverview {
     isSuspended: boolean;
     seatLimit: number | null;
     monthlyBudgetUsd: number | null;
+    budgetEnforcement: BudgetEnforcement;
+    allowedModelIds: string[] | null;
+    featureFlags: Record<string, boolean>;
     createdAt: string | null;
   };
   viewerRole: TeamRole;

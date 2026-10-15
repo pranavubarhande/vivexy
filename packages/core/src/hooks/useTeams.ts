@@ -2,11 +2,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { teamsService } from '../services/teams.service';
 import { InviteMemberData, UpdateTeamData } from '../types/team';
 
-export const useTeams = () =>
+export const useTeams = (enabled = true) =>
   useQuery({
     queryKey: ['teams'],
     queryFn: teamsService.getTeams,
     staleTime: 5 * 60 * 1000, // 5 minutes
+    enabled,
   });
 
 export const useTeam = (teamId: string) =>

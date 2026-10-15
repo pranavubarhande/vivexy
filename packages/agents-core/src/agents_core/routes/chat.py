@@ -38,9 +38,14 @@ from agents_core.business_logic.chat import (
     update_message,
 )
 from agents_core.business_logic.streaming import run_agent_stream_to_redis
+from agents_core.business_logic.team_policy import (
+    check_chat_policy,
+    filter_models_for_team,
+    resolve_chat_team,
+)
 from agents_core.constants.redis_keys import REDIS_KEY_STREAM_TOKEN, REDIS_STREAM_CHAT
 from agents_core.middlewares.auth import auth_middleware
-from agents_core.models.chat import Artifact
+from agents_core.models.chat import Artifact, Chat
 from agents_core.schemas import ArtifactCreate, ChatCreate, MessageCreate
 from agents_core.services.s3_service import S3Service
 from agents_core.worker.dispatcher import dispatch_chat_job
@@ -132,10 +137,13 @@ def create_new_chat():
         user = request.user
         data = request.get_json() or {}
         chat_data = ChatCreate(**data)
+        chat_data.team_id = resolve_chat_team(chat_data.team_id, user)
         chat = create_chat(chat_data, user.id)
         return jsonify(chat.dict() if hasattr(chat, "dict") else chat), 201
     except ValidationError as e:
         return jsonify({"error": "Invalid input data", "details": e.errors()}), 400
+    except PermissionError as e:
+        return jsonify({"error": str(e)}), 403
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -579,7 +587,8 @@ def get_models():
         description: Unauthorized
     """
     try:
-        models = get_llm_models()
+        team_id = request.args.get("teamId")
+        models = filter_models_for_team(get_llm_models(), team_id)
         return jsonify([m.dict() for m in models])
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -1087,6 +1096,10 @@ def start_chat_stream():
             return jsonify({"error": "chat_id is required"}), 400
 
         get_user_chat(chat_id, user_id)
+        try:
+            policy = check_chat_policy(Chat.query.get(chat_id), model_db_id)
+        except PermissionError as e:
+            return jsonify({"error": str(e)}), 403
 
         if is_multipart:
             files_to_upload = request.files.getlist("files")
@@ -1310,7 +1323,7 @@ def start_chat_stream():
 
             threading.Thread(target=_run, daemon=True).start()
 
-        return jsonify({"stream_id": stream_id})
+        return jsonify({"stream_id": stream_id, "warnings": policy["warnings"]})
 
     except ValueError as e:
         return jsonify({"error": str(e)}), 404

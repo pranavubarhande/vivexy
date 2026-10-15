@@ -100,7 +100,7 @@ const TeamOverview = ({
             <div>
               <CardTitle className="text-base">Daily usage</CardTitle>
               <CardDescription>
-                Combined usage of all team members
+                Usage from chats billed to this team
               </CardDescription>
             </div>
             <Segmented
@@ -165,8 +165,8 @@ const TeamOverview = ({
       </Card>
 
       <p className="text-center text-xs text-muted-foreground">
-        Team usage is the sum of each member&apos;s usage, including personal
-        chats outside the team.
+        Only chats started with this team selected under &ldquo;Usage billed
+        to&rdquo; count toward team usage. Personal chats are excluded.
       </p>
     </div>
   );

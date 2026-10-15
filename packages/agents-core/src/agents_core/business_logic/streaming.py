@@ -23,6 +23,7 @@ from agents_core.constants.stream_events import (
     STREAM_EVENT_TOOL_CALL,
     STREAM_EVENT_USAGE,
 )
+from agents_core.models.chat import Chat
 from agents_core.models.chat import Message as DBMessage
 from agents_core.models.llm import LLMModel
 from agents_core.models.token_usage import TokenUsage
@@ -31,11 +32,15 @@ from langgraph.types import Command, Overwrite
 
 from agents_core.agents.agent_factory import create_agent
 from agents_core.agents.approval_store import create_approval_event, wait_for_approval
-from agents_core.agents.client_tool_store import create_client_tool_event, wait_for_client_tool
+from agents_core.agents.client_tool_store import (
+    create_client_tool_event,
+    wait_for_client_tool,
+)
 from agents_core.agents.config import FileContext
 from agents_core.business_logic.api_keys import get_decrypted_api_keys
 from agents_core.business_logic.artifacts import link_artifacts_to_message
 from agents_core.business_logic.chat import create_message
+from agents_core.business_logic.team_policy import maybe_send_budget_alerts
 from agents_core.business_logic.compact import (
     compact_chat,
     estimate_token_count,
@@ -356,6 +361,7 @@ def run_agent_stream(
             # Persist token usage and compute cost
             usage_payload = _save_token_usage(
                 user_id=user_id,
+                chat_id=chat_id,
                 message_id=assistant_message["id"],
                 model_db_id=model_db_id,
                 model_provider=model_provider,
@@ -716,6 +722,7 @@ def _accumulate_usage(message: Any, total_usage: Dict[str, int]) -> None:
 def _save_token_usage(
     *,
     user_id: str,
+    chat_id: Optional[str] = None,
     message_id: str,
     model_db_id: Optional[str],
     model_provider: str,
@@ -747,9 +754,12 @@ def _save_token_usage(
                     ) * model_record.output_cost
 
         total_cost_usd = input_cost_usd + output_cost_usd
+        chat_record = Chat.query.get(chat_id) if chat_id else None
+        team_id = chat_record.team_id if chat_record else None
 
         record = TokenUsage(
             user_id=user_id,
+            team_id=team_id,
             message_id=message_id,
             model_id=model_db_id,
             model_name=model_name,
@@ -763,6 +773,10 @@ def _save_token_usage(
         )
         _db.session.add(record)
         _db.session.commit()
+        try:
+            maybe_send_budget_alerts(team_id)
+        except Exception as alert_error:
+            logger.warning("Budget alert check failed: %s", alert_error)
 
         return {
             "inputTokens": input_tokens,
