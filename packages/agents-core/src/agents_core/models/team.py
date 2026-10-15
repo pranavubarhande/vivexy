@@ -15,6 +15,10 @@ class Team(db.Model):
     description = db.Column(db.Text)
     slug = db.Column(db.String, unique=True, nullable=False)
     owner_id = db.Column(db.String, db.ForeignKey("users.id"), nullable=False)
+    is_suspended = db.Column(db.Boolean, default=False, nullable=False)
+    seat_limit = db.Column(db.Integer, nullable=True)
+    monthly_budget_usd = db.Column(db.Float, nullable=True)
+    notes = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow

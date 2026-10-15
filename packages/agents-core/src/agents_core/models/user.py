@@ -19,6 +19,8 @@ class User(db.Model):
     email_verified = db.Column(db.Boolean, default=False, nullable=False)
     oauth_provider = db.Column(db.String, nullable=True)
     oauth_subject_id = db.Column(db.String, nullable=True)
+    is_suspended = db.Column(db.Boolean, default=False, nullable=False)
+    last_login_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow

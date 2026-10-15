@@ -13,7 +13,10 @@ class UserBase(BaseModel):
     avatar: Optional[str] = None
 
 
-class UserCreate(UserBase):
+class UserCreate(BaseModel):
+    email: str
+    name: Optional[str] = None
+    avatar: Optional[str] = None
     password: str
 
 

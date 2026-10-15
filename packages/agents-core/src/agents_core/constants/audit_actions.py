@@ -1,0 +1,10 @@
+AUDIT_TEAM_MEMBER_ROLE_CHANGED = "team.member_role_changed"
+AUDIT_TEAM_MEMBER_REMOVED = "team.member_removed"
+AUDIT_TEAM_INVITE_REVOKED = "team.invite_revoked"
+AUDIT_TEAM_SETTINGS_UPDATED = "team.settings_updated"
+AUDIT_CLIENT_UPDATED = "superadmin.client_updated"
+AUDIT_USER_UPDATED = "superadmin.user_updated"
+
+AUDIT_TARGET_TEAM = "team"
+AUDIT_TARGET_USER = "user"
+AUDIT_TARGET_INVITE = "invite"

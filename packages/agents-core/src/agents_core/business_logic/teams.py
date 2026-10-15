@@ -280,6 +280,22 @@ def add_team_member(
             "Access denied. Only team owners and admins can invite members."
         )
 
+    team = Team.query.get(team_id)
+    if team.is_suspended:
+        raise ValueError("This team is suspended. Contact support.")
+    if team.seat_limit is not None:
+        seats_used = (
+            TeamMember.query.filter_by(team_id=team_id).count()
+            + TeamInvite.query.filter(
+                TeamInvite.team_id == team_id,
+                TeamInvite.expires_at > datetime.utcnow(),
+            ).count()
+        )
+        if seats_used >= team.seat_limit:
+            raise ValueError(
+                f"Seat limit reached ({team.seat_limit}). Contact support to add seats."
+            )
+
     # Check if user is already a member
     existing_member = TeamMember.query.filter(
         TeamMember.team_id == team_id, TeamMember.user.has(email=member_data.email)

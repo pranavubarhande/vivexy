@@ -1,3 +1,4 @@
+from agents_core.models.audit_log import AuditLog
 from agents_core.models.base import db
 from agents_core.models.chat import (
     Artifact,
