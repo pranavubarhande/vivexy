@@ -10,6 +10,8 @@ export const ROUTES = {
   chat: (chatId?: string) => (chatId ? `/chat/${chatId}` : '/chat'),
   scheduledTasks: '/scheduled-tasks',
   costManager: '/cost-manager',
+  admin: '/admin',
+  superadmin: '/superadmin',
 } as const;
 
 // Publicly accessible informational pages (no auth required, even if logged in)

@@ -5,6 +5,8 @@ import { usePathname } from 'next/navigation';
 import { ROUTES } from '@vivexy/core/constants/routes';
 import Image from 'next/image';
 import { useWorkspace } from '@vivexy/core/desktop/workspace-provider';
+import { useAuth } from '@vivexy/core/shared/auth-provider';
+import { useAdministeredTeams } from '@vivexy/core/hooks/useAdmin';
 import {
   Sidebar,
   SidebarHeader,
@@ -29,6 +31,8 @@ import {
   Coins,
   Settings,
   Plus,
+  ShieldCheck,
+  Crown,
   type LucideIcon,
 } from 'lucide-react';
 import { NavUser } from './nav-user';
@@ -77,6 +81,20 @@ export function AppSidebar({
   const pathname = usePathname();
   const { workspacePath, workspaceInfo, isDesktop, changeWorkspace } =
     useWorkspace();
+  const { user, isAuthenticated } = useAuth();
+  const { data: administeredTeams } = useAdministeredTeams(isAuthenticated);
+
+  const adminItems: NavItem[] = [
+    ...(administeredTeams?.length
+      ? [{ label: 'Admin', href: ROUTES.admin, icon: ShieldCheck }]
+      : []),
+    ...(user?.role === 'SUPER_ADMIN'
+      ? [{ label: 'Superadmin', href: ROUTES.superadmin, icon: Crown }]
+      : []),
+  ];
+  const navGroups = adminItems.length
+    ? [...NAV_GROUPS, { label: 'Administration', items: adminItems }]
+    : NAV_GROUPS;
 
   const isActive = (href: string) =>
     pathname === href || !!pathname?.startsWith(href + '/');
@@ -122,7 +140,7 @@ export function AppSidebar({
       </SidebarHeader>
 
       <SidebarContent className="px-1">
-        {NAV_GROUPS.map((group) => (
+        {navGroups.map((group) => (
           <SidebarGroup key={group.label}>
             <SidebarGroupLabel className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground/70">
               {group.label}
