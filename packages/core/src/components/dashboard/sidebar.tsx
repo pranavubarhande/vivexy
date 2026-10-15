@@ -36,6 +36,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { NavUser } from './nav-user';
+import { TeamSwitcher } from './team-switcher';
 import {
   Tooltip,
   TooltipContent,
@@ -137,6 +138,7 @@ export function AppSidebar({
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
+        <TeamSwitcher enabled={isAuthenticated} />
       </SidebarHeader>
 
       <SidebarContent className="px-1">

@@ -128,17 +128,24 @@ def get_recent_usage(user_id: str, limit: int = 50) -> List[Dict[str, Any]]:
     return [r.to_dict() for r in rows]
 
 
-def _scope_to_users(query, user_ids: Optional[List[str]]):
-    """None means platform-wide; an empty list matches nothing."""
+def _scope_to_users(
+    query, user_ids: Optional[List[str]], team_id: Optional[str] = None
+):
+    """user_ids=None means every user; an empty list matches nothing.
+    team_id narrows to usage attributed to that team's chats."""
+    if team_id is not None:
+        query = query.filter(TokenUsage.team_id == team_id)
     if user_ids is None:
         return query
     return query.filter(TokenUsage.user_id.in_(user_ids or [""]))
 
 
 def get_usage_totals(
-    user_ids: Optional[List[str]] = None, since: Optional[datetime] = None
+    user_ids: Optional[List[str]] = None,
+    since: Optional[datetime] = None,
+    team_id: Optional[str] = None,
 ) -> Dict[str, Any]:
-    query = _scope_to_users(TokenUsage.query, user_ids)
+    query = _scope_to_users(TokenUsage.query, user_ids, team_id)
     if since:
         query = query.filter(TokenUsage.created_at >= since)
 
@@ -155,9 +162,11 @@ def get_usage_totals(
 
 
 def get_usage_totals_by_user(
-    user_ids: Optional[List[str]] = None, since: Optional[datetime] = None
+    user_ids: Optional[List[str]] = None,
+    since: Optional[datetime] = None,
+    team_id: Optional[str] = None,
 ) -> Dict[str, Dict[str, Any]]:
-    query = _scope_to_users(TokenUsage.query, user_ids)
+    query = _scope_to_users(TokenUsage.query, user_ids, team_id)
     if since:
         query = query.filter(TokenUsage.created_at >= since)
 
@@ -184,10 +193,12 @@ def get_usage_totals_by_user(
 
 
 def get_daily_usage_for_users(
-    user_ids: Optional[List[str]] = None, days: int = 30
+    user_ids: Optional[List[str]] = None,
+    days: int = 30,
+    team_id: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     since = datetime.utcnow() - timedelta(days=days)
-    query = _scope_to_users(TokenUsage.query, user_ids).filter(
+    query = _scope_to_users(TokenUsage.query, user_ids, team_id).filter(
         TokenUsage.created_at >= since
     )
     rows = (
@@ -213,10 +224,12 @@ def get_daily_usage_for_users(
 
 
 def get_usage_by_model_for_users(
-    user_ids: Optional[List[str]] = None, days: int = 30
+    user_ids: Optional[List[str]] = None,
+    days: int = 30,
+    team_id: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     since = datetime.utcnow() - timedelta(days=days)
-    query = _scope_to_users(TokenUsage.query, user_ids).filter(
+    query = _scope_to_users(TokenUsage.query, user_ids, team_id).filter(
         TokenUsage.created_at >= since
     )
     rows = (

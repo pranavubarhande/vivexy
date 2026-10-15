@@ -6,10 +6,9 @@ from typing import Any, Dict, Optional
 from agents_core.business_logic.admin import (
     build_members_with_usage,
     build_team_invites,
-    month_start,
-    team_member_ids,
 )
 from agents_core.business_logic.audit import list_audit_logs, record_audit_log
+from agents_core.business_logic.team_policy import month_start
 from agents_core.business_logic.usage import (
     get_daily_usage_for_users,
     get_usage_by_model_for_users,
@@ -149,14 +148,13 @@ def list_clients(
     )
     usage_rows = (
         db.session.query(
-            TeamMember.team_id,
+            TokenUsage.team_id,
             func.coalesce(func.sum(TokenUsage.total_cost_usd), 0.0),
             func.coalesce(func.sum(TokenUsage.total_tokens), 0),
             func.max(TokenUsage.created_at),
         )
-        .join(TokenUsage, TokenUsage.user_id == TeamMember.user_id)
-        .filter(TeamMember.team_id.in_(team_ids), TokenUsage.created_at >= since)
-        .group_by(TeamMember.team_id)
+        .filter(TokenUsage.team_id.in_(team_ids), TokenUsage.created_at >= since)
+        .group_by(TokenUsage.team_id)
         .all()
     )
     usage_by_team = {
@@ -201,7 +199,6 @@ def get_client_detail(team_id: str, days: int = 30) -> Dict[str, Any]:
     if not team:
         raise LookupError("Client not found")
 
-    member_ids = team_member_ids(team_id)
     since = datetime.utcnow() - timedelta(days=days)
     return {
         "id": team.id,
@@ -217,15 +214,17 @@ def get_client_detail(team_id: str, days: int = 30) -> Dict[str, Any]:
         "seatLimit": team.seat_limit,
         "monthlyBudgetUsd": team.monthly_budget_usd,
         "notes": team.notes,
+        "featureFlags": team.feature_flags or {},
+        "budgetEnforcement": team.budget_enforcement,
         "plan": _team_plan(team.id),
         "createdAt": _iso(team.created_at),
         "members": build_members_with_usage(team_id, days),
         "invites": build_team_invites(team_id),
         "usage": {
-            "period": get_usage_totals(member_ids, since),
-            "allTime": get_usage_totals(member_ids),
-            "monthToDate": get_usage_totals(member_ids, month_start()),
-            "daily": get_daily_usage_for_users(member_ids, days),
+            "period": get_usage_totals(team_id=team_id, since=since),
+            "allTime": get_usage_totals(team_id=team_id),
+            "monthToDate": get_usage_totals(team_id=team_id, since=month_start()),
+            "daily": get_daily_usage_for_users(days=days, team_id=team_id),
         },
         "recentAuditLogs": list_audit_logs(team_id=team_id, page_size=20)["items"],
         "periodDays": days,
@@ -242,6 +241,7 @@ def update_client(team_id: str, payload: ClientUpdate, actor: User) -> Dict[str,
         ("is_suspended", "is_suspended"),
         ("seat_limit", "seat_limit"),
         ("notes", "notes"),
+        ("feature_flags", "feature_flags"),
     ):
         if field not in payload.model_fields_set:
             continue

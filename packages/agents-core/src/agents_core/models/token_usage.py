@@ -9,6 +9,7 @@ class TokenUsage(db.Model):
 
     id = db.Column(db.String, primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = db.Column(db.String, db.ForeignKey("users.id"), nullable=False)
+    team_id = db.Column(db.String, nullable=True, index=True)
     message_id = db.Column(db.String, db.ForeignKey("messages.id"), nullable=True)
     model_id = db.Column(db.String, db.ForeignKey("llm_models.id"), nullable=True)
     model_name = db.Column(db.String, nullable=True)
@@ -25,6 +26,7 @@ class TokenUsage(db.Model):
         return {
             "id": self.id,
             "userId": self.user_id,
+            "teamId": self.team_id,
             "messageId": self.message_id,
             "modelId": self.model_id,
             "modelName": self.model_name,

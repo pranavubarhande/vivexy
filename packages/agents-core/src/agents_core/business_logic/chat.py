@@ -189,6 +189,7 @@ def get_user_chat(chat_id: str, user_id: str) -> Dict[str, Any]:
     return {
         "id": chat.id,
         "userId": chat.user_id,
+        "teamId": chat.team_id,
         "title": chat.title,
         "agentId": chat.agent_id,
         "lastModelId": chat.last_model_id,
@@ -201,7 +202,12 @@ def get_user_chat(chat_id: str, user_id: str) -> Dict[str, Any]:
 
 def create_chat(data: ChatCreate, user_id: str) -> ChatResponse:
     """Create a new chat."""
-    chat = Chat(user_id=user_id, title=data.title or "New Chat", agent_id=data.agent_id)
+    chat = Chat(
+        user_id=user_id,
+        team_id=data.team_id,
+        title=data.title or "New Chat",
+        agent_id=data.agent_id,
+    )
     db.session.add(chat)
     db.session.commit()
     return ChatResponse.from_orm(chat)

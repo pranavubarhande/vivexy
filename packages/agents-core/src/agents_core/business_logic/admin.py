@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Tuple
 
 from agents_core.business_logic.audit import list_audit_logs, record_audit_log
+from agents_core.business_logic.team_policy import month_start
 from agents_core.business_logic.usage import (
     get_daily_usage_for_users,
     get_usage_by_model_for_users,
@@ -23,11 +24,6 @@ from agents_core.models import Team, TeamInvite, TeamMember, TeamRole, User, db
 from agents_core.schemas import TeamMemberRoleUpdate, TeamSettingsUpdate
 
 ADMIN_ROLES = (TeamRole.OWNER, TeamRole.ADMIN)
-
-
-def month_start() -> datetime:
-    now = datetime.utcnow()
-    return datetime(now.year, now.month, 1)
 
 
 def team_member_ids(team_id: str) -> List[str]:
@@ -89,8 +85,8 @@ def get_team_overview(team_id: str, user: User, days: int = 30) -> Dict[str, Any
     pending_invites = TeamInvite.query.filter(
         TeamInvite.team_id == team_id, TeamInvite.expires_at > datetime.utcnow()
     ).count()
-    period_usage = get_usage_totals(member_ids, since)
-    active_members = len(get_usage_totals_by_user(member_ids, since))
+    period_usage = get_usage_totals(team_id=team_id, since=since)
+    active_members = len(get_usage_totals_by_user(since=since, team_id=team_id))
 
     return {
         "team": {
@@ -101,6 +97,9 @@ def get_team_overview(team_id: str, user: User, days: int = 30) -> Dict[str, Any
             "isSuspended": team.is_suspended,
             "seatLimit": team.seat_limit,
             "monthlyBudgetUsd": team.monthly_budget_usd,
+            "budgetEnforcement": team.budget_enforcement,
+            "allowedModelIds": team.allowed_model_ids,
+            "featureFlags": team.feature_flags or {},
             "createdAt": team.created_at.isoformat() if team.created_at else None,
         },
         "viewerRole": membership.role.value,
@@ -108,11 +107,11 @@ def get_team_overview(team_id: str, user: User, days: int = 30) -> Dict[str, Any
         "activeMemberCount": active_members,
         "pendingInviteCount": pending_invites,
         "usage": period_usage,
-        "monthToDateCostUsd": get_usage_totals(member_ids, month_start())[
+        "monthToDateCostUsd": get_usage_totals(team_id=team_id, since=month_start())[
             "totalCostUsd"
         ],
-        "daily": get_daily_usage_for_users(member_ids, days),
-        "byModel": get_usage_by_model_for_users(member_ids, days),
+        "daily": get_daily_usage_for_users(days=days, team_id=team_id),
+        "byModel": get_usage_by_model_for_users(days=days, team_id=team_id),
         "periodDays": days,
     }
 
@@ -124,7 +123,9 @@ def build_members_with_usage(team_id: str, days: int = 30) -> List[Dict[str, Any
         .order_by(TeamMember.joined_at.asc())
         .all()
     )
-    usage_by_user = get_usage_totals_by_user([m.user_id for m in members], since)
+    usage_by_user = get_usage_totals_by_user(
+        [m.user_id for m in members], since, team_id=team_id
+    )
     empty_usage = {
         "totalTokens": 0,
         "totalCostUsd": 0.0,
@@ -290,6 +291,22 @@ def update_team_settings(
             "to": payload.monthly_budget_usd,
         }
         team.monthly_budget_usd = payload.monthly_budget_usd
+    if (
+        payload.budget_enforcement
+        and payload.budget_enforcement != team.budget_enforcement
+    ):
+        changes["budgetEnforcement"] = {
+            "from": team.budget_enforcement,
+            "to": payload.budget_enforcement,
+        }
+        team.budget_enforcement = payload.budget_enforcement
+    if "allowed_model_ids" in payload.model_fields_set:
+        allowed_model_ids = payload.allowed_model_ids or None
+        changes["allowedModelIds"] = {
+            "from": team.allowed_model_ids,
+            "to": allowed_model_ids,
+        }
+        team.allowed_model_ids = allowed_model_ids
 
     if changes:
         record_audit_log(
@@ -302,7 +319,12 @@ def update_team_settings(
             commit=False,
         )
     db.session.commit()
-    return {"message": "Settings updated", "monthlyBudgetUsd": team.monthly_budget_usd}
+    return {
+        "message": "Settings updated",
+        "monthlyBudgetUsd": team.monthly_budget_usd,
+        "budgetEnforcement": team.budget_enforcement,
+        "allowedModelIds": team.allowed_model_ids,
+    }
 
 
 def get_team_audit_logs(

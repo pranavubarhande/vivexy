@@ -6,6 +6,7 @@ import {
 } from '@tanstack/react-query';
 import { adminService } from '../services/admin.service';
 import { TeamRole } from '../types/team';
+import { TeamSettingsData } from '../types/admin';
 
 export const adminKeys = {
   all: ['admin'] as const,
@@ -108,11 +109,11 @@ export const useUpdateTeamSettings = () => {
   return useMutation({
     mutationFn: ({
       teamId,
-      monthlyBudgetUsd,
+      settings,
     }: {
       teamId: string;
-      monthlyBudgetUsd: number | null;
-    }) => adminService.updateSettings(teamId, monthlyBudgetUsd),
+      settings: TeamSettingsData;
+    }) => adminService.updateSettings(teamId, settings),
     onSuccess: (_, { teamId }) => invalidateTeam(teamId),
   });
 };
