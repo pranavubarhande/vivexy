@@ -12,6 +12,7 @@
     "./auth/*": "./src/components/auth/*.tsx",
     "./desktop/*": "./src/components/desktop/*.tsx",
     "./scheduled-tasks/*": "./src/components/scheduled-tasks/*.tsx",
+    "./admin/*": "./src/components/admin/*.tsx",
     "./hooks/*": "./src/hooks/*.ts",
     "./services/*": "./src/services/*.ts",
     "./types/electron": "./src/types/electron.d.ts",
