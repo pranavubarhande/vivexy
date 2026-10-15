@@ -14,7 +14,7 @@ from agents_core.constants.redis_keys import (
     REDIS_KEY_OAUTH_EXCHANGE,
     REDIS_KEY_RESEND_COOLDOWN,
 )
-from agents_core.models import User, db
+from agents_core.models import Role, User, db
 from agents_core.schemas import UserCreate, UserResponse
 
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379")
@@ -95,7 +95,9 @@ def create_oauth_exchange_code(jwt_token: str, state: str) -> str:
         raise RuntimeError("Redis unavailable")
     code = secrets.token_urlsafe(32)
     payload = json.dumps({"jwt": jwt_token, "state": state})
-    r.setex(REDIS_KEY_OAUTH_EXCHANGE.format(code=code), OAUTH_EXCHANGE_TTL_SECONDS, payload)
+    r.setex(
+        REDIS_KEY_OAUTH_EXCHANGE.format(code=code), OAUTH_EXCHANGE_TTL_SECONDS, payload
+    )
     return code
 
 
@@ -163,6 +165,11 @@ def get_user_from_token(token: str) -> User:
     return user
 
 
+def record_login(user: User) -> None:
+    user.last_login_at = datetime.utcnow()
+    db.session.commit()
+
+
 def exclude_password(user: User) -> dict:
     """Return user data without password."""
     return {
@@ -203,7 +210,7 @@ def create_user(user_data: UserCreate) -> User:
         email=user_data.email,
         name=user_data.name,
         password=hashed_password,
-        role=user_data.role,
+        role=Role.USER,
         avatar=user_data.avatar,
     )
 

@@ -13,6 +13,7 @@ from agents_core.utils.auth import (
     generate_token,
     get_user_from_token,
     is_resend_on_cooldown,
+    record_login,
     set_resend_cooldown,
 )
 from agents_core.utils.email import send_verification_email
@@ -89,6 +90,10 @@ def login():
         if not user:
             return jsonify({"error": "Invalid email or password"}), 401
 
+        if user.is_suspended:
+            return jsonify({"error": "This account has been suspended"}), 403
+
+        record_login(user)
         token = generate_token(user.id, user.email)
         user_data = exclude_password(user)
 
@@ -143,6 +148,7 @@ def register():
         data = request.get_json()
         user_data = UserCreate(**data)
         user = create_user(user_data)
+        record_login(user)
         token = generate_token(user.id, user.email)
 
         _send_verification_email_for(user)
@@ -268,7 +274,9 @@ def resend_verification():
     if not _send_verification_email_for(user):
         return (
             jsonify(
-                {"error": "Failed to send verification email. Please try again shortly."}
+                {
+                    "error": "Failed to send verification email. Please try again shortly."
+                }
             ),
             502,
         )
@@ -392,12 +400,13 @@ def oauth_callback(provider):
             email=userinfo["email"],
             name=userinfo.get("name"),
         )
+        if user.is_suspended:
+            return redirect(f"{frontend_url}/login?error=account_suspended")
+        record_login(user)
         jwt_token = generate_token(user.id, user.email)
         code = create_oauth_exchange_code(jwt_token, client_state)
     except Exception:
-        current_app.logger.exception(
-            "OAuth callback failed for provider=%s", provider
-        )
+        current_app.logger.exception("OAuth callback failed for provider=%s", provider)
         return redirect(f"{frontend_url}/login?error=oauth_failed")
 
     return redirect(f"{frontend_url}/auth/callback?code={code}")
