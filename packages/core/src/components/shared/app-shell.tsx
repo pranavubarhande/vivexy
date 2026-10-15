@@ -8,6 +8,10 @@ import { SidebarProvider, useSidebar } from '@vivexy/ui/sidebar';
 import { DashboardHeader } from '@vivexy/core/dashboard/header';
 import { WorkspaceProvider } from '@vivexy/core/desktop/workspace-provider';
 import { VerifyEmailBanner } from '@vivexy/core/shared/verify-email-banner';
+import {
+  AnnouncementBanners,
+  ImpersonationBanner,
+} from '@vivexy/core/shared/platform-banners';
 import { cn } from '@vivexy/ui/utils';
 import { PanelLeft } from 'lucide-react';
 
@@ -62,6 +66,8 @@ export function AppShell({
       <SidebarProvider>
         <AppSidebar appName={appName} className="relative" />
         <div className="flex h-svh flex-1 flex-col min-w-0 bg-background">
+          <ImpersonationBanner />
+          <AnnouncementBanners />
           <VerifyEmailBanner />
           {!isChatPage && (
             <DashboardHeader heading={titleFromPath(pathname)}>

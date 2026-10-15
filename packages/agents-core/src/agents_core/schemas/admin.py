@@ -1,8 +1,9 @@
+from datetime import datetime
 from typing import Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
-from agents_core.models.enums import Role, TeamRole
+from agents_core.models.enums import Plan, Role, TeamRole
 
 
 class BulkInviteCreate(BaseModel):
@@ -30,3 +31,34 @@ class ClientUpdate(BaseModel):
 class PlatformUserUpdate(BaseModel):
     is_suspended: Optional[bool] = None
     role: Optional[Role] = None
+
+
+class ClientPlanUpdate(BaseModel):
+    plan: Plan
+    status: Literal["ACTIVE", "TRIALING"] = "ACTIVE"
+    period_end: Optional[datetime] = None
+
+
+class LLMModelAdminUpdate(BaseModel):
+    is_active: Optional[bool] = None
+    input_cost: Optional[float] = Field(default=None, ge=0)
+    output_cost: Optional[float] = Field(default=None, ge=0)
+
+
+class AnnouncementCreate(BaseModel):
+    title: str = Field(min_length=1, max_length=200)
+    body: Optional[str] = Field(default=None, max_length=2000)
+    level: Literal["info", "warning", "critical"] = "info"
+    team_id: Optional[str] = None
+    is_active: bool = True
+    starts_at: Optional[datetime] = None
+    ends_at: Optional[datetime] = None
+
+
+class AnnouncementUpdate(BaseModel):
+    title: Optional[str] = Field(default=None, min_length=1, max_length=200)
+    body: Optional[str] = Field(default=None, max_length=2000)
+    level: Optional[Literal["info", "warning", "critical"]] = None
+    is_active: Optional[bool] = None
+    starts_at: Optional[datetime] = None
+    ends_at: Optional[datetime] = None

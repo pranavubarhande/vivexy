@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { Search, Users } from 'lucide-react';
+import { Eye, Search, Users } from 'lucide-react';
 import { Card } from '@vivexy/ui/card';
 import { Badge } from '@vivexy/ui/badge';
 import { Button } from '@vivexy/ui/button';
@@ -37,6 +37,8 @@ import {
   useUpdatePlatformUser,
 } from '@vivexy/core/hooks/useSuperadmin';
 import { useDebouncedValue } from '@vivexy/core/hooks/useDebouncedValue';
+import { superadminService } from '@vivexy/core/services/superadmin.service';
+import { startImpersonation } from '@vivexy/core/lib/impersonation';
 import { useAuth } from '@vivexy/core/shared/auth-provider';
 import { PlatformUserUpdateData } from '@vivexy/core/types/admin';
 import { Role } from '@vivexy/core/types/user';
@@ -87,6 +89,16 @@ const UserDetailSheet = ({
   const { data: user, isLoading } = usePlatformUser(userId);
   const updateUser = useUpdatePlatformUser();
   const isSelf = user?.id === currentUser?.id;
+
+  const viewAsUser = async () => {
+    if (!user) return;
+    try {
+      const session = await superadminService.impersonate(user.id);
+      startImpersonation(session.token);
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, 'Could not start session'));
+    }
+  };
 
   const applyUpdate = async (
     update: PlatformUserUpdateData,
@@ -158,6 +170,28 @@ const UserDetailSheet = ({
                   </p>
                 ) : (
                   <div className="space-y-3">
+                    {user.role !== 'SUPER_ADMIN' && !user.isSuspended && (
+                      <div className="flex items-center justify-between gap-3 rounded-xl border border-border p-3">
+                        <div>
+                          <p className="text-sm font-medium">View as user</p>
+                          <p className="text-xs text-muted-foreground">
+                            30-minute read-only session for support. Audited.
+                          </p>
+                        </div>
+                        <ConfirmAction
+                          title={`View the app as ${user.email}?`}
+                          description="You'll see exactly what they see. Changes are blocked, and the session is recorded in the audit log."
+                          confirmLabel="Start session"
+                          onConfirm={viewAsUser}
+                          trigger={
+                            <Button size="sm" variant="outline">
+                              <Eye />
+                              View as user
+                            </Button>
+                          }
+                        />
+                      </div>
+                    )}
                     <div className="flex items-center justify-between gap-3 rounded-xl border border-border p-3">
                       <div>
                         <p className="text-sm font-medium">Platform role</p>

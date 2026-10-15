@@ -6,7 +6,10 @@ import {
 } from '@tanstack/react-query';
 import { superadminService } from '../services/superadmin.service';
 import {
+  AnnouncementData,
+  ClientPlanData,
   ClientUpdateData,
+  LLMModelUpdateData,
   ListQuery,
   PlatformUserUpdateData,
   UserListQuery,
@@ -21,6 +24,9 @@ export const superadminKeys = {
   users: (query: UserListQuery) => ['superadmin', 'users', query] as const,
   user: (userId: string) => ['superadmin', 'user', userId] as const,
   auditLogs: (page: number) => ['superadmin', 'audit-logs', page] as const,
+  health: () => ['superadmin', 'health'] as const,
+  models: () => ['superadmin', 'models'] as const,
+  announcements: () => ['superadmin', 'announcements'] as const,
 };
 
 export const usePlatformOverview = () =>
@@ -103,5 +109,96 @@ export const useUpdatePlatformUser = () => {
       queryClient.setQueryData(superadminKeys.user(user.id), user);
       queryClient.invalidateQueries({ queryKey: superadminKeys.all });
     },
+  });
+};
+
+export const useSetClientPlan = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      teamId,
+      planData,
+    }: {
+      teamId: string;
+      planData: ClientPlanData;
+    }) => superadminService.setClientPlan(teamId, planData),
+    onSuccess: (client) => {
+      queryClient.setQueryData(superadminKeys.client(client.id), client);
+      queryClient.invalidateQueries({ queryKey: superadminKeys.all });
+    },
+  });
+};
+
+export const usePlatformHealth = () =>
+  useQuery({
+    queryKey: superadminKeys.health(),
+    queryFn: superadminService.getHealth,
+    refetchInterval: 30_000,
+  });
+
+export const useAdminModels = () =>
+  useQuery({
+    queryKey: superadminKeys.models(),
+    queryFn: superadminService.getModels,
+  });
+
+export const useUpdateModel = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      modelId,
+      update,
+    }: {
+      modelId: string;
+      update: LLMModelUpdateData;
+    }) => superadminService.updateModel(modelId, update),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: superadminKeys.models() });
+      queryClient.invalidateQueries({ queryKey: ['chat', 'models'] });
+    },
+  });
+};
+
+export const useAdminAnnouncements = () =>
+  useQuery({
+    queryKey: superadminKeys.announcements(),
+    queryFn: superadminService.getAnnouncements,
+  });
+
+const useInvalidateAnnouncements = () => {
+  const queryClient = useQueryClient();
+  return () => {
+    queryClient.invalidateQueries({ queryKey: superadminKeys.announcements() });
+    queryClient.invalidateQueries({ queryKey: ['announcements'] });
+  };
+};
+
+export const useCreateAnnouncement = () => {
+  const invalidateAnnouncements = useInvalidateAnnouncements();
+  return useMutation({
+    mutationFn: superadminService.createAnnouncement,
+    onSuccess: invalidateAnnouncements,
+  });
+};
+
+export const useUpdateAnnouncement = () => {
+  const invalidateAnnouncements = useInvalidateAnnouncements();
+  return useMutation({
+    mutationFn: ({
+      announcementId,
+      announcement,
+    }: {
+      announcementId: string;
+      announcement: AnnouncementData;
+    }) => superadminService.updateAnnouncement(announcementId, announcement),
+    onSuccess: invalidateAnnouncements,
+  });
+};
+
+export const useDeleteAnnouncement = () => {
+  const invalidateAnnouncements = useInvalidateAnnouncements();
+  return useMutation({
+    mutationFn: superadminService.deleteAnnouncement,
+    onSuccess: invalidateAnnouncements,
   });
 };

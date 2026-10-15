@@ -1,19 +1,37 @@
 """Platform operator routes. Every endpoint requires User.role == SUPER_ADMIN."""
 
+from agents_core.business_logic.announcements import (
+    create_announcement,
+    delete_announcement,
+    list_announcements,
+    update_announcement,
+)
 from agents_core.business_logic.superadmin import (
     get_client_detail,
     get_platform_audit_logs,
+    get_platform_health,
     get_platform_overview,
     get_platform_usage,
     get_user_detail,
     list_clients,
+    list_models,
     list_users,
+    set_client_plan,
+    start_impersonation,
     update_client,
+    update_model,
     update_user,
 )
 from agents_core.middlewares.auth import superadmin_required
 from agents_core.models import Role
-from agents_core.schemas import ClientUpdate, PlatformUserUpdate
+from agents_core.schemas import (
+    AnnouncementCreate,
+    AnnouncementUpdate,
+    ClientPlanUpdate,
+    ClientUpdate,
+    LLMModelAdminUpdate,
+    PlatformUserUpdate,
+)
 from agents_core.utils.http import bool_arg, error_response, int_arg
 from flask import Blueprint, current_app, jsonify, request
 
@@ -295,5 +313,207 @@ def audit_logs():
                 page_size=page_size,
             )
         )
+    except Exception as e:
+        return _fail(e)
+
+
+@bp.route("/clients/<team_id>/plan", methods=["PUT"])
+@superadmin_required
+def client_plan(team_id):
+    """Manually set a client's plan, trial or comp (outside Stripe).
+    ---
+    tags:
+      - Superadmin
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: body
+        name: body
+        schema:
+          type: object
+          properties:
+            plan:
+              type: string
+              enum: [FREE, PRO, ENTERPRISE]
+            status:
+              type: string
+              enum: [ACTIVE, TRIALING]
+            periodEnd:
+              type: string
+              format: date-time
+    responses:
+      200:
+        description: Updated client detail
+    """
+    try:
+        payload = ClientPlanUpdate(**(request.get_json() or {}))
+        return jsonify(set_client_plan(team_id, payload, request.user))
+    except Exception as e:
+        return _fail(e)
+
+
+@bp.route("/users/<user_id>/impersonate", methods=["POST"])
+@superadmin_required
+def impersonate(user_id):
+    """Start a 30-minute read-only session as this user.
+    ---
+    tags:
+      - Superadmin
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Short-lived token for the impersonated user
+    """
+    try:
+        return jsonify(start_impersonation(user_id, request.user))
+    except Exception as e:
+        return _fail(e)
+
+
+@bp.route("/health", methods=["GET"])
+@superadmin_required
+def health():
+    """Database, Redis, scheduled task and activity health.
+    ---
+    tags:
+      - Superadmin
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Health report
+    """
+    try:
+        return jsonify(get_platform_health())
+    except Exception as e:
+        return _fail(e)
+
+
+@bp.route("/models", methods=["GET"])
+@superadmin_required
+def models():
+    """All LLM models (active and inactive) with 30-day usage.
+    ---
+    tags:
+      - Superadmin
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Models
+    """
+    try:
+        return jsonify({"models": list_models(int_arg("days", 30))})
+    except Exception as e:
+        return _fail(e)
+
+
+@bp.route("/models/<model_id>", methods=["PATCH"])
+@superadmin_required
+def model_update(model_id):
+    """Enable/disable a model or change its pricing.
+    ---
+    tags:
+      - Superadmin
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: body
+        name: body
+        schema:
+          type: object
+          properties:
+            isActive:
+              type: boolean
+            inputCost:
+              type: number
+            outputCost:
+              type: number
+    responses:
+      200:
+        description: Updated model
+    """
+    try:
+        payload = LLMModelAdminUpdate(**(request.get_json() or {}))
+        return jsonify(update_model(model_id, payload, request.user))
+    except Exception as e:
+        return _fail(e)
+
+
+@bp.route("/announcements", methods=["GET"])
+@superadmin_required
+def announcements():
+    """All announcements.
+    ---
+    tags:
+      - Superadmin
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Announcements
+    """
+    try:
+        return jsonify({"announcements": list_announcements()})
+    except Exception as e:
+        return _fail(e)
+
+
+@bp.route("/announcements", methods=["POST"])
+@superadmin_required
+def announcement_create():
+    """Create a platform-wide or client-specific announcement.
+    ---
+    tags:
+      - Superadmin
+    security:
+      - BearerAuth: []
+    responses:
+      201:
+        description: Created announcement
+    """
+    try:
+        payload = AnnouncementCreate(**(request.get_json() or {}))
+        return jsonify(create_announcement(payload, request.user)), 201
+    except Exception as e:
+        return _fail(e)
+
+
+@bp.route("/announcements/<announcement_id>", methods=["PATCH"])
+@superadmin_required
+def announcement_update(announcement_id):
+    """Update an announcement.
+    ---
+    tags:
+      - Superadmin
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Updated announcement
+    """
+    try:
+        payload = AnnouncementUpdate(**(request.get_json() or {}))
+        return jsonify(update_announcement(announcement_id, payload, request.user))
+    except Exception as e:
+        return _fail(e)
+
+
+@bp.route("/announcements/<announcement_id>", methods=["DELETE"])
+@superadmin_required
+def announcement_delete(announcement_id):
+    """Delete an announcement.
+    ---
+    tags:
+      - Superadmin
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Deleted
+    """
+    try:
+        return jsonify(delete_announcement(announcement_id, request.user))
     except Exception as e:
         return _fail(e)

@@ -58,6 +58,7 @@ import {
   formatTokens,
   getApiErrorMessage,
 } from '@vivexy/core/lib/admin-format';
+import { ClientPlanForm, FeatureFlagsEditor } from './client-plan-flags';
 import {
   ConfirmAction,
   Pagination,
@@ -281,6 +282,16 @@ const ClientDetailSheet = ({
                   />
                 </div>
                 <ClientSettingsForm key={client.id} client={client} />
+              </section>
+
+              <section className="space-y-3">
+                <h3 className="text-sm font-semibold">Plan</h3>
+                <ClientPlanForm key={`plan-${client.id}`} client={client} />
+              </section>
+
+              <section className="space-y-3">
+                <h3 className="text-sm font-semibold">Feature flags</h3>
+                <FeatureFlagsEditor client={client} />
               </section>
 
               <section className="space-y-3">

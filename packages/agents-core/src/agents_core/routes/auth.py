@@ -188,6 +188,8 @@ def me():
     """
     user = request.user
     user_data = exclude_password(user)
+    if request.impersonator:
+        user_data["impersonatedBy"] = request.impersonator.email
     return jsonify({"user": user_data})
 
 

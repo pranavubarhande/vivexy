@@ -21,6 +21,12 @@ const ACTION_LABELS: Record<string, string> = {
   'team.settings_updated': 'Updated team settings',
   'superadmin.client_updated': 'Updated client',
   'superadmin.user_updated': 'Updated user',
+  'superadmin.client_plan_changed': 'Changed client plan',
+  'superadmin.impersonation_started': 'Viewed as user',
+  'superadmin.model_updated': 'Updated model',
+  'superadmin.announcement_created': 'Published announcement',
+  'superadmin.announcement_updated': 'Updated announcement',
+  'superadmin.announcement_deleted': 'Deleted announcement',
 };
 
 const describeDetails = (details: Record<string, unknown>) =>
