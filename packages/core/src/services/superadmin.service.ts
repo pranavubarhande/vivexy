@@ -1,7 +1,14 @@
 import axiosInstance from './axiosInstance.service';
 import {
+  AdminLLMModel,
+  Announcement,
+  AnnouncementData,
   AuditLogEntry,
   ClientDetail,
+  ClientPlanData,
+  ImpersonationResult,
+  LLMModelUpdateData,
+  PlatformHealth,
   ClientSummary,
   ClientUpdateData,
   ListQuery,
@@ -80,6 +87,80 @@ export const superadminService = {
       update
     );
     return data;
+  },
+
+  setClientPlan: async (
+    teamId: string,
+    planData: ClientPlanData
+  ): Promise<ClientDetail> => {
+    const { data } = await axiosInstance.put<ClientDetail>(
+      `/superadmin/clients/${teamId}/plan`,
+      planData
+    );
+    return data;
+  },
+
+  impersonate: async (userId: string): Promise<ImpersonationResult> => {
+    const { data } = await axiosInstance.post<ImpersonationResult>(
+      `/superadmin/users/${userId}/impersonate`
+    );
+    return data;
+  },
+
+  getHealth: async (): Promise<PlatformHealth> => {
+    const { data } =
+      await axiosInstance.get<PlatformHealth>('/superadmin/health');
+    return data;
+  },
+
+  getModels: async (): Promise<AdminLLMModel[]> => {
+    const { data } = await axiosInstance.get<{ models: AdminLLMModel[] }>(
+      '/superadmin/models'
+    );
+    return data.models;
+  },
+
+  updateModel: async (
+    modelId: string,
+    update: LLMModelUpdateData
+  ): Promise<AdminLLMModel> => {
+    const { data } = await axiosInstance.patch<AdminLLMModel>(
+      `/superadmin/models/${modelId}`,
+      update
+    );
+    return data;
+  },
+
+  getAnnouncements: async (): Promise<Announcement[]> => {
+    const { data } = await axiosInstance.get<{ announcements: Announcement[] }>(
+      '/superadmin/announcements'
+    );
+    return data.announcements;
+  },
+
+  createAnnouncement: async (
+    announcement: AnnouncementData
+  ): Promise<Announcement> => {
+    const { data } = await axiosInstance.post<Announcement>(
+      '/superadmin/announcements',
+      announcement
+    );
+    return data;
+  },
+
+  updateAnnouncement: async (
+    announcementId: string,
+    announcement: AnnouncementData
+  ): Promise<Announcement> => {
+    const { data } = await axiosInstance.patch<Announcement>(
+      `/superadmin/announcements/${announcementId}`,
+      announcement
+    );
+    return data;
+  },
+
+  deleteAnnouncement: async (announcementId: string): Promise<void> => {
+    await axiosInstance.delete(`/superadmin/announcements/${announcementId}`);
   },
 
   getAuditLogs: async (page: number): Promise<Paginated<AuditLogEntry>> => {

@@ -1,8 +1,12 @@
 """Platform operator (SUPER_ADMIN) views across every client and user."""
 
+import os
+import time
+import uuid
 from datetime import datetime, timedelta
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
+import redis as redis_lib
 from agents_core.business_logic.admin import (
     build_members_with_usage,
     build_team_invites,
@@ -15,16 +19,28 @@ from agents_core.business_logic.usage import (
     get_usage_totals,
 )
 from agents_core.constants.audit_actions import (
+    AUDIT_CLIENT_PLAN_CHANGED,
     AUDIT_CLIENT_UPDATED,
+    AUDIT_IMPERSONATION_STARTED,
+    AUDIT_MODEL_UPDATED,
+    AUDIT_TARGET_MODEL,
     AUDIT_TARGET_TEAM,
     AUDIT_TARGET_USER,
     AUDIT_USER_UPDATED,
 )
+from agents_core.constants.billing import (
+    IMPERSONATION_TTL_MINUTES,
+    MANUAL_SUBSCRIPTION_PREFIX,
+    PLAN_PRICES_USD,
+)
 from agents_core.models import (
     Chat,
+    LLMModel,
     Message,
     Plan,
     Role,
+    ScheduledTask,
+    ScheduledTaskRun,
     Subscription,
     SubscriptionStatus,
     Team,
@@ -33,7 +49,13 @@ from agents_core.models import (
     User,
     db,
 )
-from agents_core.schemas import ClientUpdate, PlatformUserUpdate
+from agents_core.schemas import (
+    ClientPlanUpdate,
+    ClientUpdate,
+    LLMModelAdminUpdate,
+    PlatformUserUpdate,
+)
+from agents_core.utils.auth import generate_token
 from sqlalchemy import func
 
 LIVE_SUBSCRIPTION_STATUSES = (SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIALING)
@@ -78,6 +100,20 @@ def get_platform_overview() -> Dict[str, Any]:
         .all()
     )
     paid_plans = {plan.value: count for plan, count in plan_rows}
+    active_rows = (
+        db.session.query(Subscription.plan, func.count(Subscription.id))
+        .filter(Subscription.status == SubscriptionStatus.ACTIVE)
+        .group_by(Subscription.plan)
+        .all()
+    )
+    mrr = sum(PLAN_PRICES_USD.get(plan.value, 0) * count for plan, count in active_rows)
+    churned_30d = Subscription.query.filter(
+        Subscription.status == SubscriptionStatus.CANCELED,
+        Subscription.updated_at >= last_30_days,
+    ).count()
+    trialing = Subscription.query.filter(
+        Subscription.status == SubscriptionStatus.TRIALING
+    ).count()
 
     return {
         "users": {
@@ -104,6 +140,13 @@ def get_platform_overview() -> Dict[str, Any]:
         "subscriptions": {
             "paidByPlan": paid_plans,
             "activeTotal": sum(paid_plans.values()),
+            "trialing": trialing,
+            "churned30d": churned_30d,
+        },
+        "revenue": {
+            "mrrUsd": round(mrr, 2),
+            "arrUsd": round(mrr * 12, 2),
+            "aiCost30dUsd": get_usage_totals(None, last_30_days)["totalCostUsd"],
         },
     }
 
@@ -423,3 +466,235 @@ def get_platform_audit_logs(
     return list_audit_logs(
         team_id=team_id, action=action, page=page, page_size=page_size
     )
+
+
+def _live_team_subscription(team_id: str) -> Optional[Subscription]:
+    return (
+        Subscription.query.filter(
+            Subscription.team_id == team_id,
+            Subscription.status.in_(LIVE_SUBSCRIPTION_STATUSES),
+        )
+        .order_by(Subscription.created_at.desc())
+        .first()
+    )
+
+
+def set_client_plan(
+    team_id: str, payload: ClientPlanUpdate, actor: User
+) -> Dict[str, Any]:
+    """Manually comp, upgrade or trial a client outside Stripe."""
+    team = Team.query.get(team_id)
+    if not team:
+        raise LookupError("Client not found")
+
+    current = _live_team_subscription(team_id)
+    previous_plan = current.plan.value if current else Plan.FREE.value
+    if current and not current.stripe_subscription_id.startswith(
+        MANUAL_SUBSCRIPTION_PREFIX
+    ):
+        raise ValueError(
+            "This client is billed through Stripe. Change the plan in Stripe."
+        )
+
+    now = datetime.utcnow()
+    if payload.plan == Plan.FREE:
+        if current:
+            current.status = SubscriptionStatus.CANCELED
+            current.current_period_end = now
+    else:
+        subscription = current or Subscription(
+            team_id=team_id,
+            user_id=team.owner_id,
+            stripe_subscription_id=f"{MANUAL_SUBSCRIPTION_PREFIX}{uuid.uuid4()}",
+            current_period_start=now,
+        )
+        subscription.plan = payload.plan
+        subscription.status = SubscriptionStatus(payload.status)
+        subscription.current_period_end = payload.period_end
+        db.session.add(subscription)
+
+    record_audit_log(
+        actor,
+        AUDIT_CLIENT_PLAN_CHANGED,
+        AUDIT_TARGET_TEAM,
+        team_id,
+        team_id=team_id,
+        details={
+            "plan": {"from": previous_plan, "to": payload.plan.value},
+            "status": payload.status,
+            "periodEnd": payload.period_end.isoformat() if payload.period_end else None,
+        },
+        commit=False,
+    )
+    db.session.commit()
+    return get_client_detail(team_id)
+
+
+def start_impersonation(user_id: str, actor: User) -> Dict[str, Any]:
+    target = User.query.get(user_id)
+    if not target:
+        raise LookupError("User not found")
+    if target.id == actor.id:
+        raise ValueError("You cannot impersonate yourself")
+    if target.role == Role.SUPER_ADMIN:
+        raise PermissionError("Super admins cannot be impersonated")
+    if target.is_suspended:
+        raise ValueError("Suspended users cannot be impersonated")
+
+    record_audit_log(
+        actor,
+        AUDIT_IMPERSONATION_STARTED,
+        AUDIT_TARGET_USER,
+        target.id,
+        details={"email": target.email, "minutes": IMPERSONATION_TTL_MINUTES},
+    )
+    token = generate_token(
+        target.id,
+        target.email,
+        expires_in=timedelta(minutes=IMPERSONATION_TTL_MINUTES),
+        extra_claims={"impersonatorId": actor.id},
+    )
+    return {
+        "token": token,
+        "expiresInMinutes": IMPERSONATION_TTL_MINUTES,
+        "user": {"id": target.id, "email": target.email, "name": target.name},
+    }
+
+
+def list_models(days: int = 30) -> List[Dict[str, Any]]:
+    since = datetime.utcnow() - timedelta(days=days)
+    usage_by_model = {
+        row[0]: {"totalCostUsd": round(float(row[1]), 6), "messageCount": int(row[2])}
+        for row in db.session.query(
+            TokenUsage.model_id,
+            func.coalesce(func.sum(TokenUsage.total_cost_usd), 0.0),
+            func.count(TokenUsage.id),
+        )
+        .filter(TokenUsage.created_at >= since)
+        .group_by(TokenUsage.model_id)
+        .all()
+    }
+    models = LLMModel.query.order_by(LLMModel.provider.asc(), LLMModel.name.asc())
+    return [
+        {
+            "id": model.id,
+            "name": model.name,
+            "provider": model.provider,
+            "modelId": model.model_id,
+            "isActive": bool(model.is_active),
+            "inputCost": model.input_cost,
+            "outputCost": model.output_cost,
+            "contextWindow": model.context_window,
+            "usage": usage_by_model.get(
+                model.id, {"totalCostUsd": 0.0, "messageCount": 0}
+            ),
+        }
+        for model in models.all()
+    ]
+
+
+def update_model(
+    model_id: str, payload: LLMModelAdminUpdate, actor: User
+) -> Dict[str, Any]:
+    model = LLMModel.query.get(model_id)
+    if not model:
+        raise LookupError("Model not found")
+
+    changes = {}
+    for field in ("is_active", "input_cost", "output_cost"):
+        if field not in payload.model_fields_set:
+            continue
+        new_value = getattr(payload, field)
+        if field == "is_active" and new_value is None:
+            continue
+        if getattr(model, field) != new_value:
+            changes[field] = {"from": getattr(model, field), "to": new_value}
+            setattr(model, field, new_value)
+
+    if changes:
+        record_audit_log(
+            actor,
+            AUDIT_MODEL_UPDATED,
+            AUDIT_TARGET_MODEL,
+            model.id,
+            details={"model": model.name, **changes},
+            commit=False,
+        )
+    db.session.commit()
+    return next(item for item in list_models() if item["id"] == model.id)
+
+
+def _redis_health() -> Dict[str, Any]:
+    started = time.perf_counter()
+    try:
+        client = redis_lib.from_url(
+            os.environ.get("REDIS_URL", "redis://localhost:6379"),
+            socket_connect_timeout=1,
+            socket_timeout=1,
+        )
+        client.ping()
+        return {
+            "ok": True,
+            "latencyMs": round((time.perf_counter() - started) * 1000, 1),
+        }
+    except Exception as error:
+        return {"ok": False, "error": str(error)}
+
+
+def get_platform_health() -> Dict[str, Any]:
+    now = datetime.utcnow()
+    last_24h = now - timedelta(hours=24)
+    last_hour = now - timedelta(hours=1)
+
+    runs_24h = ScheduledTaskRun.query.filter(ScheduledTaskRun.ran_at >= last_24h)
+    failed_runs = (
+        db.session.query(ScheduledTaskRun, ScheduledTask.name)
+        .join(ScheduledTask, ScheduledTask.id == ScheduledTaskRun.task_id)
+        .filter(
+            ScheduledTaskRun.ran_at >= last_24h, ScheduledTaskRun.status == "failed"
+        )
+        .order_by(ScheduledTaskRun.ran_at.desc())
+        .limit(10)
+        .all()
+    )
+    stuck_runs = ScheduledTaskRun.query.filter(
+        ScheduledTaskRun.status == "running", ScheduledTaskRun.ran_at < last_hour
+    ).count()
+    started_db = time.perf_counter()
+    db.session.execute(db.text("SELECT 1"))
+    db_latency = round((time.perf_counter() - started_db) * 1000, 1)
+
+    return {
+        "database": {"ok": True, "latencyMs": db_latency},
+        "redis": _redis_health(),
+        "broker": {
+            "rabbitmq": os.environ.get("USE_RABBITMQ", "false").lower() == "true",
+            "redisStream": os.environ.get("USE_REDIS_STREAM", "false").lower()
+            == "true",
+        },
+        "scheduledTasks": {
+            "runs24h": runs_24h.count(),
+            "failed24h": runs_24h.filter(ScheduledTaskRun.status == "failed").count(),
+            "stuck": stuck_runs,
+            "recentFailures": [
+                {
+                    "id": run.id,
+                    "taskName": task_name,
+                    "error": (run.error or "")[:300],
+                    "ranAt": _iso(run.ran_at),
+                }
+                for run, task_name in failed_runs
+            ],
+        },
+        "activity": {
+            "messagesLastHour": TokenUsage.query.filter(
+                TokenUsage.created_at >= last_hour
+            ).count(),
+            "activeUsersLastHour": db.session.query(
+                func.count(func.distinct(TokenUsage.user_id))
+            )
+            .filter(TokenUsage.created_at >= last_hour)
+            .scalar(),
+        },
+        "checkedAt": now.isoformat(),
+    }

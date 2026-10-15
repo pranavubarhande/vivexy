@@ -135,6 +135,13 @@ export interface PlatformOverview {
   subscriptions: {
     paidByPlan: Record<string, number>;
     activeTotal: number;
+    trialing: number;
+    churned30d: number;
+  };
+  revenue: {
+    mrrUsd: number;
+    arrUsd: number;
+    aiCost30dUsd: number;
   };
 }
 
@@ -171,6 +178,8 @@ export interface ClientDetail {
   seatLimit: number | null;
   monthlyBudgetUsd: number | null;
   notes: string | null;
+  featureFlags: Record<string, boolean>;
+  budgetEnforcement: BudgetEnforcement;
   plan: string;
   createdAt: string | null;
   members: TeamMemberWithUsage[];
@@ -189,6 +198,82 @@ export interface ClientUpdateData {
   isSuspended?: boolean;
   seatLimit?: number | null;
   notes?: string | null;
+  featureFlags?: Record<string, boolean>;
+}
+
+export type PlanKey = 'FREE' | 'PRO' | 'ENTERPRISE';
+
+export interface ClientPlanData {
+  plan: PlanKey;
+  status?: 'ACTIVE' | 'TRIALING';
+  periodEnd?: string | null;
+}
+
+export interface ImpersonationResult {
+  token: string;
+  expiresInMinutes: number;
+  user: { id: string; email: string; name: string | null };
+}
+
+export interface AdminLLMModel {
+  id: string;
+  name: string;
+  provider: string;
+  modelId: string;
+  isActive: boolean;
+  inputCost: number | null;
+  outputCost: number | null;
+  contextWindow: number | null;
+  usage: { totalCostUsd: number; messageCount: number };
+}
+
+export interface LLMModelUpdateData {
+  isActive?: boolean;
+  inputCost?: number | null;
+  outputCost?: number | null;
+}
+
+export interface PlatformHealth {
+  database: { ok: boolean; latencyMs?: number; error?: string };
+  redis: { ok: boolean; latencyMs?: number; error?: string };
+  broker: { rabbitmq: boolean; redisStream: boolean };
+  scheduledTasks: {
+    runs24h: number;
+    failed24h: number;
+    stuck: number;
+    recentFailures: {
+      id: string;
+      taskName: string;
+      error: string;
+      ranAt: string | null;
+    }[];
+  };
+  activity: { messagesLastHour: number; activeUsersLastHour: number };
+  checkedAt: string;
+}
+
+export type AnnouncementLevel = 'info' | 'warning' | 'critical';
+
+export interface Announcement {
+  id: string;
+  title: string;
+  body: string | null;
+  level: AnnouncementLevel;
+  teamId: string | null;
+  isActive: boolean;
+  startsAt: string | null;
+  endsAt: string | null;
+  createdAt: string | null;
+}
+
+export interface AnnouncementData {
+  title?: string;
+  body?: string | null;
+  level?: AnnouncementLevel;
+  teamId?: string | null;
+  isActive?: boolean;
+  startsAt?: string | null;
+  endsAt?: string | null;
 }
 
 export interface PlatformUser {

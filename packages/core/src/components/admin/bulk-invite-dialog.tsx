@@ -1,7 +1,7 @@
 'use client';
 
 import { ChangeEvent, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
@@ -57,7 +57,9 @@ export const BulkInviteDialog = ({ teamId }: { teamId: string }) => {
     resolver: zodResolver(bulkInviteSchema),
     defaultValues: { emailsText: '', role: 'MEMBER' },
   });
-  const emailCount = extractEmails(form.watch('emailsText')).length;
+  const emailCount = extractEmails(
+    useWatch({ control: form.control, name: 'emailsText' })
+  ).length;
 
   const handleFile = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];

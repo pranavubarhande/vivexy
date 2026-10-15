@@ -6,6 +6,8 @@ import {
   Building2,
   Coins,
   MessageSquare,
+  TrendingDown,
+  TrendingUp,
   UserPlus,
   Users,
 } from 'lucide-react';
@@ -36,6 +38,9 @@ import {
 import { AuditLogTable } from './audit-log-table';
 import { SuperadminClients } from './superadmin-clients';
 import { SuperadminUsers } from './superadmin-users';
+import { SuperadminModels } from './superadmin-models';
+import { SuperadminHealth } from './superadmin-health';
+import { SuperadminAnnouncements } from './superadmin-announcements';
 
 const PlatformOverviewTab = () => {
   const [days, setDays] = useState(30);
@@ -44,12 +49,45 @@ const PlatformOverviewTab = () => {
   const { data: usage, isLoading: usageLoading } = usePlatformUsage(days);
 
   const planEntries = Object.entries(overview?.subscriptions.paidByPlan ?? {});
+  const grossMargin =
+    (overview?.revenue.mrrUsd ?? 0) - (overview?.revenue.aiCost30dUsd ?? 0);
 
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard
           featured
+          title="MRR"
+          value={formatCost(overview?.revenue.mrrUsd ?? 0)}
+          sub={`${formatCost(overview?.revenue.arrUsd ?? 0)} ARR`}
+          icon={<TrendingUp />}
+          loading={isLoading}
+        />
+        <StatCard
+          title="AI cost (30d)"
+          value={formatCost(overview?.revenue.aiCost30dUsd ?? 0)}
+          sub={`${grossMargin >= 0 ? '' : '-'}${formatCost(Math.abs(grossMargin))} margin vs MRR`}
+          icon={<Coins />}
+          loading={isLoading}
+        />
+        <StatCard
+          title="Trials"
+          value={(overview?.subscriptions.trialing ?? 0).toLocaleString()}
+          sub="Active trials"
+          icon={<UserPlus />}
+          loading={isLoading}
+        />
+        <StatCard
+          title="Churn (30d)"
+          value={(overview?.subscriptions.churned30d ?? 0).toLocaleString()}
+          sub="Canceled subscriptions"
+          icon={<TrendingDown />}
+          loading={isLoading}
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <StatCard
           title="Spend (30d)"
           value={formatCost(overview?.usage.last30d.totalCostUsd ?? 0)}
           sub={`${formatCost(overview?.usage.monthToDate.totalCostUsd ?? 0)} this month`}
@@ -252,6 +290,9 @@ export const SuperadminPanel = () => {
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="clients">Clients</TabsTrigger>
           <TabsTrigger value="users">Users</TabsTrigger>
+          <TabsTrigger value="models">Models</TabsTrigger>
+          <TabsTrigger value="health">Health</TabsTrigger>
+          <TabsTrigger value="announcements">Announcements</TabsTrigger>
           <TabsTrigger value="audit">Audit log</TabsTrigger>
         </TabsList>
         <TabsContent value="overview">
@@ -262,6 +303,15 @@ export const SuperadminPanel = () => {
         </TabsContent>
         <TabsContent value="users">
           <SuperadminUsers />
+        </TabsContent>
+        <TabsContent value="models">
+          <SuperadminModels />
+        </TabsContent>
+        <TabsContent value="health">
+          <SuperadminHealth />
+        </TabsContent>
+        <TabsContent value="announcements">
+          <SuperadminAnnouncements />
         </TabsContent>
         <TabsContent value="audit">
           <PlatformAuditTab />

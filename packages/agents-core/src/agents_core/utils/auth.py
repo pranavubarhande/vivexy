@@ -132,13 +132,19 @@ def verify_password(password: str, hashed: str) -> bool:
     return bcrypt.checkpw(password.encode("utf-8"), hashed.encode("utf-8"))
 
 
-def generate_token(user_id: str, email: str) -> str:
+def generate_token(
+    user_id: str,
+    email: str,
+    expires_in: timedelta = timedelta(days=7),
+    extra_claims: dict | None = None,
+) -> str:
     """Generate a JWT token for the user."""
     payload = {
         "userId": user_id,
         "email": email,
-        "exp": datetime.utcnow() + timedelta(days=7),  # 7 days
+        "exp": datetime.utcnow() + expires_in,
         "iat": datetime.utcnow(),
+        **(extra_claims or {}),
     }
     return jwt.encode(payload, current_app.config["JWT_SECRET_KEY"], algorithm="HS256")
 
@@ -158,11 +164,16 @@ def verify_token(token: str) -> dict:
 
 def get_user_from_token(token: str) -> User:
     """Get user from JWT token."""
+    user, _ = get_user_and_claims_from_token(token)
+    return user
+
+
+def get_user_and_claims_from_token(token: str) -> tuple[User, dict]:
     payload = verify_token(token)
     user = User.query.get(payload["userId"])
     if not user:
         raise ValueError("User not found")
-    return user
+    return user, payload
 
 
 def record_login(user: User) -> None:

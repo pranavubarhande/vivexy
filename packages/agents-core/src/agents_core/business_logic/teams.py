@@ -462,3 +462,17 @@ def remove_team_member(
     db.session.commit()
 
     return {"message": "Member removed successfully"}
+
+
+def get_team_features(team_id: str, user_id: str) -> Dict[str, bool]:
+    membership = TeamMember.query.filter_by(team_id=team_id, user_id=user_id).first()
+    if not membership:
+        raise ValueError("Access denied")
+    return membership.team.feature_flags or {}
+
+
+def team_has_feature(team_id: str, flag: str, default: bool = False) -> bool:
+    team = Team.query.get(team_id) if team_id else None
+    if not team or not team.feature_flags:
+        return default
+    return bool(team.feature_flags.get(flag, default))
