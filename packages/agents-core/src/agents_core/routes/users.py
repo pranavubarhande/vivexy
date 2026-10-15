@@ -3,8 +3,8 @@ from agents_core.business_logic.api_keys import (
     get_user_api_keys,
     upsert_user_api_key,
 )
+from agents_core.business_logic.data_lifecycle import erase_user, export_user_data
 from agents_core.business_logic.users import (
-    delete_user,
     get_user_profile,
     update_user_password,
     update_user_profile,
@@ -176,11 +176,13 @@ def delete_account():
         description: User not found
     """
     try:
-        user_id = request.user.id
-        result = delete_user(user_id)
+        user = request.user
+        result = erase_user(user.id, user, allow_self=True)
         return jsonify({"user": result})
-    except ValueError as e:
+    except LookupError as e:
         return jsonify({"error": str(e)}), 404
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -294,5 +296,24 @@ def remove_api_key(provider):
         return jsonify({"success": True})
     except ValueError as e:
         return jsonify({"error": str(e)}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@bp.route("/me/export", methods=["GET"])
+@auth_middleware
+def export_my_data():
+    """Download a copy of your data (profile, teams, chats, usage).
+    ---
+    tags:
+      - Users
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: JSON export
+    """
+    try:
+        return jsonify(export_user_data(request.user.id))
     except Exception as e:
         return jsonify({"error": str(e)}), 500

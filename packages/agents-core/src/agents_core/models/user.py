@@ -21,6 +21,7 @@ class User(db.Model):
     oauth_subject_id = db.Column(db.String, nullable=True)
     is_suspended = db.Column(db.Boolean, default=False, nullable=False)
     last_login_at = db.Column(db.DateTime, nullable=True)
+    deleted_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow

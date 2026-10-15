@@ -25,6 +25,7 @@ export const superadminKeys = {
   user: (userId: string) => ['superadmin', 'user', userId] as const,
   auditLogs: (page: number) => ['superadmin', 'audit-logs', page] as const,
   health: () => ['superadmin', 'health'] as const,
+  alerts: () => ['superadmin', 'alerts'] as const,
   models: () => ['superadmin', 'models'] as const,
   announcements: () => ['superadmin', 'announcements'] as const,
 };

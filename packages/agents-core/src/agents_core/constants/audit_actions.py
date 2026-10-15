@@ -17,3 +17,7 @@ AUDIT_ANNOUNCEMENT_DELETED = "superadmin.announcement_deleted"
 
 AUDIT_TARGET_MODEL = "llm_model"
 AUDIT_TARGET_ANNOUNCEMENT = "announcement"
+AUDIT_TEAM_MEMBER_AUTO_JOINED = "team.member_auto_joined"
+AUDIT_USER_DATA_EXPORTED = "superadmin.user_data_exported"
+AUDIT_USER_ERASED = "superadmin.user_erased"
+AUDIT_RETENTION_PURGED = "system.retention_purged"

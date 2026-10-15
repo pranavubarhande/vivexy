@@ -89,7 +89,7 @@ export function AppSidebar({
     ...(administeredTeams?.length
       ? [{ label: 'Admin', href: ROUTES.admin, icon: ShieldCheck }]
       : []),
-    ...(user?.role === 'SUPER_ADMIN'
+    ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN'
       ? [{ label: 'Superadmin', href: ROUTES.superadmin, icon: Crown }]
       : []),
   ];

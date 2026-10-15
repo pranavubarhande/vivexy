@@ -19,6 +19,10 @@ class TeamSettingsUpdate(BaseModel):
     monthly_budget_usd: Optional[float] = Field(default=None, ge=0)
     budget_enforcement: Optional[Literal["warn", "block"]] = None
     allowed_model_ids: Optional[List[str]] = None
+    email_domain: Optional[str] = None
+    auto_join_domain: Optional[bool] = None
+    require_sso: Optional[bool] = None
+    retention_days: Optional[int] = Field(default=None, ge=7, le=3650)
 
 
 class ClientUpdate(BaseModel):
@@ -26,6 +30,7 @@ class ClientUpdate(BaseModel):
     seat_limit: Optional[int] = Field(default=None, ge=1)
     notes: Optional[str] = None
     feature_flags: Optional[Dict[str, bool]] = None
+    domain_verified: Optional[bool] = None
 
 
 class PlatformUserUpdate(BaseModel):

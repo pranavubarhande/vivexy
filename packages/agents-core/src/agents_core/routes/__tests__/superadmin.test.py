@@ -82,11 +82,11 @@ def platform(app):
 @pytest.mark.parametrize(
     "path", ["/superadmin/overview", "/superadmin/clients", "/superadmin/users"]
 )
-def test_non_superadmins_are_forbidden(client, platform, path):
+def test_only_platform_staff_can_read(client, platform, path):
     assert client.get(path).status_code == 401
     assert client.get(path, headers=_headers(platform["owner"])).status_code == 403
     response = client.get(path, headers=_headers(platform["platform_admin"]))
-    assert response.status_code == 403
+    assert response.status_code == 200
 
 
 def test_overview(client, platform):
