@@ -2,9 +2,9 @@
 
 Two new control surfaces on top of the existing app:
 
-| Panel          | Who                                   | Scope                         | Route         |
-| -------------- | ------------------------------------- | ----------------------------- | ------------- |
-| **Admin**      | A client's Team `OWNER` / `ADMIN`     | Only the team(s) they run     | `/admin`      |
+| Panel          | Who                                           | Scope                         | Route         |
+| -------------- | --------------------------------------------- | ----------------------------- | ------------- |
+| **Admin**      | A client's Team `OWNER` / `ADMIN`             | Only the team(s) they run     | `/admin`      |
 | **Superadmin** | Platform operator (`User.role = SUPER_ADMIN`) | Every client, user and metric | `/superadmin` |
 
 ## Key decisions
@@ -35,15 +35,15 @@ This is fixed by ignoring `role` at registration and always creating `USER`.
 
 ## Data model changes
 
-| Change                                   | Why                                                   |
-| ---------------------------------------- | ----------------------------------------------------- |
-| `users.is_suspended` (bool, default false) | Superadmin can lock a user out; enforced in `auth_middleware` |
-| `users.last_login_at` (datetime, null)   | Activity tracking, "inactive users" view              |
-| `teams.is_suspended` (bool, default false) | Superadmin can suspend a whole client              |
-| `teams.seat_limit` (int, null)           | Client contract limit; invites are blocked past it   |
-| `teams.monthly_budget_usd` (float, null) | Client admin's spend cap (phase 2 enforcement)       |
-| `teams.notes` (text, null)               | Superadmin-only account notes (CRM-style)            |
-| New `audit_logs` table                   | `actor_id, action, target_type, target_id, team_id, details (JSON), ip_address, created_at` |
+| Change                                     | Why                                                                                         |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------- |
+| `users.is_suspended` (bool, default false) | Superadmin can lock a user out; enforced in `auth_middleware`                               |
+| `users.last_login_at` (datetime, null)     | Activity tracking, "inactive users" view                                                    |
+| `teams.is_suspended` (bool, default false) | Superadmin can suspend a whole client                                                       |
+| `teams.seat_limit` (int, null)             | Client contract limit; invites are blocked past it                                          |
+| `teams.monthly_budget_usd` (float, null)   | Client admin's spend cap (phase 2 enforcement)                                              |
+| `teams.notes` (text, null)                 | Superadmin-only account notes (CRM-style)                                                   |
+| New `audit_logs` table                     | `actor_id, action, target_type, target_id, team_id, details (JSON), ip_address, created_at` |
 
 One Alembic migration covers all of it.
 
@@ -93,36 +93,58 @@ One Alembic migration covers all of it.
 - `/superadmin`: tabs **Overview** (platform KPIs, daily chart, model mix),
   **Clients** (search, suspend, seat limit, notes in a detail sheet),
   **Users** (search, filter, suspend, role), **Audit log**.
-- Sidebar "Administration" group: *Admin* shows if the user administers any
-  team, *Superadmin* only for `SUPER_ADMIN`. Pages show an access-denied state
+- Sidebar "Administration" group: _Admin_ shows if the user administers any
+  team, _Superadmin_ only for `SUPER_ADMIN`. Pages show an access-denied state
   if opened directly.
 
-## Phase 2 — next
+## Phase 2 — built
 
-- **Team-attributed usage.** Today `token_usage` and `chats` only carry
-  `user_id`, so team spend = sum of members' spend (personal usage included).
-  Add `team_id` to `chats` / `token_usage` and an "active team" selector so
-  spend is attributed exactly.
-- **Budget enforcement** — block or warn in the chat stream when a team passes
-  `monthly_budget_usd`; email the admin at 80% / 100%.
-- **Client admin controls**: allowed models / agents / connectors per team,
-  invite email delivery (currently invites are DB-only), bulk CSV invite,
-  export usage CSV.
-- **Superadmin revenue**: MRR/ARR, churn and plan changes once Stripe is wired
-  (`routes/stripe.py` is still a placeholder), invoices per client, manual plan
-  override / comps / trial extension.
-- **Impersonation** ("log in as client" for support) — short-lived token,
-  banner in the UI, always audited, read-only by default.
-- **Ops health**: queue depth (RabbitMQ/Redis stream), failed scheduled-task
-  runs, error rate (Sentry link), LLM provider error/latency.
-- **Global LLM model management** — enable/disable models, edit pricing
-  (`llm_models`), currently only seeded by script.
-- **Platform announcements / feature flags per client.**
+- **Team-attributed usage.** `chats.team_id` and `token_usage.team_id`. The
+  sidebar "Usage billed to" switcher tags new chats with a team (membership
+  checked); usage is recorded against the chat's team. Admin and superadmin
+  views use exact attribution; personal chats are excluded.
+- **Budget enforcement.** `/chat/start` refuses team chats for suspended teams
+  and disallowed models, and either warns or blocks at the monthly budget
+  (`teams.budget_enforcement`). Owners/admins are emailed once at 80% and once
+  at 100% each month.
+- **Client admin controls.** Allowed models per team, invite emails, bulk
+  invite (paste/CSV), usage CSV export. Pending invites are claimed into
+  memberships only once the email is proven (verified address, SSO login or
+  the verification link), because email verification is soft.
+- **Superadmin.** MRR/ARR/churn/trials and AI cost vs MRR; manual plan,
+  trial or comp per client (Stripe-billed plans are protected); 30-minute
+  read-only "view as user" with banner and audit entry; health tab (DB,
+  Redis, broker, failing scheduled tasks); model enable/disable and pricing;
+  announcements (global or per client); per-client feature flags (kebab-case,
+  readable by members via `GET /teams/<id>/features`).
 
-## Phase 3 — later
+## Phase 3 — built
 
-- SSO enforcement per client (require Google/Microsoft for a domain), domain
-  verification and auto-join.
-- Data retention policies per client, GDPR export/delete for a user.
-- Read-only `ADMIN` platform role for support staff, with granular permissions.
-- Alerting (Slack/email) for anomalies: cost spikes, signup spikes, abuse.
+- **SSO & domains.** Teams claim an email domain; a superadmin verifies it.
+  Verified domains can auto-join verified users and can require SSO
+  (password login and password registration are refused).
+- **Retention.** Per-team `retention_days`; purged hourly by the scheduler
+  (or `scripts/run_maintenance.py`). Chats are deleted in FK-safe order with
+  their S3 files; token usage is kept for billing.
+- **GDPR.** Superadmin export/erase per user, self-service "Download your
+  data". Erasure deletes content, keys and memberships and anonymizes the
+  user row so usage totals and the audit log stay consistent. Self-service
+  account deletion uses the same path.
+- **Support role.** Platform `ADMIN` can read the whole console; every write
+  still requires `SUPER_ADMIN`.
+- **Alerting.** Platform/per-client spend spikes, signup spikes, failing
+  scheduled tasks and over-budget clients. Shown in the console and sent to
+  `SLACK_ALERT_WEBHOOK_URL` / `PLATFORM_ALERT_EMAILS`, deduplicated daily.
+
+## Still open
+
+- Stripe is still a placeholder (`routes/stripe.py`), so revenue only counts
+  manual subscriptions until the webhook writes to `subscriptions`.
+- Ownership transfer is not implemented (role changes exclude `OWNER`).
+- Domain verification is a manual superadmin step (no DNS TXT check yet).
+- Feature flags are stored and exposed but nothing reads them yet.
+- Scheduled tasks create personal chats, so they are not billed to teams.
+- Deleting chats does not remove LangGraph checkpoint state stored in Redis.
+- The existing `DELETE /chat/<id>` relies on ORM cascades that aren't
+  configured for messages/artifacts/todos; `hard_delete_chats` in
+  `business_logic/data_lifecycle.py` is the FK-safe alternative.
