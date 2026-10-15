@@ -3,7 +3,7 @@
 import csv
 import io
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from agents_core.business_logic.audit import list_audit_logs, record_audit_log
 from agents_core.business_logic.org_policy import normalize_domain
@@ -25,6 +25,7 @@ from agents_core.constants.audit_actions import (
     AUDIT_TEAM_SETTINGS_UPDATED,
 )
 from agents_core.models import (
+    LLMModel,
     Team,
     TeamInvite,
     TeamMember,
@@ -63,6 +64,13 @@ def get_team_for_admin(team_id: str, user: User) -> Tuple[Team, TeamMember]:
     if not membership or membership.role not in ADMIN_ROLES:
         raise PermissionError("Only team owners and admins can access this panel")
     return team, membership
+
+
+def _model_names(model_ids: Optional[List[str]]) -> str:
+    if not model_ids:
+        return "All models"
+    names = LLMModel.query.filter(LLMModel.id.in_(model_ids)).all()
+    return ", ".join(sorted(model.name for model in names))
 
 
 def _ensure_writable(team: Team) -> None:
@@ -306,7 +314,10 @@ def update_team_settings(
     _ensure_writable(team)
 
     changes = {}
-    if "monthly_budget_usd" in payload.model_fields_set:
+    if (
+        "monthly_budget_usd" in payload.model_fields_set
+        and payload.monthly_budget_usd != team.monthly_budget_usd
+    ):
         changes["monthlyBudgetUsd"] = {
             "from": team.monthly_budget_usd,
             "to": payload.monthly_budget_usd,
@@ -323,11 +334,12 @@ def update_team_settings(
         team.budget_enforcement = payload.budget_enforcement
     if "allowed_model_ids" in payload.model_fields_set:
         allowed_model_ids = payload.allowed_model_ids or None
-        changes["allowedModelIds"] = {
-            "from": team.allowed_model_ids,
-            "to": allowed_model_ids,
-        }
-        team.allowed_model_ids = allowed_model_ids
+        if allowed_model_ids != team.allowed_model_ids:
+            changes["allowedModels"] = {
+                "from": _model_names(team.allowed_model_ids),
+                "to": _model_names(allowed_model_ids),
+            }
+            team.allowed_model_ids = allowed_model_ids
     if "email_domain" in payload.model_fields_set:
         email_domain = normalize_domain(payload.email_domain)
         if email_domain != team.email_domain:

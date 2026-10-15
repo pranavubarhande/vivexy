@@ -500,6 +500,7 @@ def set_client_plan(
 
     current = _live_team_subscription(team_id)
     previous_plan = current.plan.value if current else Plan.FREE.value
+    previous_status = current.status.value if current else None
     if current and not current.stripe_subscription_id.startswith(
         MANUAL_SUBSCRIPTION_PREFIX
     ):
@@ -532,7 +533,10 @@ def set_client_plan(
         team_id=team_id,
         details={
             "plan": {"from": previous_plan, "to": payload.plan.value},
-            "status": payload.status,
+            "status": {
+                "from": previous_status,
+                "to": None if payload.plan == Plan.FREE else payload.status,
+            },
             "periodEnd": payload.period_end.isoformat() if payload.period_end else None,
         },
         commit=False,
