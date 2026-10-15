@@ -41,7 +41,9 @@ import {
   useUpdateAnnouncement,
 } from '@vivexy/core/hooks/useSuperadmin';
 import { formatDate, getApiErrorMessage } from '@vivexy/core/lib/admin-format';
+import { cn } from '@vivexy/ui/utils';
 import { ConfirmAction, TableSkeleton } from './admin-shared';
+import { usePlatformAccess } from './platform-access';
 
 const ALL_CLIENTS = 'all';
 
@@ -202,10 +204,11 @@ export const SuperadminAnnouncements = () => {
   const { data: announcements, isLoading } = useAdminAnnouncements();
   const updateAnnouncement = useUpdateAnnouncement();
   const deleteAnnouncement = useDeleteAnnouncement();
+  const { canManage } = usePlatformAccess();
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[2fr_3fr]">
-      <AnnouncementForm />
+    <div className={cn('grid gap-4', canManage && 'lg:grid-cols-[2fr_3fr]')}>
+      {canManage && <AnnouncementForm />}
       <Card className="p-0">
         {isLoading ? (
           <TableSkeleton />
@@ -244,34 +247,38 @@ export const SuperadminAnnouncements = () => {
                       ` · ends ${formatDate(announcement.endsAt)}`}
                   </p>
                 </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <Switch
-                    checked={announcement.isActive}
-                    aria-label="Active"
-                    onCheckedChange={(isActive) =>
-                      updateAnnouncement.mutate({
-                        announcementId: announcement.id,
-                        announcement: { isActive },
-                      })
-                    }
-                  />
-                  <ConfirmAction
-                    destructive
-                    title="Delete announcement?"
-                    description={announcement.title}
-                    confirmLabel="Delete"
-                    onConfirm={() => deleteAnnouncement.mutate(announcement.id)}
-                    trigger={
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label="Delete"
-                      >
-                        <Trash2 className="text-destructive" />
-                      </Button>
-                    }
-                  />
-                </div>
+                {canManage && (
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Switch
+                      checked={announcement.isActive}
+                      aria-label="Active"
+                      onCheckedChange={(isActive) =>
+                        updateAnnouncement.mutate({
+                          announcementId: announcement.id,
+                          announcement: { isActive },
+                        })
+                      }
+                    />
+                    <ConfirmAction
+                      destructive
+                      title="Delete announcement?"
+                      description={announcement.title}
+                      confirmLabel="Delete"
+                      onConfirm={() =>
+                        deleteAnnouncement.mutate(announcement.id)
+                      }
+                      trigger={
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label="Delete"
+                        >
+                          <Trash2 className="text-destructive" />
+                        </Button>
+                      }
+                    />
+                  </div>
+                )}
               </li>
             ))}
           </ul>

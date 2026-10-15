@@ -6,6 +6,8 @@ from agents_core.business_logic.announcements import (
     list_announcements,
     update_announcement,
 )
+from agents_core.business_logic.data_lifecycle import erase_user, export_user_data
+from agents_core.business_logic.platform_alerts import compute_platform_alerts
 from agents_core.business_logic.superadmin import (
     get_client_detail,
     get_platform_audit_logs,
@@ -22,7 +24,7 @@ from agents_core.business_logic.superadmin import (
     update_model,
     update_user,
 )
-from agents_core.middlewares.auth import superadmin_required
+from agents_core.middlewares.auth import platform_staff_required, superadmin_required
 from agents_core.models import Role
 from agents_core.schemas import (
     AnnouncementCreate,
@@ -49,7 +51,7 @@ def _page_args():
 
 
 @bp.route("/overview", methods=["GET"])
-@superadmin_required
+@platform_staff_required
 def overview():
     """Platform-wide KPIs.
     ---
@@ -70,7 +72,7 @@ def overview():
 
 
 @bp.route("/usage", methods=["GET"])
-@superadmin_required
+@platform_staff_required
 def usage():
     """Platform daily usage and model mix.
     ---
@@ -94,7 +96,7 @@ def usage():
 
 
 @bp.route("/clients", methods=["GET"])
-@superadmin_required
+@platform_staff_required
 def clients():
     """Paginated client (team) list.
     ---
@@ -138,7 +140,7 @@ def clients():
 
 
 @bp.route("/clients/<team_id>", methods=["GET"])
-@superadmin_required
+@platform_staff_required
 def client_detail(team_id):
     """Client detail: members, invites, usage, notes.
     ---
@@ -191,7 +193,7 @@ def client_update(team_id):
 
 
 @bp.route("/users", methods=["GET"])
-@superadmin_required
+@platform_staff_required
 def users():
     """Paginated platform user list.
     ---
@@ -233,7 +235,7 @@ def users():
 
 
 @bp.route("/users/<user_id>", methods=["GET"])
-@superadmin_required
+@platform_staff_required
 def user_detail(user_id):
     """User detail: teams, usage, chats.
     ---
@@ -283,7 +285,7 @@ def user_update(user_id):
 
 
 @bp.route("/audit-logs", methods=["GET"])
-@superadmin_required
+@platform_staff_required
 def audit_logs():
     """Platform-wide audit log.
     ---
@@ -372,7 +374,7 @@ def impersonate(user_id):
 
 
 @bp.route("/health", methods=["GET"])
-@superadmin_required
+@platform_staff_required
 def health():
     """Database, Redis, scheduled task and activity health.
     ---
@@ -391,7 +393,7 @@ def health():
 
 
 @bp.route("/models", methods=["GET"])
-@superadmin_required
+@platform_staff_required
 def models():
     """All LLM models (active and inactive) with 30-day usage.
     ---
@@ -442,7 +444,7 @@ def model_update(model_id):
 
 
 @bp.route("/announcements", methods=["GET"])
-@superadmin_required
+@platform_staff_required
 def announcements():
     """All announcements.
     ---
@@ -515,5 +517,62 @@ def announcement_delete(announcement_id):
     """
     try:
         return jsonify(delete_announcement(announcement_id, request.user))
+    except Exception as e:
+        return _fail(e)
+
+
+@bp.route("/alerts", methods=["GET"])
+@platform_staff_required
+def alerts():
+    """Current platform anomalies (cost/signup spikes, failures, budgets).
+    ---
+    tags:
+      - Superadmin
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Active alerts
+    """
+    try:
+        return jsonify({"alerts": compute_platform_alerts()})
+    except Exception as e:
+        return _fail(e)
+
+
+@bp.route("/users/<user_id>/export", methods=["POST"])
+@superadmin_required
+def user_export(user_id):
+    """GDPR export of a user's data (audited).
+    ---
+    tags:
+      - Superadmin
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: JSON export
+    """
+    try:
+        return jsonify(export_user_data(user_id, request.user))
+    except Exception as e:
+        return _fail(e)
+
+
+@bp.route("/users/<user_id>/erase", methods=["POST"])
+@superadmin_required
+def user_erase(user_id):
+    """GDPR erasure: delete content and anonymize the account. Irreversible.
+    ---
+    tags:
+      - Superadmin
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: User erased
+    """
+    try:
+        return jsonify(erase_user(user_id, request.user))
     except Exception as e:
         return _fail(e)

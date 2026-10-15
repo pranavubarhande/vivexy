@@ -36,6 +36,8 @@ import {
   UsageBarChart,
 } from './admin-shared';
 import { AuditLogTable } from './audit-log-table';
+import { PlatformAccessProvider } from './platform-access';
+import { PlatformAlerts } from './platform-alerts';
 import { SuperadminClients } from './superadmin-clients';
 import { SuperadminUsers } from './superadmin-users';
 import { SuperadminModels } from './superadmin-models';
@@ -54,6 +56,7 @@ const PlatformOverviewTab = () => {
 
   return (
     <div className="space-y-6">
+      <PlatformAlerts />
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard
           featured
@@ -269,7 +272,9 @@ export const SuperadminPanel = () => {
     );
   }
 
-  if (user?.role !== 'SUPER_ADMIN') {
+  const canManage = user?.role === 'SUPER_ADMIN';
+
+  if (!canManage && user?.role !== 'ADMIN') {
     return (
       <PageContainer>
         <AccessDenied description="The superadmin console is restricted to platform operators." />
@@ -278,45 +283,47 @@ export const SuperadminPanel = () => {
   }
 
   return (
-    <PageContainer size="wide" className="space-y-6">
-      <PageHeader
-        className="mb-2"
-        eyebrow="Superadmin"
-        title="Platform console"
-        description="Track every client, user and dollar of spend across the platform."
-      />
-      <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="clients">Clients</TabsTrigger>
-          <TabsTrigger value="users">Users</TabsTrigger>
-          <TabsTrigger value="models">Models</TabsTrigger>
-          <TabsTrigger value="health">Health</TabsTrigger>
-          <TabsTrigger value="announcements">Announcements</TabsTrigger>
-          <TabsTrigger value="audit">Audit log</TabsTrigger>
-        </TabsList>
-        <TabsContent value="overview">
-          <PlatformOverviewTab />
-        </TabsContent>
-        <TabsContent value="clients">
-          <SuperadminClients />
-        </TabsContent>
-        <TabsContent value="users">
-          <SuperadminUsers />
-        </TabsContent>
-        <TabsContent value="models">
-          <SuperadminModels />
-        </TabsContent>
-        <TabsContent value="health">
-          <SuperadminHealth />
-        </TabsContent>
-        <TabsContent value="announcements">
-          <SuperadminAnnouncements />
-        </TabsContent>
-        <TabsContent value="audit">
-          <PlatformAuditTab />
-        </TabsContent>
-      </Tabs>
-    </PageContainer>
+    <PlatformAccessProvider value={{ canManage }}>
+      <PageContainer size="wide" className="space-y-6">
+        <PageHeader
+          className="mb-2"
+          eyebrow={canManage ? 'Superadmin' : 'Support (read-only)'}
+          title="Platform console"
+          description="Track every client, user and dollar of spend across the platform."
+        />
+        <Tabs defaultValue="overview" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="clients">Clients</TabsTrigger>
+            <TabsTrigger value="users">Users</TabsTrigger>
+            <TabsTrigger value="models">Models</TabsTrigger>
+            <TabsTrigger value="health">Health</TabsTrigger>
+            <TabsTrigger value="announcements">Announcements</TabsTrigger>
+            <TabsTrigger value="audit">Audit log</TabsTrigger>
+          </TabsList>
+          <TabsContent value="overview">
+            <PlatformOverviewTab />
+          </TabsContent>
+          <TabsContent value="clients">
+            <SuperadminClients />
+          </TabsContent>
+          <TabsContent value="users">
+            <SuperadminUsers />
+          </TabsContent>
+          <TabsContent value="models">
+            <SuperadminModels />
+          </TabsContent>
+          <TabsContent value="health">
+            <SuperadminHealth />
+          </TabsContent>
+          <TabsContent value="announcements">
+            <SuperadminAnnouncements />
+          </TabsContent>
+          <TabsContent value="audit">
+            <PlatformAuditTab />
+          </TabsContent>
+        </Tabs>
+      </PageContainer>
+    </PlatformAccessProvider>
   );
 };

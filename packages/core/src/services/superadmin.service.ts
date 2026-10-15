@@ -8,6 +8,7 @@ import {
   ClientPlanData,
   ImpersonationResult,
   LLMModelUpdateData,
+  PlatformAlert,
   PlatformHealth,
   ClientSummary,
   ClientUpdateData,
@@ -161,6 +162,26 @@ export const superadminService = {
 
   deleteAnnouncement: async (announcementId: string): Promise<void> => {
     await axiosInstance.delete(`/superadmin/announcements/${announcementId}`);
+  },
+
+  getAlerts: async (): Promise<PlatformAlert[]> => {
+    const { data } = await axiosInstance.get<{ alerts: PlatformAlert[] }>(
+      '/superadmin/alerts'
+    );
+    return data.alerts;
+  },
+
+  exportUserData: async (userId: string): Promise<Blob> => {
+    const { data } = await axiosInstance.post(
+      `/superadmin/users/${userId}/export`
+    );
+    return new Blob([JSON.stringify(data, null, 2)], {
+      type: 'application/json',
+    });
+  },
+
+  eraseUser: async (userId: string): Promise<void> => {
+    await axiosInstance.post(`/superadmin/users/${userId}/erase`);
   },
 
   getAuditLogs: async (page: number): Promise<Paginated<AuditLogEntry>> => {

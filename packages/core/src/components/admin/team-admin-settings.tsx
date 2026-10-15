@@ -15,6 +15,7 @@ import {
 import { Button } from '@vivexy/ui/button';
 import { Checkbox } from '@vivexy/ui/checkbox';
 import { Input } from '@vivexy/ui/input';
+import { Switch } from '@vivexy/ui/switch';
 import {
   Form,
   FormControl,
@@ -291,6 +292,219 @@ const ModelsCard = ({
   );
 };
 
+const identitySchema = z.object({
+  emailDomain: z
+    .string()
+    .trim()
+    .refine(
+      (value) =>
+        value === '' ||
+        /^([a-z0-9-]+\.)+[a-z]{2,}$/i.test(value.replace(/^@/, '')),
+      'Enter a domain like acme.com'
+    ),
+  autoJoinDomain: z.boolean(),
+  requireSso: z.boolean(),
+});
+
+type IdentityFormData = z.infer<typeof identitySchema>;
+
+const IdentityCard = ({
+  overview,
+  readOnly,
+}: {
+  overview: TeamAdminOverview;
+  readOnly: boolean;
+}) => {
+  const updateSettings = useUpdateTeamSettings();
+  const form = useForm<IdentityFormData>({
+    resolver: zodResolver(identitySchema),
+    defaultValues: {
+      emailDomain: overview.team.emailDomain ?? '',
+      autoJoinDomain: overview.team.autoJoinDomain,
+      requireSso: overview.team.requireSso,
+    },
+  });
+
+  const onSubmit = async (data: IdentityFormData) => {
+    try {
+      await updateSettings.mutateAsync({
+        teamId: overview.team.id,
+        settings: {
+          emailDomain: data.emailDomain || null,
+          autoJoinDomain: data.autoJoinDomain,
+          requireSso: data.requireSso,
+        },
+      });
+      toast.success('Sign-in settings saved');
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, 'Failed to save sign-in settings'));
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Sign-in & domain</CardTitle>
+        <CardDescription>
+          {overview.team.emailDomain
+            ? overview.team.domainVerified
+              ? `@${overview.team.emailDomain} is verified.`
+              : `@${overview.team.emailDomain} is waiting for verification by support.`
+            : 'Claim your company domain to let colleagues join automatically.'}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="emailDomain"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Company email domain</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="acme.com"
+                      disabled={readOnly}
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Changing the domain requires verification again.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="autoJoinDomain"
+              render={({ field }) => (
+                <FormItem className="flex items-center justify-between gap-3 rounded-xl border border-border p-3">
+                  <div>
+                    <FormLabel>Auto-join</FormLabel>
+                    <FormDescription>
+                      Verified users with this domain join as members.
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                      disabled={readOnly}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="requireSso"
+              render={({ field }) => (
+                <FormItem className="flex items-center justify-between gap-3 rounded-xl border border-border p-3">
+                  <div>
+                    <FormLabel>Require SSO</FormLabel>
+                    <FormDescription>
+                      Members must sign in with Google or Microsoft; password
+                      logins are refused. Make sure you can sign in with SSO
+                      first.
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                      disabled={readOnly}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            <Button
+              type="submit"
+              disabled={readOnly || updateSettings.isPending}
+            >
+              Save sign-in settings
+            </Button>
+          </form>
+        </Form>
+      </CardContent>
+    </Card>
+  );
+};
+
+const RETENTION_OPTIONS = [
+  { label: 'Keep forever', value: 'off' },
+  { label: '30 days', value: '30' },
+  { label: '90 days', value: '90' },
+  { label: '180 days', value: '180' },
+  { label: '1 year', value: '365' },
+  { label: '2 years', value: '730' },
+];
+
+const RetentionCard = ({
+  overview,
+  readOnly,
+}: {
+  overview: TeamAdminOverview;
+  readOnly: boolean;
+}) => {
+  const updateSettings = useUpdateTeamSettings();
+  const currentValue = overview.team.retentionDays
+    ? String(overview.team.retentionDays)
+    : 'off';
+  const options = RETENTION_OPTIONS.some(
+    (option) => option.value === currentValue
+  )
+    ? RETENTION_OPTIONS
+    : [
+        ...RETENTION_OPTIONS,
+        { label: `${currentValue} days`, value: currentValue },
+      ];
+
+  const handleChange = async (value: string) => {
+    try {
+      await updateSettings.mutateAsync({
+        teamId: overview.team.id,
+        settings: { retentionDays: value === 'off' ? null : Number(value) },
+      });
+      toast.success('Retention policy saved');
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, 'Failed to save retention'));
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Data retention</CardTitle>
+        <CardDescription>
+          Team chats with no activity for this long are permanently deleted,
+          including files. Usage and billing history are kept.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Select
+          value={currentValue}
+          onValueChange={handleChange}
+          disabled={readOnly || updateSettings.isPending}
+        >
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {options.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </CardContent>
+    </Card>
+  );
+};
+
 export const TeamAdminSettings = ({
   overview,
   readOnly,
@@ -301,6 +515,8 @@ export const TeamAdminSettings = ({
   <div className="grid gap-4 md:grid-cols-2">
     <BudgetCard overview={overview} readOnly={readOnly} />
     <ModelsCard overview={overview} readOnly={readOnly} />
+    <IdentityCard overview={overview} readOnly={readOnly} />
+    <RetentionCard overview={overview} readOnly={readOnly} />
     <Card>
       <CardHeader>
         <CardTitle className="text-base">Plan & seats</CardTitle>

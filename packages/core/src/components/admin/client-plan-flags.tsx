@@ -226,3 +226,69 @@ export const FeatureFlagsEditor = ({ client }: { client: ClientDetail }) => {
     </div>
   );
 };
+
+export const DomainVerification = ({
+  client,
+  canManage,
+}: {
+  client: ClientDetail;
+  canManage: boolean;
+}) => {
+  const updateClient = useUpdateClient();
+
+  if (!client.emailDomain) {
+    return (
+      <p className="rounded-xl border border-border p-3 text-xs text-muted-foreground">
+        The client hasn&apos;t set an email domain.
+      </p>
+    );
+  }
+
+  const toggleVerified = async () => {
+    try {
+      await updateClient.mutateAsync({
+        teamId: client.id,
+        update: { domainVerified: !client.domainVerified },
+      });
+      toast.success(
+        client.domainVerified ? 'Domain unverified' : 'Domain verified'
+      );
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, 'Failed to update domain'));
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-xl border border-border p-3">
+      <div>
+        <p className="text-sm font-medium">
+          @{client.emailDomain}{' '}
+          <span
+            className={
+              client.domainVerified
+                ? 'text-emerald-600 dark:text-emerald-400'
+                : 'text-muted-foreground'
+            }
+          >
+            · {client.domainVerified ? 'verified' : 'unverified'}
+          </span>
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Auto-join {client.autoJoinDomain ? 'on' : 'off'} · SSO{' '}
+          {client.requireSso ? 'required' : 'optional'}. Verify only after
+          confirming the client controls this domain.
+        </p>
+      </div>
+      {canManage && (
+        <Button
+          size="sm"
+          variant={client.domainVerified ? 'outline' : 'default'}
+          onClick={toggleVerified}
+          disabled={updateClient.isPending}
+        >
+          {client.domainVerified ? 'Unverify' : 'Verify'}
+        </Button>
+      )}
+    </div>
+  );
+};

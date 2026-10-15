@@ -13,6 +13,10 @@ export interface TeamSettingsData {
   monthlyBudgetUsd?: number | null;
   budgetEnforcement?: BudgetEnforcement;
   allowedModelIds?: string[] | null;
+  emailDomain?: string | null;
+  autoJoinDomain?: boolean;
+  requireSso?: boolean;
+  retentionDays?: number | null;
 }
 
 export interface UsageTotals {
@@ -75,6 +79,11 @@ export interface TeamAdminOverview {
     budgetEnforcement: BudgetEnforcement;
     allowedModelIds: string[] | null;
     featureFlags: Record<string, boolean>;
+    emailDomain: string | null;
+    domainVerified: boolean;
+    autoJoinDomain: boolean;
+    requireSso: boolean;
+    retentionDays: number | null;
     createdAt: string | null;
   };
   viewerRole: TeamRole;
@@ -180,6 +189,11 @@ export interface ClientDetail {
   notes: string | null;
   featureFlags: Record<string, boolean>;
   budgetEnforcement: BudgetEnforcement;
+  emailDomain: string | null;
+  domainVerified: boolean;
+  autoJoinDomain: boolean;
+  requireSso: boolean;
+  retentionDays: number | null;
   plan: string;
   createdAt: string | null;
   members: TeamMemberWithUsage[];
@@ -199,6 +213,7 @@ export interface ClientUpdateData {
   seatLimit?: number | null;
   notes?: string | null;
   featureFlags?: Record<string, boolean>;
+  domainVerified?: boolean;
 }
 
 export type PlanKey = 'FREE' | 'PRO' | 'ENTERPRISE';
@@ -250,6 +265,14 @@ export interface PlatformHealth {
   };
   activity: { messagesLastHour: number; activeUsersLastHour: number };
   checkedAt: string;
+}
+
+export interface PlatformAlert {
+  key: string;
+  severity: 'info' | 'warning' | 'critical';
+  title: string;
+  detail: string;
+  teamId?: string;
 }
 
 export type AnnouncementLevel = 'info' | 'warning' | 'critical';

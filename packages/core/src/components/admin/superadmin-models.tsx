@@ -22,15 +22,18 @@ import {
 import { AdminLLMModel } from '@vivexy/core/types/admin';
 import { formatCost, getApiErrorMessage } from '@vivexy/core/lib/admin-format';
 import { TableSkeleton } from './admin-shared';
+import { usePlatformAccess } from './platform-access';
 
 const PriceInput = ({
   value,
   onSave,
   label,
+  disabled,
 }: {
   value: number | null;
   onSave: (value: number | null) => void;
   label: string;
+  disabled?: boolean;
 }) => {
   const [draft, setDraft] = useState(value?.toString() ?? '');
 
@@ -48,6 +51,7 @@ const PriceInput = ({
   return (
     <Input
       aria-label={label}
+      disabled={disabled}
       value={draft}
       inputMode="decimal"
       onChange={(event) => setDraft(event.target.value)}
@@ -60,6 +64,7 @@ const PriceInput = ({
 
 export const SuperadminModels = () => {
   const { data: models, isLoading } = useAdminModels();
+  const { canManage } = usePlatformAccess();
   const updateModel = useUpdateModel();
 
   const save = async (model: AdminLLMModel, update: Partial<AdminLLMModel>) => {
@@ -108,6 +113,7 @@ export const SuperadminModels = () => {
                 <TableCell>
                   <Switch
                     checked={model.isActive}
+                    disabled={!canManage}
                     aria-label={`Enable ${model.name}`}
                     onCheckedChange={(isActive) => save(model, { isActive })}
                   />
@@ -115,6 +121,7 @@ export const SuperadminModels = () => {
                 <TableCell className="text-right">
                   <div className="flex justify-end">
                     <PriceInput
+                      disabled={!canManage}
                       label={`${model.name} input price`}
                       value={model.inputCost}
                       onSave={(inputCost) => save(model, { inputCost })}
@@ -124,6 +131,7 @@ export const SuperadminModels = () => {
                 <TableCell className="text-right">
                   <div className="flex justify-end">
                     <PriceInput
+                      disabled={!canManage}
                       label={`${model.name} output price`}
                       value={model.outputCost}
                       onSave={(outputCost) => save(model, { outputCost })}

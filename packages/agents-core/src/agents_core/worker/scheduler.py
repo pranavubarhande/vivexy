@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 POLL_INTERVAL = 30  # seconds — tasks appear "overdue" for at most this long
 CLAIM_BATCH = 50
+MAINTENANCE_INTERVAL = 60 * 60  # retention purges + platform alerts
 
 _flask_app = None  # captured at startup so fallback threads can push a context
 
@@ -40,9 +41,8 @@ def _setup_flask_context():
     apps/agents-service/configs/flask_config.py's Config class. Nothing
     keeps the two in sync — update both copies by hand if Config changes.
     """
-    from flask import Flask
-
     from agents_core.models import db
+    from flask import Flask
 
     app = Flask(__name__)
     app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
@@ -62,13 +62,20 @@ def _setup_flask_context():
     return app
 
 
+def _run_maintenance():
+    from agents_core.business_logic.maintenance import run_maintenance
+    from agents_core.models.base import db
+
+    db.session.remove()
+    run_maintenance()
+
+
 def _poll_and_dispatch():
+    from agents_core.business_logic.scheduled_tasks import compute_next_run_at
     from agents_core.models.base import db
     from agents_core.models.scheduled_task import ScheduledTask
-    from sqlalchemy import text
-
-    from agents_core.business_logic.scheduled_tasks import compute_next_run_at
     from agents_core.worker.dispatcher import dispatch_scheduled_task_job
+    from sqlalchemy import text
 
     # Return any idle connection to the pool before querying so we always get
     # a live connection (pool_pre_ping covers the rest).
@@ -180,11 +187,18 @@ def start_scheduler():
         "Scheduler ready — poll every %ds, batch=%d", POLL_INTERVAL, CLAIM_BATCH
     )
 
+    last_maintenance = 0.0
     while True:
         try:
             _poll_and_dispatch()
         except Exception:
             logger.exception("Unexpected poll error")
+        if time.monotonic() - last_maintenance >= MAINTENANCE_INTERVAL:
+            last_maintenance = time.monotonic()
+            try:
+                _run_maintenance()
+            except Exception:
+                logger.exception("Maintenance run failed")
         time.sleep(POLL_INTERVAL)
 
 

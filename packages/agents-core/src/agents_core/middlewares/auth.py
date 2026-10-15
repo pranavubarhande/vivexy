@@ -54,3 +54,16 @@ def superadmin_required(f):
         return f(*args, **kwargs)
 
     return decorated_function
+
+
+def platform_staff_required(f):
+    """Read access for platform staff: SUPER_ADMIN, or the read-only ADMIN role."""
+
+    @wraps(f)
+    @auth_middleware
+    def decorated_function(*args, **kwargs):
+        if request.user.role not in (Role.SUPER_ADMIN, Role.ADMIN):
+            return jsonify({"error": "Platform staff access required"}), 403
+        return f(*args, **kwargs)
+
+    return decorated_function

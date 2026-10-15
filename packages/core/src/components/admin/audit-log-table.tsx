@@ -27,6 +27,10 @@ const ACTION_LABELS: Record<string, string> = {
   'superadmin.announcement_created': 'Published announcement',
   'superadmin.announcement_updated': 'Updated announcement',
   'superadmin.announcement_deleted': 'Deleted announcement',
+  'superadmin.user_data_exported': 'Exported user data',
+  'superadmin.user_erased': 'Erased user',
+  'team.member_auto_joined': 'Member auto-joined via domain',
+  'system.retention_purged': 'Retention purge',
 };
 
 const describeDetails = (details: Record<string, unknown>) =>

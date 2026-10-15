@@ -1,4 +1,7 @@
-from agents_core.business_logic.teams import claim_pending_invites
+from agents_core.business_logic.org_policy import (
+    ensure_password_login_allowed,
+    join_teams_for_verified_user,
+)
 from agents_core.middlewares.auth import auth_middleware
 from agents_core.models import User, db
 from agents_core.schemas import UserCreate, UserLogin, UserResponse
@@ -93,9 +96,13 @@ def login():
 
         if user.is_suspended:
             return jsonify({"error": "This account has been suspended"}), 403
+        try:
+            ensure_password_login_allowed(user.email, user)
+        except PermissionError as e:
+            return jsonify({"error": str(e), "code": "sso_required"}), 403
 
         record_login(user)
-        claim_pending_invites(user)
+        join_teams_for_verified_user(user)
         token = generate_token(user.id, user.email)
         user_data = exclude_password(user)
 
@@ -149,6 +156,10 @@ def register():
     try:
         data = request.get_json()
         user_data = UserCreate(**data)
+        try:
+            ensure_password_login_allowed(user_data.email)
+        except PermissionError as e:
+            return jsonify({"error": str(e), "code": "sso_required"}), 403
         user = create_user(user_data)
         record_login(user)
         token = generate_token(user.id, user.email)
@@ -237,7 +248,7 @@ def verify_email():
 
     user.email_verified = True
     db.session.commit()
-    claim_pending_invites(user)
+    join_teams_for_verified_user(user)
 
     return jsonify({"success": True})
 
@@ -408,7 +419,7 @@ def oauth_callback(provider):
         if user.is_suspended:
             return redirect(f"{frontend_url}/login?error=account_suspended")
         record_login(user)
-        claim_pending_invites(user)
+        join_teams_for_verified_user(user)
         jwt_token = generate_token(user.id, user.email)
         code = create_oauth_exchange_code(jwt_token, client_state)
     except Exception:

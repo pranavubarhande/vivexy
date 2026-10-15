@@ -42,6 +42,13 @@ export const userService = {
   },
 
   // Delete account
+  exportMyData: async (): Promise<Blob> => {
+    const { data } = await axiosInstance.get('/users/me/export');
+    return new Blob([JSON.stringify(data, null, 2)], {
+      type: 'application/json',
+    });
+  },
+
   deleteAccount: async (): Promise<void> => {
     await axiosInstance.delete('/users/me');
   },

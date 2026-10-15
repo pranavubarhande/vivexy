@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { Eye, Search, Users } from 'lucide-react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { Download, Eye, Search, Users } from 'lucide-react';
 import { Card } from '@vivexy/ui/card';
 import { Badge } from '@vivexy/ui/badge';
 import { Button } from '@vivexy/ui/button';
@@ -32,6 +33,7 @@ import {
   TableRow,
 } from '@vivexy/ui/table';
 import {
+  superadminKeys,
   usePlatformUser,
   usePlatformUsers,
   useUpdatePlatformUser,
@@ -43,12 +45,14 @@ import { useAuth } from '@vivexy/core/shared/auth-provider';
 import { PlatformUserUpdateData } from '@vivexy/core/types/admin';
 import { Role } from '@vivexy/core/types/user';
 import {
+  downloadBlob,
   formatCost,
   formatDate,
   formatRelative,
   formatTokens,
   getApiErrorMessage,
 } from '@vivexy/core/lib/admin-format';
+import { usePlatformAccess } from './platform-access';
 import {
   ConfirmAction,
   Pagination,
@@ -86,9 +90,38 @@ const UserDetailSheet = ({
   onClose: () => void;
 }) => {
   const { user: currentUser } = useAuth();
+  const queryClient = useQueryClient();
   const { data: user, isLoading } = usePlatformUser(userId);
   const updateUser = useUpdatePlatformUser();
   const isSelf = user?.id === currentUser?.id;
+  const { canManage } = usePlatformAccess();
+  const eraseUser = useMutation({
+    mutationFn: superadminService.eraseUser,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: superadminKeys.all });
+      onClose();
+    },
+  });
+
+  const exportData = async () => {
+    if (!user) return;
+    try {
+      const exportBlob = await superadminService.exportUserData(user.id);
+      downloadBlob(exportBlob, `user-${user.id}-export.json`);
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, 'Export failed'));
+    }
+  };
+
+  const handleErase = async () => {
+    if (!user) return;
+    try {
+      await eraseUser.mutateAsync(user.id);
+      toast.success('User erased');
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, 'Erase failed'));
+    }
+  };
 
   const viewAsUser = async () => {
     if (!user) return;
@@ -164,7 +197,12 @@ const UserDetailSheet = ({
 
               <section className="space-y-3">
                 <h3 className="text-sm font-semibold">Access</h3>
-                {isSelf ? (
+                {!canManage ? (
+                  <p className="text-xs text-muted-foreground">
+                    Read-only support access. Ask a super admin to change roles
+                    or suspend users.
+                  </p>
+                ) : isSelf ? (
                   <p className="text-xs text-muted-foreground">
                     You can&apos;t change your own role or suspend yourself.
                   </p>
@@ -266,6 +304,40 @@ const UserDetailSheet = ({
                   </div>
                 )}
               </section>
+
+              {canManage && !isSelf && (
+                <section className="space-y-3">
+                  <h3 className="text-sm font-semibold">Privacy (GDPR)</h3>
+                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border p-3">
+                    <p className="text-xs text-muted-foreground">
+                      Export everything we hold about this user, or erase their
+                      content and personal data. Erasure is permanent.
+                    </p>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" onClick={exportData}>
+                        <Download />
+                        Export data
+                      </Button>
+                      <ConfirmAction
+                        destructive
+                        title={`Permanently erase ${user.email}?`}
+                        description="Deletes their chats, files, API keys and personal details, and removes them from every team. Usage totals are kept anonymously. This cannot be undone."
+                        confirmLabel="Erase user"
+                        onConfirm={handleErase}
+                        trigger={
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            disabled={eraseUser.isPending}
+                          >
+                            Erase
+                          </Button>
+                        }
+                      />
+                    </div>
+                  </div>
+                </section>
+              )}
 
               <section className="space-y-2">
                 <h3 className="text-sm font-semibold">

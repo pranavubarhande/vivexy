@@ -58,7 +58,12 @@ import {
   formatTokens,
   getApiErrorMessage,
 } from '@vivexy/core/lib/admin-format';
-import { ClientPlanForm, FeatureFlagsEditor } from './client-plan-flags';
+import {
+  ClientPlanForm,
+  DomainVerification,
+  FeatureFlagsEditor,
+} from './client-plan-flags';
+import { usePlatformAccess } from './platform-access';
 import {
   ConfirmAction,
   Pagination,
@@ -179,6 +184,7 @@ const ClientDetailSheet = ({
 }) => {
   const { data: client, isLoading } = useClient(teamId);
   const updateClient = useUpdateClient();
+  const { canManage } = usePlatformAccess();
 
   const toggleSuspension = async () => {
     if (!client) return;
@@ -256,43 +262,66 @@ const ClientDetailSheet = ({
                       admin panel is read-only.
                     </p>
                   </div>
-                  <ConfirmAction
-                    destructive={!client.isSuspended}
-                    title={
-                      client.isSuspended
-                        ? 'Reactivate client?'
-                        : 'Suspend client?'
-                    }
-                    description={
-                      client.isSuspended
-                        ? `${client.name} will regain full admin access.`
-                        : `${client.name}'s admin panel becomes read-only and invites are blocked.`
-                    }
-                    confirmLabel={client.isSuspended ? 'Reactivate' : 'Suspend'}
-                    onConfirm={toggleSuspension}
-                    trigger={
-                      <Button
-                        size="sm"
-                        variant={client.isSuspended ? 'outline' : 'destructive'}
-                        disabled={updateClient.isPending}
-                      >
-                        {client.isSuspended ? 'Reactivate' : 'Suspend'}
-                      </Button>
-                    }
-                  />
+                  {canManage && (
+                    <ConfirmAction
+                      destructive={!client.isSuspended}
+                      title={
+                        client.isSuspended
+                          ? 'Reactivate client?'
+                          : 'Suspend client?'
+                      }
+                      description={
+                        client.isSuspended
+                          ? `${client.name} will regain full admin access.`
+                          : `${client.name}'s admin panel becomes read-only and invites are blocked.`
+                      }
+                      confirmLabel={
+                        client.isSuspended ? 'Reactivate' : 'Suspend'
+                      }
+                      onConfirm={toggleSuspension}
+                      trigger={
+                        <Button
+                          size="sm"
+                          variant={
+                            client.isSuspended ? 'outline' : 'destructive'
+                          }
+                          disabled={updateClient.isPending}
+                        >
+                          {client.isSuspended ? 'Reactivate' : 'Suspend'}
+                        </Button>
+                      }
+                    />
+                  )}
                 </div>
-                <ClientSettingsForm key={client.id} client={client} />
+                {canManage ? (
+                  <ClientSettingsForm key={client.id} client={client} />
+                ) : (
+                  client.notes && (
+                    <p className="whitespace-pre-wrap rounded-xl border border-border p-3 text-sm text-muted-foreground">
+                      {client.notes}
+                    </p>
+                  )
+                )}
               </section>
 
               <section className="space-y-3">
-                <h3 className="text-sm font-semibold">Plan</h3>
-                <ClientPlanForm key={`plan-${client.id}`} client={client} />
+                <h3 className="text-sm font-semibold">Sign-in domain</h3>
+                <DomainVerification client={client} canManage={canManage} />
               </section>
 
-              <section className="space-y-3">
-                <h3 className="text-sm font-semibold">Feature flags</h3>
-                <FeatureFlagsEditor client={client} />
-              </section>
+              {canManage && (
+                <>
+                  <section className="space-y-3">
+                    <h3 className="text-sm font-semibold">Plan</h3>
+                    <ClientPlanForm key={`plan-${client.id}`} client={client} />
+                  </section>
+
+                  <section className="space-y-3">
+                    <h3 className="text-sm font-semibold">Feature flags</h3>
+                    <FeatureFlagsEditor client={client} />
+                  </section>
+                </>
+              )}
 
               <section className="space-y-3">
                 <h3 className="text-sm font-semibold">

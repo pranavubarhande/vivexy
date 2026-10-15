@@ -12,6 +12,7 @@ from agents_core.business_logic.admin import (
     build_team_invites,
 )
 from agents_core.business_logic.audit import list_audit_logs, record_audit_log
+from agents_core.business_logic.org_policy import ensure_domain_available
 from agents_core.business_logic.team_policy import month_start
 from agents_core.business_logic.usage import (
     get_daily_usage_for_users,
@@ -259,6 +260,11 @@ def get_client_detail(team_id: str, days: int = 30) -> Dict[str, Any]:
         "notes": team.notes,
         "featureFlags": team.feature_flags or {},
         "budgetEnforcement": team.budget_enforcement,
+        "emailDomain": team.email_domain,
+        "domainVerified": team.domain_verified,
+        "autoJoinDomain": team.auto_join_domain,
+        "requireSso": team.require_sso,
+        "retentionDays": team.retention_days,
         "plan": _team_plan(team.id),
         "createdAt": _iso(team.created_at),
         "members": build_members_with_usage(team_id, days),
@@ -285,12 +291,17 @@ def update_client(team_id: str, payload: ClientUpdate, actor: User) -> Dict[str,
         ("seat_limit", "seat_limit"),
         ("notes", "notes"),
         ("feature_flags", "feature_flags"),
+        ("domain_verified", "domain_verified"),
     ):
         if field not in payload.model_fields_set:
             continue
         new_value = getattr(payload, field)
-        if field == "is_suspended" and new_value is None:
+        if field in ("is_suspended", "domain_verified") and new_value is None:
             continue
+        if field == "domain_verified" and new_value:
+            if not team.email_domain:
+                raise ValueError("This client has not set an email domain")
+            ensure_domain_available(team, team.email_domain)
         old_value = getattr(team, column)
         if old_value != new_value:
             setattr(team, column, new_value)

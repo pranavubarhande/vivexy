@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Tuple
 
 from agents_core.business_logic.audit import list_audit_logs, record_audit_log
+from agents_core.business_logic.org_policy import normalize_domain
 from agents_core.business_logic.team_policy import month_start
 from agents_core.business_logic.teams import bulk_invite_members
 from agents_core.business_logic.usage import (
@@ -115,6 +116,11 @@ def get_team_overview(team_id: str, user: User, days: int = 30) -> Dict[str, Any
             "budgetEnforcement": team.budget_enforcement,
             "allowedModelIds": team.allowed_model_ids,
             "featureFlags": team.feature_flags or {},
+            "emailDomain": team.email_domain,
+            "domainVerified": team.domain_verified,
+            "autoJoinDomain": team.auto_join_domain,
+            "requireSso": team.require_sso,
+            "retentionDays": team.retention_days,
             "createdAt": team.created_at.isoformat() if team.created_at else None,
         },
         "viewerRole": membership.role.value,
@@ -322,6 +328,27 @@ def update_team_settings(
             "to": allowed_model_ids,
         }
         team.allowed_model_ids = allowed_model_ids
+    if "email_domain" in payload.model_fields_set:
+        email_domain = normalize_domain(payload.email_domain)
+        if email_domain != team.email_domain:
+            changes["emailDomain"] = {"from": team.email_domain, "to": email_domain}
+            team.email_domain = email_domain
+            team.domain_verified = False
+    for field, key in (
+        ("auto_join_domain", "autoJoinDomain"),
+        ("require_sso", "requireSso"),
+    ):
+        new_value = getattr(payload, field)
+        if new_value is not None and new_value != getattr(team, field):
+            changes[key] = {"from": getattr(team, field), "to": new_value}
+            setattr(team, field, new_value)
+    if "retention_days" in payload.model_fields_set:
+        if payload.retention_days != team.retention_days:
+            changes["retentionDays"] = {
+                "from": team.retention_days,
+                "to": payload.retention_days,
+            }
+            team.retention_days = payload.retention_days
 
     if changes:
         record_audit_log(
@@ -334,12 +361,7 @@ def update_team_settings(
             commit=False,
         )
     db.session.commit()
-    return {
-        "message": "Settings updated",
-        "monthlyBudgetUsd": team.monthly_budget_usd,
-        "budgetEnforcement": team.budget_enforcement,
-        "allowedModelIds": team.allowed_model_ids,
-    }
+    return get_team_overview(team_id, actor)["team"]
 
 
 def get_team_audit_logs(
