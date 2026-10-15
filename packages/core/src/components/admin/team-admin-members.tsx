@@ -51,6 +51,7 @@ import {
   formatTokens,
   getApiErrorMessage,
 } from '@vivexy/core/lib/admin-format';
+import { BulkInviteDialog } from './bulk-invite-dialog';
 import {
   ConfirmAction,
   RoleBadge,
@@ -125,6 +126,7 @@ const InviteMemberForm = ({ teamId }: { teamId: string }) => {
           <UserPlus />
           Invite
         </Button>
+        <BulkInviteDialog teamId={teamId} />
       </form>
     </Form>
   );

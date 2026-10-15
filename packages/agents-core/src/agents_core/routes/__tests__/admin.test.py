@@ -246,3 +246,62 @@ def test_budget_can_be_set_and_cleared(client, team_setup):
     assert Team.query.get(team.id).monthly_budget_usd == 250
     client.patch(url, json={"monthly_budget_usd": None}, headers=headers)
     assert Team.query.get(team.id).monthly_budget_usd is None
+
+
+def test_invites_claimed_only_after_email_verified(client, team_setup):
+    from agents_core.business_logic.teams import claim_pending_invites
+
+    team_id = team_setup["team"].id
+    db.session.add(
+        TeamInvite(
+            email="Invitee@acme.com",
+            token="token-2",
+            team_id=team_id,
+            invited_by=team_setup["owner"].id,
+            expires_at=datetime.utcnow() + timedelta(days=7),
+        )
+    )
+    db.session.commit()
+    invitee = _make_user("invitee@acme.com")
+
+    assert claim_pending_invites(invitee) == []
+    invitee.email_verified = True
+    db.session.commit()
+    assert claim_pending_invites(invitee) == [team_id]
+    assert TeamMember.query.filter_by(team_id=team_id, user_id=invitee.id).one()
+    assert TeamInvite.query.count() == 0
+
+
+def test_bulk_invite_reports_each_email(client, team_setup, monkeypatch):
+    monkeypatch.setattr(
+        "agents_core.business_logic.teams.send_team_invite_email", lambda *a: None
+    )
+    response = client.post(
+        f"/admin/teams/{team_setup['team'].id}/invites/bulk",
+        json={
+            "emails": [
+                "outsider@other.com",
+                "brand-new@acme.com",
+                "member@acme.com",
+                "BRAND-NEW@acme.com",
+            ]
+        },
+        headers=_headers(team_setup["owner"]),
+    )
+    body = response.get_json()
+    assert body["added"] == ["outsider@other.com"]
+    assert body["invited"] == ["brand-new@acme.com"]
+    assert body["skipped"][0]["email"] == "member@acme.com"
+
+
+def test_usage_csv_export(client, team_setup):
+    response = client.get(
+        f"/admin/teams/{team_setup['team'].id}/usage/export",
+        headers=_headers(team_setup["admin"]),
+    )
+    assert response.status_code == 200
+    assert response.mimetype == "text/csv"
+    lines = response.get_data(as_text=True).strip().splitlines()
+    assert lines[0].startswith("timestamp,user_email")
+    assert len(lines) == 2
+    assert "member@acme.com" in lines[1]

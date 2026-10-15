@@ -2,6 +2,7 @@ import axiosInstance from './axiosInstance.service';
 import {
   AdministeredTeam,
   AuditLogEntry,
+  BulkInviteResult,
   Paginated,
   TeamAdminOverview,
   TeamInviteSummary,
@@ -69,6 +70,26 @@ export const adminService = {
     settings: TeamSettingsData
   ): Promise<void> => {
     await axiosInstance.patch(`/admin/teams/${teamId}/settings`, settings);
+  },
+
+  bulkInvite: async (
+    teamId: string,
+    emails: string[],
+    role: TeamRole
+  ): Promise<BulkInviteResult> => {
+    const { data } = await axiosInstance.post<BulkInviteResult>(
+      `/admin/teams/${teamId}/invites/bulk`,
+      { emails, role }
+    );
+    return data;
+  },
+
+  exportUsageCsv: async (teamId: string, days: number): Promise<Blob> => {
+    const { data } = await axiosInstance.get<Blob>(
+      `/admin/teams/${teamId}/usage/export`,
+      { params: { days }, responseType: 'blob' }
+    );
+    return data;
   },
 
   getAuditLogs: async (

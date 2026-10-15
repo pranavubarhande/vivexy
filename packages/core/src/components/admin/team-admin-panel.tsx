@@ -1,7 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { AlertTriangle, Coins, Gauge, UserCheck, Users } from 'lucide-react';
+import { toast } from 'sonner';
+import {
+  AlertTriangle,
+  Coins,
+  Download,
+  Gauge,
+  UserCheck,
+  Users,
+} from 'lucide-react';
 import { PageContainer, PageHeader } from '@vivexy/ui/page-header';
 import {
   Card,
@@ -19,13 +27,20 @@ import {
   SelectValue,
 } from '@vivexy/ui/select';
 import { Skeleton } from '@vivexy/ui/skeleton';
+import { Button } from '@vivexy/ui/button';
+import { adminService } from '@vivexy/core/services/admin.service';
 import {
   useAdministeredTeams,
   useTeamAdminOverview,
   useTeamAuditLogs,
 } from '@vivexy/core/hooks/useAdmin';
 import { TeamAdminOverview } from '@vivexy/core/types/admin';
-import { formatCost, formatTokens } from '@vivexy/core/lib/admin-format';
+import {
+  downloadBlob,
+  formatCost,
+  formatTokens,
+  getApiErrorMessage,
+} from '@vivexy/core/lib/admin-format';
 import {
   AccessDenied,
   PERIOD_OPTIONS,
@@ -217,6 +232,18 @@ export const TeamAdminPanel = () => {
 
   const isOwner = overview?.viewerRole === 'OWNER';
 
+  const handleExport = async () => {
+    try {
+      const csvBlob = await adminService.exportUsageCsv(teamId, days);
+      downloadBlob(
+        csvBlob,
+        `${overview?.team.slug ?? 'team'}-usage-${days}d.csv`
+      );
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, 'Export failed'));
+    }
+  };
+
   return (
     <PageContainer className="space-y-6">
       <PageHeader
@@ -245,6 +272,10 @@ export const TeamAdminPanel = () => {
               value={days}
               onChange={setDays}
             />
+            <Button variant="outline" onClick={handleExport}>
+              <Download />
+              Export CSV
+            </Button>
           </>
         }
       />

@@ -1,6 +1,8 @@
 """Client admin panel routes (team OWNER / ADMIN)."""
 
 from agents_core.business_logic.admin import (
+    bulk_invite,
+    export_team_usage_csv,
     get_administered_teams,
     get_team_audit_logs,
     get_team_members_with_usage,
@@ -12,9 +14,13 @@ from agents_core.business_logic.admin import (
     update_team_settings,
 )
 from agents_core.middlewares.auth import auth_middleware
-from agents_core.schemas import TeamMemberRoleUpdate, TeamSettingsUpdate
+from agents_core.schemas import (
+    BulkInviteCreate,
+    TeamMemberRoleUpdate,
+    TeamSettingsUpdate,
+)
 from agents_core.utils.http import error_response, int_arg
-from flask import Blueprint, current_app, jsonify, request
+from flask import Blueprint, Response, current_app, jsonify, request
 
 bp = Blueprint("admin", __name__, url_prefix="/admin")
 
@@ -247,5 +253,73 @@ def team_audit_logs(team_id):
         page = int_arg("page", 1, maximum=10_000)
         page_size = int_arg("pageSize", 50, maximum=100)
         return jsonify(get_team_audit_logs(team_id, request.user, page, page_size))
+    except Exception as e:
+        return _fail(e)
+
+
+@bp.route("/teams/<team_id>/invites/bulk", methods=["POST"])
+@auth_middleware
+def team_bulk_invite(team_id):
+    """Invite many people at once (e.g. from a CSV).
+    ---
+    tags:
+      - Admin
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            emails:
+              type: array
+              items:
+                type: string
+            role:
+              type: string
+              enum: [ADMIN, MEMBER]
+    responses:
+      200:
+        description: Lists of added, invited and skipped emails
+    """
+    try:
+        payload = BulkInviteCreate(**(request.get_json() or {}))
+        return jsonify(bulk_invite(team_id, payload, request.user))
+    except Exception as e:
+        return _fail(e)
+
+
+@bp.route("/teams/<team_id>/usage/export", methods=["GET"])
+@auth_middleware
+def team_usage_export(team_id):
+    """Download team usage as CSV.
+    ---
+    tags:
+      - Admin
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: query
+        name: days
+        type: integer
+        default: 30
+    produces:
+      - text/csv
+    responses:
+      200:
+        description: CSV file
+    """
+    try:
+        days = int_arg("days", 30)
+        csv_content = export_team_usage_csv(team_id, request.user, days)
+        return Response(
+            csv_content,
+            mimetype="text/csv",
+            headers={
+                "Content-Disposition": (f"attachment; filename=team-usage-{days}d.csv")
+            },
+        )
     except Exception as e:
         return _fail(e)
