@@ -22,7 +22,8 @@ def bool_arg(name: str) -> Optional[bool]:
 def error_response(error: Exception):
     """Map business-logic exceptions to HTTP responses."""
     if isinstance(error, ValidationError):
-        return jsonify({"error": "Invalid input data", "details": error.errors()}), 400
+        details = error.errors(include_context=False, include_url=False)
+        return jsonify({"error": "Invalid input data", "details": details}), 400
     if isinstance(error, PermissionError):
         return jsonify({"error": str(error)}), 403
     if isinstance(error, LookupError):

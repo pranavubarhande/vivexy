@@ -1,9 +1,12 @@
+import re
 from datetime import datetime
 from typing import Dict, List, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from agents_core.models.enums import Plan, Role, TeamRole
+
+FEATURE_FLAG_PATTERN = re.compile(r"^[a-z][a-z0-9-]{1,40}$")
 
 
 class BulkInviteCreate(BaseModel):
@@ -31,6 +34,18 @@ class ClientUpdate(BaseModel):
     notes: Optional[str] = None
     feature_flags: Optional[Dict[str, bool]] = None
     domain_verified: Optional[bool] = None
+
+    @field_validator("feature_flags")
+    @classmethod
+    def validate_flag_names(cls, flags):
+        # Kebab-case survives the API's automatic snake/camel key conversion.
+        for name in flags or {}:
+            if not FEATURE_FLAG_PATTERN.match(name):
+                raise ValueError(
+                    f"Invalid flag name '{name}': use lowercase letters, "
+                    "digits and hyphens"
+                )
+        return flags
 
 
 class PlatformUserUpdate(BaseModel):

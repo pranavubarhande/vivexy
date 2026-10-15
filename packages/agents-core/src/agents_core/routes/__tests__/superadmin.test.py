@@ -305,14 +305,23 @@ def test_feature_flags_visible_to_members(client, platform):
     team_id = platform["team"].id
     client.patch(
         f"/superadmin/clients/{team_id}",
-        json={"feature_flags": {"beta_agents": True}},
+        json={"feature_flags": {"beta-agents": True}},
         headers=_headers(platform["superadmin"]),
     )
     response = client.get(
         f"/teams/{team_id}/features", headers=_headers(platform["owner"])
     )
-    assert response.get_json()["features"] == {"beta_agents": True}
+    assert response.get_json()["features"] == {"beta-agents": True}
     response = client.get(
         f"/teams/{team_id}/features", headers=_headers(platform["platform_admin"])
     )
     assert response.status_code == 403
+
+
+def test_feature_flag_names_must_be_kebab_case(client, platform):
+    response = client.patch(
+        f"/superadmin/clients/{platform['team'].id}",
+        json={"feature_flags": {"Beta Agents": True}},
+        headers=_headers(platform["superadmin"]),
+    )
+    assert response.status_code == 400

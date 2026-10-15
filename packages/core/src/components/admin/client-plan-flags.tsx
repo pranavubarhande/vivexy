@@ -12,7 +12,6 @@ import { Switch } from '@vivexy/ui/switch';
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -135,16 +134,17 @@ export const ClientPlanForm = ({ client }: { client: ClientDetail }) => {
         <Button type="submit" size="sm" disabled={setClientPlan.isPending}>
           Apply
         </Button>
-        <FormDescription className="sm:col-span-4">
+        <p className="text-xs text-muted-foreground sm:col-span-4">
           Manual plans are for comps, trials and invoiced clients. Stripe-billed
           clients are changed in Stripe.
-        </FormDescription>
+        </p>
       </form>
     </Form>
   );
 };
 
-const FLAG_NAME_PATTERN = /^[a-z][a-z0-9_]{1,40}$/;
+// Kebab-case: the API converts snake_case/camelCase keys automatically.
+const FLAG_NAME_PATTERN = /^[a-z][a-z0-9-]{1,40}$/;
 
 export const FeatureFlagsEditor = ({ client }: { client: ClientDetail }) => {
   const updateClient = useUpdateClient();
@@ -163,9 +163,12 @@ export const FeatureFlagsEditor = ({ client }: { client: ClientDetail }) => {
   };
 
   const addFlag = () => {
-    const flagName = newFlag.trim().toLowerCase();
+    const flagName = newFlag
+      .trim()
+      .toLowerCase()
+      .replace(/[\s_]+/g, '-');
     if (!FLAG_NAME_PATTERN.test(flagName)) {
-      toast.error('Use lowercase letters, numbers and underscores');
+      toast.error('Use lowercase letters, numbers and hyphens');
       return;
     }
     setNewFlag('');
@@ -215,7 +218,7 @@ export const FeatureFlagsEditor = ({ client }: { client: ClientDetail }) => {
               addFlag();
             }
           }}
-          placeholder="new_flag_name"
+          placeholder="new-flag-name"
           className="h-8"
         />
         <Button size="sm" variant="outline" onClick={addFlag}>

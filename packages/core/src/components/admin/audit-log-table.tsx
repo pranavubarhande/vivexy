@@ -33,14 +33,24 @@ const ACTION_LABELS: Record<string, string> = {
   'system.retention_purged': 'Retention purge',
 };
 
+const formatValue = (value: unknown): string => {
+  if (value === null || value === undefined) return '—';
+  if (typeof value === 'object') {
+    return Object.entries(value as Record<string, unknown>)
+      .map(([key, nested]) => `${key}=${formatValue(nested)}`)
+      .join(', ');
+  }
+  return String(value);
+};
+
 const describeDetails = (details: Record<string, unknown>) =>
   Object.entries(details)
     .map(([key, value]) => {
       if (value && typeof value === 'object' && 'to' in value) {
         const change = value as { from: unknown; to: unknown };
-        return `${key}: ${String(change.from ?? '—')} → ${String(change.to ?? '—')}`;
+        return `${key}: ${formatValue(change.from)} → ${formatValue(change.to)}`;
       }
-      return `${key}: ${String(value)}`;
+      return `${key}: ${formatValue(value)}`;
     })
     .join(' · ');
 

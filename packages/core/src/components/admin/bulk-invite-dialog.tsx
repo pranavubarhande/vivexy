@@ -98,7 +98,7 @@ export const BulkInviteDialog = ({ teamId }: { teamId: string }) => {
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button variant="outline">
+        <Button type="button" variant="outline">
           <Users />
           Bulk invite
         </Button>

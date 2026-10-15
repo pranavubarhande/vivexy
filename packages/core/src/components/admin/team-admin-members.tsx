@@ -89,7 +89,7 @@ const InviteMemberForm = ({ teamId }: { teamId: string }) => {
     <Form {...form}>
       <form
         onSubmit={form.handleSubmit(onSubmit)}
-        className="flex flex-col gap-2 border-b border-border p-4 sm:flex-row sm:items-start"
+        className="flex flex-1 flex-col gap-2 sm:flex-row sm:items-start"
       >
         <FormField
           control={form.control}
@@ -126,7 +126,6 @@ const InviteMemberForm = ({ teamId }: { teamId: string }) => {
           <UserPlus />
           Invite
         </Button>
-        <BulkInviteDialog teamId={teamId} />
       </form>
     </Form>
   );
@@ -168,7 +167,12 @@ export const TeamAdminMembers = ({
 
   return (
     <Card className="p-0">
-      {!readOnly && <InviteMemberForm teamId={teamId} />}
+      {!readOnly && (
+        <div className="flex flex-col gap-2 border-b border-border p-4 sm:flex-row sm:items-start">
+          <InviteMemberForm teamId={teamId} />
+          <BulkInviteDialog teamId={teamId} />
+        </div>
+      )}
       {isLoading ? (
         <TableSkeleton />
       ) : (
