@@ -10,6 +10,7 @@ from agents_core.models.enums import (
     TodoStatus,
 )
 from agents_core.schemas.admin import (
+    BulkInviteCreate,
     ClientUpdate,
     PlatformUserUpdate,
     TeamMemberRoleUpdate,

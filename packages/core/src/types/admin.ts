@@ -1,6 +1,12 @@
 import { Role } from './user';
 import { TeamRole } from './team';
 
+export interface BulkInviteResult {
+  added: string[];
+  invited: string[];
+  skipped: { email: string; reason: string }[];
+}
+
 export type BudgetEnforcement = 'warn' | 'block';
 
 export interface TeamSettingsData {

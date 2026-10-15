@@ -1,3 +1,4 @@
+from agents_core.business_logic.teams import claim_pending_invites
 from agents_core.middlewares.auth import auth_middleware
 from agents_core.models import User, db
 from agents_core.schemas import UserCreate, UserLogin, UserResponse
@@ -94,6 +95,7 @@ def login():
             return jsonify({"error": "This account has been suspended"}), 403
 
         record_login(user)
+        claim_pending_invites(user)
         token = generate_token(user.id, user.email)
         user_data = exclude_password(user)
 
@@ -233,6 +235,7 @@ def verify_email():
 
     user.email_verified = True
     db.session.commit()
+    claim_pending_invites(user)
 
     return jsonify({"success": True})
 
@@ -403,6 +406,7 @@ def oauth_callback(provider):
         if user.is_suspended:
             return redirect(f"{frontend_url}/login?error=account_suspended")
         record_login(user)
+        claim_pending_invites(user)
         jwt_token = generate_token(user.id, user.email)
         code = create_oauth_exchange_code(jwt_token, client_state)
     except Exception:

@@ -5,6 +5,11 @@ from pydantic import BaseModel, Field
 from agents_core.models.enums import Role, TeamRole
 
 
+class BulkInviteCreate(BaseModel):
+    emails: List[str] = Field(min_length=1, max_length=500)
+    role: TeamRole = TeamRole.MEMBER
+
+
 class TeamMemberRoleUpdate(BaseModel):
     role: TeamRole
 

@@ -1,10 +1,13 @@
 """Client-side admin panel: team OWNER/ADMIN managing their own team."""
 
+import csv
+import io
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Tuple
 
 from agents_core.business_logic.audit import list_audit_logs, record_audit_log
 from agents_core.business_logic.team_policy import month_start
+from agents_core.business_logic.teams import bulk_invite_members
 from agents_core.business_logic.usage import (
     get_daily_usage_for_users,
     get_usage_by_model_for_users,
@@ -20,8 +23,20 @@ from agents_core.constants.audit_actions import (
     AUDIT_TEAM_MEMBER_ROLE_CHANGED,
     AUDIT_TEAM_SETTINGS_UPDATED,
 )
-from agents_core.models import Team, TeamInvite, TeamMember, TeamRole, User, db
-from agents_core.schemas import TeamMemberRoleUpdate, TeamSettingsUpdate
+from agents_core.models import (
+    Team,
+    TeamInvite,
+    TeamMember,
+    TeamRole,
+    TokenUsage,
+    User,
+    db,
+)
+from agents_core.schemas import (
+    BulkInviteCreate,
+    TeamMemberRoleUpdate,
+    TeamSettingsUpdate,
+)
 
 ADMIN_ROLES = (TeamRole.OWNER, TeamRole.ADMIN)
 
@@ -332,3 +347,50 @@ def get_team_audit_logs(
 ) -> Dict[str, Any]:
     get_team_for_admin(team_id, user)
     return list_audit_logs(team_id=team_id, page=page, page_size=page_size)
+
+
+def bulk_invite(team_id: str, payload: BulkInviteCreate, actor: User) -> Dict[str, Any]:
+    team, _ = get_team_for_admin(team_id, actor)
+    _ensure_writable(team)
+    return bulk_invite_members(team_id, payload.emails, payload.role, actor.id)
+
+
+def export_team_usage_csv(team_id: str, user: User, days: int = 30) -> str:
+    get_team_for_admin(team_id, user)
+    since = datetime.utcnow() - timedelta(days=days)
+    rows = (
+        db.session.query(TokenUsage, User.email)
+        .join(User, User.id == TokenUsage.user_id)
+        .filter(TokenUsage.team_id == team_id, TokenUsage.created_at >= since)
+        .order_by(TokenUsage.created_at.desc())
+        .all()
+    )
+
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(
+        [
+            "timestamp",
+            "user_email",
+            "model",
+            "provider",
+            "input_tokens",
+            "output_tokens",
+            "total_tokens",
+            "cost_usd",
+        ]
+    )
+    for usage, email in rows:
+        writer.writerow(
+            [
+                usage.created_at.isoformat() if usage.created_at else "",
+                email,
+                usage.model_name or "",
+                usage.provider or "",
+                usage.input_tokens or 0,
+                usage.output_tokens or 0,
+                usage.total_tokens or 0,
+                f"{usage.total_cost_usd or 0:.6f}",
+            ]
+        )
+    return buffer.getvalue()

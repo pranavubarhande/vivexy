@@ -35,6 +35,24 @@ export const formatRelative = (value: string | null) => {
   return formatDate(value);
 };
 
+export const downloadBlob = (blob: Blob, filename: string) => {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+};
+
+const EMAIL_PATTERN = /[^\s,;"'<>]+@[^\s,;"'<>]+\.[^\s,;"'<>]+/g;
+
+export const extractEmails = (text: string) =>
+  Array.from(
+    new Set(
+      (text.match(EMAIL_PATTERN) ?? []).map((email) => email.toLowerCase())
+    )
+  );
+
 export const getApiErrorMessage = (error: unknown, fallback: string) => {
   const apiError = error as { response?: { data?: { error?: string } } };
   return apiError?.response?.data?.error ?? fallback;

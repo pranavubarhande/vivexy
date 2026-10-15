@@ -104,6 +104,22 @@ export const useRevokeInvite = () => {
   });
 };
 
+export const useBulkInvite = () => {
+  const invalidateTeam = useInvalidateTeam();
+  return useMutation({
+    mutationFn: ({
+      teamId,
+      emails,
+      role,
+    }: {
+      teamId: string;
+      emails: string[];
+      role: TeamRole;
+    }) => adminService.bulkInvite(teamId, emails, role),
+    onSuccess: (_, { teamId }) => invalidateTeam(teamId),
+  });
+};
+
 export const useUpdateTeamSettings = () => {
   const invalidateTeam = useInvalidateTeam();
   return useMutation({
