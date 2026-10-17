@@ -1,7 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  type QueryClient,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import type { SkillConfig, SkillPlatform } from '../types/electron';
 import { skillsService } from '../services/skills.service';
 
@@ -24,6 +29,18 @@ const toSkillConfig = (s: {
   enabled: s.enabled,
   platform: (s.platform as SkillPlatform) ?? 'both',
 });
+
+export const syncAgentSavedSkill = async (
+  name: string,
+  queryClient: QueryClient
+) => {
+  await queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+  const api = typeof window !== 'undefined' ? window.electronAPI : undefined;
+  if (!api) return;
+  const backendSkills = await skillsService.getUserSkills();
+  const savedSkill = backendSkills.find((skill) => skill.name === name);
+  if (savedSkill) await api.saveSkill(toSkillConfig(savedSkill));
+};
 
 // ── Desktop hook (Electron IPC + optional backend sync) ────────────────
 

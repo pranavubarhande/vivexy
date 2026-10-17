@@ -7,8 +7,27 @@ import asyncio
 import json
 import logging
 import uuid
+from concurrent.futures import Future, ThreadPoolExecutor
 from typing import Any, Dict, Generator, List, Optional, Set, Tuple, Union
 
+from agents_core.agents.agent_factory import create_agent
+from agents_core.agents.approval_store import create_approval_event, wait_for_approval
+from agents_core.agents.client_tool_store import (
+    create_client_tool_event,
+    wait_for_client_tool,
+)
+from agents_core.agents.config import FileContext
+from agents_core.business_logic.api_keys import get_decrypted_api_keys
+from agents_core.business_logic.artifacts import link_artifacts_to_message
+from agents_core.business_logic.chat import create_message
+from agents_core.business_logic.compact import (
+    compact_chat,
+    estimate_token_count,
+    get_compacted_messages,
+    should_auto_compact,
+)
+from agents_core.business_logic.features import disabled_features_for_user
+from agents_core.business_logic.team_policy import maybe_send_budget_alerts
 from agents_core.constants.stream_events import (
     STREAM_EVENT_APPROVAL_REQUEST,
     STREAM_EVENT_ARTIFACT,
@@ -27,30 +46,17 @@ from agents_core.models.chat import Chat
 from agents_core.models.chat import Message as DBMessage
 from agents_core.models.llm import LLMModel
 from agents_core.models.token_usage import TokenUsage
+from agents_core.tools.chat.chat_tools import (
+    generate_chat_title_func,
+    set_chat_title_func,
+)
 from dotenv import load_dotenv
 from langgraph.types import Command, Overwrite
 
-from agents_core.agents.agent_factory import create_agent
-from agents_core.agents.approval_store import create_approval_event, wait_for_approval
-from agents_core.agents.client_tool_store import (
-    create_client_tool_event,
-    wait_for_client_tool,
-)
-from agents_core.agents.config import FileContext
-from agents_core.business_logic.api_keys import get_decrypted_api_keys
-from agents_core.business_logic.artifacts import link_artifacts_to_message
-from agents_core.business_logic.chat import create_message
-from agents_core.business_logic.features import disabled_features_for_user
-from agents_core.business_logic.team_policy import maybe_send_budget_alerts
-from agents_core.business_logic.compact import (
-    compact_chat,
-    estimate_token_count,
-    get_compacted_messages,
-    should_auto_compact,
-)
-
 load_dotenv()
 logger = logging.getLogger(__name__)
+
+_title_executor = ThreadPoolExecutor(max_workers=4)
 
 
 def run_agent_stream(
@@ -76,6 +82,8 @@ def run_agent_stream(
     app_context.push()
     try:
         yield _sse({"type": STREAM_EVENT_START})
+
+        title_request = _start_title_generation(chat_id, messages)
 
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
@@ -336,9 +344,15 @@ def run_agent_stream(
                     approved = loop.run_until_complete(
                         wait_for_approval(request_id, timeout=120.0)
                     )
-                    inputs = Command(
-                        resume=[{"type": "approve"} if approved else {"type": "reject"}]
+                    decision = (
+                        {"type": "approve"}
+                        if approved
+                        else {
+                            "type": "reject",
+                            "message": "The user rejected this action.",
+                        }
                     )
+                    inputs = Command(resume={"decisions": [decision for _ in actions]})
 
         finally:
             loop.close()
@@ -369,6 +383,9 @@ def run_agent_stream(
                 model_provider=model_provider,
                 usage=total_usage,
             )
+
+        if title_request:
+            yield from _emit_chat_title(chat_id, *title_request)
 
         if usage_payload and (usage_payload["totalTokens"] > 0):
             yield _sse({"type": STREAM_EVENT_USAGE, "data": usage_payload})
@@ -412,6 +429,47 @@ def run_agent_stream(
     finally:
         yield "data: [DONE]\n\n"
         app_context.pop()
+
+
+def _start_title_generation(
+    chat_id: str, messages: List[Dict[str, Any]]
+) -> Optional[Tuple[Future, str]]:
+    """Generate the chat title off the agent's context instead of spending an agent turn on it."""
+    chat = Chat.query.filter_by(id=chat_id).first()
+    if not chat or (chat.title and chat.title.strip() not in ("", "New Chat")):
+        return None
+    user_text = next(
+        (m.get("content") for m in reversed(messages) if m.get("role") == "user"),
+        "",
+    )
+    if not isinstance(user_text, str) or not user_text.strip():
+        return None
+    return _title_executor.submit(generate_chat_title_func, user_text), user_text
+
+
+def _emit_chat_title(
+    chat_id: str, title_future: Future, user_text: str
+) -> Generator[str, None, None]:
+    try:
+        result = title_future.result(timeout=15)
+    except Exception as e:
+        logger.warning("Title generation failed for chat %s: %s", chat_id, e)
+        result = {}
+    title = result.get("title") if result.get("success") else None
+    if not title:
+        title = " ".join(user_text.split()[:6])
+    saved = set_chat_title_func(chat_id, title)
+    if saved.get("success"):
+        yield _sse(
+            {
+                "type": STREAM_EVENT_TOOL_CALL,
+                "data": {
+                    "tool": "set_chat_title",
+                    "input": {},
+                    "output": json.dumps(saved),
+                },
+            }
+        )
 
 
 def _friendly_error(exc: Exception) -> Tuple[str, Optional[str]]:
