@@ -17,8 +17,6 @@ logger = logging.getLogger(__name__)
 
 BUILTIN_SKILLS_DIR = Path(__file__).resolve().parent.parent / "skills"
 SANDBOX_SKILLS_DIR = "skills"
-# skill-creator drives the `claude` CLI, which the sandbox does not have
-UNSUPPORTED_BUILTIN_SKILLS = {"skill-creator"}
 
 
 def _parse_skill_md(text: str) -> Tuple[Dict, str]:
@@ -43,8 +41,6 @@ def load_builtin_skills() -> Dict[str, Dict[str, str]]:
             logger.warning("Failed to parse skill %s: %s", skill_md, e)
             continue
         name = meta.get("name") or skill_md.parent.name
-        if name in UNSUPPORTED_BUILTIN_SKILLS:
-            continue
         skills[name] = {
             "name": name,
             "description": _first_sentence(str(meta.get("description", ""))),

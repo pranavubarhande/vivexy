@@ -1,8 +1,16 @@
+import json
 from unittest.mock import MagicMock
 
+import pytest
 from agents_core.agents.agent_factory import build_skills_context
 from agents_core.agents.skill_loader import SandboxSkillSync, load_builtin_skills
-from agents_core.tools.chat.skill_tool import get_load_skill_tool
+from agents_core.business_logic.skills import get_agent_skills
+from agents_core.models import User, UserSkill, db
+from agents_core.tools.chat.skill_tool import (
+    get_load_skill_tool,
+    get_save_user_skill_tool,
+)
+from flask import Flask
 
 USER_SKILLS = [
     {
@@ -23,11 +31,25 @@ def _fake_backend():
     return backend
 
 
-def test_builtin_skills_are_indexed_without_unsupported_ones():
+@pytest.fixture
+def user():
+    app = Flask(__name__)
+    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///:memory:"
+    db.init_app(app)
+    with app.app_context():
+        db.create_all()
+        user = User(email="ana@acme.com", name="ana")
+        db.session.add(user)
+        db.session.commit()
+        yield user
+
+
+def test_builtin_skills_are_indexed_with_first_sentence_descriptions():
     skills = load_builtin_skills()
-    assert {"docx", "pdf", "pptx", "xlsx", "data-analysis"} <= set(skills)
-    assert "skill-creator" not in skills
-    assert skills["docx"]["description"]
+    assert {"docx", "pdf", "pptx", "xlsx", "data-analysis", "skill-creator"} <= set(
+        skills
+    )
+    assert skills["docx"]["description"].endswith("(.docx files).")
 
 
 def test_skills_context_lists_only_names_and_descriptions():
@@ -77,3 +99,47 @@ def test_unknown_skill_lists_available():
     result = get_load_skill_tool(USER_SKILLS).invoke({"name": "other"})
     assert "Unknown skill" in result
     assert "docx" in result and "memo" in result
+
+
+def test_save_user_skill_creates_then_updates_by_name(user):
+    tool = get_save_user_skill_tool(user.id)
+    args = {
+        "name": "board-memo",
+        "description": "Use for board memos.",
+        "content": "v1",
+    }
+    created = json.loads(tool.invoke(args))
+    assert created["success"] and "created" in created["message"]
+    updated = json.loads(tool.invoke({**args, "content": "v2", "files": {"a.md": "x"}}))
+    assert updated["id"] == created["id"] and "updated" in updated["message"]
+    skill = UserSkill.query.filter_by(user_id=user.id).one()
+    assert skill.content == "v2" and skill.files == {"a.md": "x"}
+
+
+def test_save_user_skill_rejects_invalid_and_builtin_names(user):
+    tool = get_save_user_skill_tool(user.id)
+    base = {"description": "d", "content": "c"}
+    assert not json.loads(tool.invoke({**base, "name": "Board Memo"}))["success"]
+    assert not json.loads(tool.invoke({**base, "name": "docx"}))["success"]
+    assert UserSkill.query.count() == 0
+
+
+def test_get_agent_skills_filters_platform_and_enabled(user):
+    for name, platform, enabled in [
+        ("web-skill", "web", True),
+        ("both-skill", "both", True),
+        ("desktop-skill", "desktop", True),
+        ("off-skill", "both", False),
+    ]:
+        db.session.add(
+            UserSkill(
+                user_id=user.id,
+                name=name,
+                content="c",
+                platform=platform,
+                enabled=enabled,
+            )
+        )
+    db.session.commit()
+    names = {skill["name"] for skill in get_agent_skills(user.id, "web")}
+    assert names == {"web-skill", "both-skill"}

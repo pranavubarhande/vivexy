@@ -24,7 +24,10 @@ from agents_core.constants.features import (
 )
 from agents_core.models.chat import Artifact, ChatAttachment
 from agents_core.services.s3_service import S3Service
-from agents_core.tools.chat.skill_tool import get_load_skill_tool
+from agents_core.tools.chat.skill_tool import (
+    get_load_skill_tool,
+    get_save_user_skill_tool,
+)
 from agents_core.tools.sandbox.daytona_tools import (
     get_execute_code_tool,
     get_list_sandbox_files_tool,
@@ -630,6 +633,8 @@ def create_agent(
         skill_sync = None
 
     tools.append(get_load_skill_tool(user_skills, skill_sync))
+    if user_id:
+        tools.append(get_save_user_skill_tool(user_id))
 
     # 5. Agent Checkpointer
     checkpointer = get_global_checkpointer()
