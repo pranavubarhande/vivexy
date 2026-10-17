@@ -23,3 +23,4 @@
 - [ ] `npm run lint` and `npm run format:check` pass
 - [ ] Relevant tests added/updated and passing (`npm run test`, `uv run pytest`)
 - [ ] Docs updated if behavior or setup changed
+- [ ] I have signed the [CLA](../CLA.md) (the CLA bot will prompt you)

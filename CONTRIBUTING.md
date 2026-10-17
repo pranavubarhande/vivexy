@@ -3,6 +3,16 @@
 Thanks for your interest in contributing. This document covers the workflow for
 proposing changes to this repo.
 
+## Contributor License Agreement
+
+Before we can merge your first pull request, you need to sign the
+[Contributor License Agreement](CLA.md). The CLA bot comments on your PR with
+instructions: reply with the sentence it asks for, and you're done for all
+future contributions.
+
+You keep the copyright to your work. The CLA lets the maintainer distribute it
+under the AGPL and under other licenses, including commercial ones.
+
 ## Getting set up
 
 Follow the [Quick Start](README.md#quick-start) in the README to install
@@ -12,7 +22,7 @@ dependencies and run the app locally.
 
 - Branch off `main` using a short, descriptive name (e.g. `feat/scheduled-tasks`,
   `fix/chat-stream-retry`).
-- Keep commits focused; write commit messages that explain *why* a change was
+- Keep commits focused; write commit messages that explain _why_ a change was
   made, not just what changed.
 
 ## Before opening a pull request
