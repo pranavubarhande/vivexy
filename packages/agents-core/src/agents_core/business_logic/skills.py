@@ -1,5 +1,5 @@
 import uuid
-from typing import List
+from typing import Dict, List, Optional, Tuple
 
 from agents_core.models.base import db
 from agents_core.models.skill import UserSkill
@@ -73,3 +73,43 @@ def delete_user_skill(user_id: str, skill_id: str) -> bool:
     db.session.delete(skill)
     db.session.commit()
     return True
+
+
+def get_agent_skills(user_id: str, platform: str) -> List[Dict]:
+    skills = UserSkill.query.filter(
+        UserSkill.user_id == user_id,
+        UserSkill.enabled.is_(True),
+        UserSkill.platform.in_([platform, "both"]),
+    ).order_by(UserSkill.created_at)
+    return [
+        {
+            "name": skill.name,
+            "description": skill.description,
+            "content": skill.content,
+            **({"files": skill.files} if skill.files else {}),
+        }
+        for skill in skills
+    ]
+
+
+def save_user_skill_by_name(
+    user_id: str,
+    name: str,
+    description: str,
+    content: str,
+    files: Optional[Dict[str, str]] = None,
+) -> Tuple[UserSkill, bool]:
+    existing = UserSkill.query.filter_by(user_id=user_id, name=name).first()
+    skill = upsert_user_skill(
+        user_id,
+        UserSkillCreate(
+            id=existing.id if existing else None,
+            name=name,
+            description=description,
+            content=content,
+            files=files or None,
+            enabled=existing.enabled if existing else True,
+            platform=existing.platform if existing else "both",
+        ),
+    )
+    return skill, existing is None

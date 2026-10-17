@@ -35,6 +35,7 @@ import {
   STREAM_EVENT_USAGE,
 } from '@vivexy/core/constants/stream-events';
 import { chatKeys } from './useChat';
+import { syncAgentSavedSkill } from './useInstalledSkills';
 import { platform } from '@vivexy/core/lib/platform';
 import type { useQueryCacheUpdater } from './use-query-cache-updater';
 
@@ -319,6 +320,17 @@ export const handleStreamEvent = (
               chatKeys.detail(targetChatId),
               (prev) => (prev ? { ...prev, title: newTitle } : prev)
             );
+          }
+        } catch {
+          // output isn't JSON — ignore
+        }
+      }
+
+      if (event.data.tool === 'save_user_skill' && event.data.output) {
+        try {
+          const parsed = JSON.parse(event.data.output);
+          if (parsed.success && parsed.name) {
+            void syncAgentSavedSkill(parsed.name, cache.qc).catch(() => {});
           }
         } catch {
           // output isn't JSON — ignore

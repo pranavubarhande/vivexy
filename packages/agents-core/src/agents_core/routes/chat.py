@@ -38,6 +38,7 @@ from agents_core.business_logic.chat import (
     update_chat,
     update_message,
 )
+from agents_core.business_logic.skills import get_agent_skills
 from agents_core.business_logic.streaming import run_agent_stream_to_redis
 from agents_core.business_logic.team_policy import (
     check_chat_policy,
@@ -1156,6 +1157,8 @@ def start_chat_stream():
             request.headers.get("X-Client-Tools", "").lower() == "true"
         )
         user_skills = data.get("user_skills", [])
+        if not client_tools_enabled and not user_skills:
+            user_skills = get_agent_skills(user_id, "web")
         mcp_tools = data.get("mcp_tools", [])
         github_context = data.get("github_context")
 

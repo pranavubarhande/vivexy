@@ -12,18 +12,32 @@ import tempfile
 import time
 import uuid
 from io import BytesIO
+from typing import Optional
 
 import openpyxl
+from agents_core.agents.cancel_store import check_cancel_flag
+from agents_core.agents.skill_loader import SandboxSkillSync, load_skill_deps
 from agents_core.models import Artifact, db
 from agents_core.models.enums import ArtifactType
+from agents_core.services.s3_service import S3Service
 from langchain_core.tools import BaseTool, tool
 from langchain_daytona import DaytonaSandbox
 
-from agents_core.agents.cancel_store import check_cancel_flag
-from agents_core.agents.skill_loader import load_skill_deps
-from agents_core.services.s3_service import S3Service
-
 logger = logging.getLogger(__name__)
+
+
+MAX_TOOL_OUTPUT_CHARS = 20_000
+
+
+def _truncate_output(output: str) -> str:
+    if len(output) <= MAX_TOOL_OUTPUT_CHARS:
+        return output
+    half = MAX_TOOL_OUTPUT_CHARS // 2
+    omitted = len(output) - MAX_TOOL_OUTPUT_CHARS
+    return (
+        f"{output[:half]}\n\n... [{omitted} characters truncated; write large output "
+        f"to a file and print only what you need] ...\n\n{output[-half:]}"
+    )
 
 
 def install_sandbox_dependencies(backend: DaytonaSandbox):
@@ -165,11 +179,17 @@ def get_upload_sandbox_file_tool(backend: DaytonaSandbox, chat_id: str) -> BaseT
     return upload_sandbox_file_to_chat
 
 
-def get_execute_code_tool(backend: DaytonaSandbox, chat_id: str) -> BaseTool:
+def get_execute_code_tool(
+    backend: DaytonaSandbox,
+    chat_id: str,
+    skill_sync: Optional[SandboxSkillSync] = None,
+) -> BaseTool:
     @tool
     def execute_code(code: str, language: str = "python") -> str:
         """Executes a script in the sandbox. Supports 'python' or 'javascript' (Node.js)."""
         try:
+            if skill_sync:
+                skill_sync.ensure_referenced(code)
             file_ext = "py" if language == "python" else "js"
             filename = f"/tmp/script_{uuid.uuid4().hex}.{file_ext}"
 
@@ -179,7 +199,11 @@ def get_execute_code_tool(backend: DaytonaSandbox, chat_id: str) -> BaseTool:
             if getattr(write_res, "exit_code", -1) != 0:
                 return f"Failed to write script: {getattr(write_res, 'output', 'Unknown error')}"
 
-            cmd = f"python3 {filename}" if language == "python" else f"node {filename}"
+            cmd = (
+                f"python3 {filename}"
+                if language == "python"
+                else f'NODE_PATH="$PWD/node_modules:$(npm root -g)" node {filename}'
+            )
 
             # Execute the command in a background thread so we can poll for cancellation
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
@@ -201,7 +225,7 @@ def get_execute_code_tool(backend: DaytonaSandbox, chat_id: str) -> BaseTool:
             output = getattr(run_res, "output", "")
             exit_code = getattr(run_res, "exit_code", -1)
 
-            return f"Execution finished with exit code {exit_code}.\nOutput:\n{output}"
+            return f"Execution finished with exit code {exit_code}.\nOutput:\n{_truncate_output(output)}"
         except Exception as e:
             return f"Failed to execute code: {e}"
 
@@ -218,7 +242,9 @@ def get_list_sandbox_files_tool(backend: DaytonaSandbox) -> BaseTool:
             exit_code = getattr(res, "exit_code", -1)
             if exit_code != 0:
                 return f"Error listing files: {output}"
-            return output if output else "No files found in workspace."
+            return (
+                _truncate_output(output) if output else "No files found in workspace."
+            )
         except Exception as e:
             return f"Failed to list files: {e}"
 
