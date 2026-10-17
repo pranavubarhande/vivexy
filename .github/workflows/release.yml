@@ -25,6 +25,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+      - uses: astral-sh/setup-uv@v3
       - run: node scripts/release-version.mjs --check "${GITHUB_REF_NAME}"
 
   npm:

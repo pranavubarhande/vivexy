@@ -115,6 +115,13 @@ vivexy-agents-core = { git = "https://github.com/pranavubarhande/vivexy", subdir
 "dependencies": { "@vivexy/core": "0.2.0", "@vivexy/ui": "0.2.0" }
 ```
 
+`vivexy-agents-core` pins only a few dependencies directly, so a fresh resolve can
+pick versions vivexy has never been tested with. Each release therefore ships
+`packages/agents-core/constraints.txt`, exported from vivexy's `uv.lock`. Copy it into
+the product's root `pyproject.toml` as `[tool.uv] constraint-dependencies` (vivexy-legal
+has `scripts/sync_vivexy_constraints.py` for this) so the product runs the same versions
+as vivexy.
+
 `@vivexy/core` and `@vivexy/ui` ship TypeScript source, so the Next.js app must
 transpile them and let Tailwind scan them:
 
