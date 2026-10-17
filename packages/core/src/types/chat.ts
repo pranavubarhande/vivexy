@@ -32,6 +32,7 @@ export interface Chat {
   createdAt: string;
   updatedAt: string;
   agentId: string | null;
+  teamId?: string | null;
   lastModelId: string | null;
   githubContext?: GitContext | null;
   _count?: {

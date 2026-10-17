@@ -30,6 +30,7 @@ export interface AuthUser {
   role: Role;
   avatar: string | null;
   emailVerified: boolean;
+  impersonatedBy?: string;
 }
 
 export interface AuthResponse {

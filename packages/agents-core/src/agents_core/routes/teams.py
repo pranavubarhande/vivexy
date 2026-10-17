@@ -3,6 +3,7 @@ from agents_core.business_logic.teams import (
     create_team,
     delete_team,
     get_team,
+    get_team_features,
     get_team_members,
     get_user_teams,
     remove_team_member,
@@ -337,5 +338,28 @@ def remove_member(team_id, user_id):
         return jsonify(result)
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@bp.route("/<team_id>/features", methods=["GET"])
+@auth_middleware
+def team_features(team_id):
+    """Feature flags enabled for a team (visible to its members).
+    ---
+    tags:
+      - Teams
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Map of feature flag name to enabled
+      403:
+        description: Not a team member
+    """
+    try:
+        return jsonify({"features": get_team_features(team_id, request.user.id)})
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 403
     except Exception as e:
         return jsonify({"error": str(e)}), 500

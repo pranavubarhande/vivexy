@@ -15,9 +15,18 @@ import { Label } from '@vivexy/ui/label';
 import { Textarea } from '@vivexy/ui/textarea';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@vivexy/ui/tabs';
 import { Switch } from '@vivexy/ui/switch';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@vivexy/ui/select';
 import { ModelSelector } from '@vivexy/core/chat/model-selector';
 import { FileUpload, UploadedFile } from '@vivexy/core/chat/file-upload';
 import { useModels } from '@vivexy/core/hooks/useChat';
+import { useTeams } from '@vivexy/core/hooks/useTeams';
+import { useActiveTeam } from '@vivexy/core/hooks/useActiveTeam';
 import { scheduledTasksService } from '@vivexy/core/services/scheduled-tasks.service';
 import { chatService } from '@vivexy/core/services/chat.service';
 import type {
@@ -97,8 +106,13 @@ function TZPill({ label }: { label: string }) {
   );
 }
 
+const PERSONAL_BILLING = 'personal';
+
 export function ScheduledTaskForm({ open, onClose, onSaved, editTask }: Props) {
   const { models, isLoading: isLoadingModels } = useModels();
+  const { data: teams } = useTeams();
+  const { activeTeamId } = useActiveTeam();
+  const [billingTeamId, setBillingTeamId] = useState<string | null>(null);
 
   const [name, setName] = useState('');
   const [prompt, setPrompt] = useState('');
@@ -154,6 +168,7 @@ export function ScheduledTaskForm({ open, onClose, onSaved, editTask }: Props) {
       setSelectedModelApiId(editTask.modelApiId);
       setSelectedModelProvider(editTask.modelProvider ?? '');
       setSelectedModelName(editTask.modelName ?? '');
+      setBillingTeamId(editTask.teamId);
       setUploadedFiles([]);
     } else {
       resetForm();
@@ -186,6 +201,7 @@ export function ScheduledTaskForm({ open, onClose, onSaved, editTask }: Props) {
     setUploadChatId(null);
     setUploadedFiles([]);
     setShowUploader(false);
+    setBillingTeamId(activeTeamId);
   };
 
   const toggleDay = (day: number) => {
@@ -217,6 +233,7 @@ export function ScheduledTaskForm({ open, onClose, onSaved, editTask }: Props) {
     setIsSaving(true);
     try {
       const payload: CreateScheduledTaskPayload = {
+        teamId: billingTeamId,
         name: name.trim(),
         prompt: prompt.trim(),
         scheduleType,
@@ -287,6 +304,31 @@ export function ScheduledTaskForm({ open, onClose, onSaved, editTask }: Props) {
               className="resize-none"
             />
           </div>
+
+          {/* Billing */}
+          {!!teams?.length && (
+            <div className="space-y-1.5">
+              <Label>Bill usage to</Label>
+              <Select
+                value={billingTeamId ?? PERSONAL_BILLING}
+                onValueChange={(value) =>
+                  setBillingTeamId(value === PERSONAL_BILLING ? null : value)
+                }
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={PERSONAL_BILLING}>Personal</SelectItem>
+                  {teams.map((team) => (
+                    <SelectItem key={team.id} value={team.id}>
+                      {team.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {/* Schedule */}
           <div className="space-y-2">

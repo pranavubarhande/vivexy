@@ -189,6 +189,7 @@ def get_user_chat(chat_id: str, user_id: str) -> Dict[str, Any]:
     return {
         "id": chat.id,
         "userId": chat.user_id,
+        "teamId": chat.team_id,
         "title": chat.title,
         "agentId": chat.agent_id,
         "lastModelId": chat.last_model_id,
@@ -201,7 +202,12 @@ def get_user_chat(chat_id: str, user_id: str) -> Dict[str, Any]:
 
 def create_chat(data: ChatCreate, user_id: str) -> ChatResponse:
     """Create a new chat."""
-    chat = Chat(user_id=user_id, title=data.title or "New Chat", agent_id=data.agent_id)
+    chat = Chat(
+        user_id=user_id,
+        team_id=data.team_id,
+        title=data.title or "New Chat",
+        agent_id=data.agent_id,
+    )
     db.session.add(chat)
     db.session.commit()
     return ChatResponse.from_orm(chat)
@@ -245,15 +251,12 @@ def update_chat(
 
 
 def delete_chat(chat_id: str, user_id: str) -> int:
-    """Delete a chat."""
-    chat = Chat.query.filter_by(id=chat_id, user_id=user_id).first()
-    if not chat:
-        raise ValueError("Chat not found")
+    """Delete a chat with its messages, artifacts, files and agent state."""
+    from agents_core.business_logic.data_lifecycle import hard_delete_chats
 
-    # Messages will be deleted automatically due to cascade
-    db.session.delete(chat)
-    db.session.commit()
-    return 1
+    if not Chat.query.filter_by(id=chat_id, user_id=user_id).first():
+        raise ValueError("Chat not found")
+    return hard_delete_chats([chat_id])
 
 
 def revert_to_message(

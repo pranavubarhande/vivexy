@@ -12,6 +12,9 @@ class Chat(db.Model):
 
     id = db.Column(db.String, primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = db.Column(db.String, db.ForeignKey("users.id"), nullable=False)
+    team_id = db.Column(
+        db.String, db.ForeignKey("teams.id", ondelete="SET NULL"), index=True
+    )
     title = db.Column(db.String)
     agent_id = db.Column(db.String)  # Which agent is being used for this chat
     last_model_id = db.Column(db.String, db.ForeignKey("llm_models.id"))

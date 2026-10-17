@@ -7,6 +7,8 @@ import logging
 import os
 
 import requests
+from agents_core.business_logic.features import require_feature
+from agents_core.constants.features import FEATURE_GITHUB
 from agents_core.middlewares.auth import auth_middleware
 from agents_core.models.base import db
 from agents_core.models.github import GithubConnection, GithubRepo
@@ -48,6 +50,7 @@ def _github_headers(access_token: str) -> dict:
 
 @bp.route("/auth", methods=["GET"])
 @auth_middleware
+@require_feature(FEATURE_GITHUB)
 def github_auth():
     """Return GitHub OAuth authorization URL."""
     try:
@@ -203,6 +206,7 @@ def github_status():
 
 @bp.route("/repos", methods=["GET"])
 @auth_middleware
+@require_feature(FEATURE_GITHUB)
 def github_repos():
     """Fetch repositories from GitHub API using the stored access token."""
     try:
@@ -239,6 +243,7 @@ def github_repos():
 
 @bp.route("/repos/link", methods=["POST"])
 @auth_middleware
+@require_feature(FEATURE_GITHUB)
 def link_repo():
     """Link a GitHub repository to the user's Vivexy account."""
     try:
@@ -365,6 +370,7 @@ def github_disconnect():
 
 @bp.route("/repos/<path:full_name>/contents", methods=["GET"])
 @auth_middleware
+@require_feature(FEATURE_GITHUB)
 def repo_contents(full_name):
     """Proxy GitHub API: get file/directory contents for a repo."""
     try:
@@ -402,6 +408,7 @@ def repo_contents(full_name):
 
 @bp.route("/repos/<path:full_name>/commits", methods=["GET"])
 @auth_middleware
+@require_feature(FEATURE_GITHUB)
 def repo_commits(full_name):
     """Proxy GitHub API: get latest 10 commits for a repo."""
     try:
@@ -428,6 +435,7 @@ def repo_commits(full_name):
 
 @bp.route("/repos/<path:full_name>/branches", methods=["GET"])
 @auth_middleware
+@require_feature(FEATURE_GITHUB)
 def repo_branches(full_name):
     """Proxy GitHub API: list branches for a repo."""
     try:

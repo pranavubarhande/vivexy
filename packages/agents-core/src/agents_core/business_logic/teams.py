@@ -1,9 +1,79 @@
+import logging
 import re
-from datetime import datetime
+import uuid
+from datetime import datetime, timedelta
 from typing import Any, Dict, List
+from urllib.parse import urlencode
 
-from agents_core.models import Team, TeamInvite, TeamMember, User, db
+from agents_core.business_logic.features import team_features
+from agents_core.models import Chat, Team, TeamInvite, TeamMember, User, db
 from agents_core.schemas import TeamCreate, TeamMemberCreate, TeamUpdate
+from agents_core.utils.email import send_team_invite_email
+from flask import current_app, has_app_context
+
+logger = logging.getLogger(__name__)
+
+
+def _send_invite_email(invite: TeamInvite, team: Team) -> None:
+    frontend_url = (
+        current_app.config.get("FRONTEND_URL", "") if has_app_context() else ""
+    )
+    query = urlencode({"email": invite.email, "invite": invite.token})
+    try:
+        send_team_invite_email(
+            invite.email, team.name, f"{frontend_url}/register?{query}"
+        )
+    except Exception:
+        logger.exception("Failed to send invite email for team %s", team.id)
+
+
+def claim_pending_invites(user: User) -> List[str]:
+    """Turn unexpired invites for a verified email into memberships.
+
+    Only call once the email is proven (verified address or SSO): email
+    verification is soft, so claiming earlier would let anyone who registers
+    an invitee's address join their team."""
+    if not user.email_verified:
+        return []
+
+    invites = TeamInvite.query.filter(
+        db.func.lower(TeamInvite.email) == user.email.lower(),
+        TeamInvite.expires_at > datetime.utcnow(),
+    ).all()
+    joined_team_ids = []
+    for invite in invites:
+        already_member = TeamMember.query.filter_by(
+            team_id=invite.team_id, user_id=user.id
+        ).first()
+        if not already_member:
+            db.session.add(
+                TeamMember(user_id=user.id, team_id=invite.team_id, role=invite.role)
+            )
+            joined_team_ids.append(invite.team_id)
+        db.session.delete(invite)
+    if invites:
+        db.session.commit()
+    return joined_team_ids
+
+
+def bulk_invite_members(
+    team_id: str, emails: List[str], role, invited_by: str
+) -> Dict[str, Any]:
+    results = {"added": [], "invited": [], "skipped": []}
+    seen = set()
+    for raw_email in emails:
+        email = raw_email.strip().lower()
+        if not email or email in seen:
+            continue
+        seen.add(email)
+        try:
+            outcome = add_team_member(
+                team_id, TeamMemberCreate(email=email, role=role), invited_by
+            )
+            results["invited" if outcome.get("invited") else "added"].append(email)
+        except ValueError as error:
+            results["skipped"].append({"email": email, "reason": str(error)})
+    return results
 
 
 def slugify(text: str) -> str:
@@ -219,6 +289,8 @@ def delete_team(team_id: str, user_id: str) -> Dict[str, Any]:
     if not team:
         raise ValueError("Access denied. Only team owners can delete teams.")
 
+    Chat.query.filter_by(team_id=team_id).update({Chat.team_id: None})
+
     # Delete team invites first (due to foreign key constraint)
     TeamInvite.query.filter_by(team_id=team_id).delete()
 
@@ -280,6 +352,22 @@ def add_team_member(
             "Access denied. Only team owners and admins can invite members."
         )
 
+    team = Team.query.get(team_id)
+    if team.is_suspended:
+        raise ValueError("This team is suspended. Contact support.")
+    if team.seat_limit is not None:
+        seats_used = (
+            TeamMember.query.filter_by(team_id=team_id).count()
+            + TeamInvite.query.filter(
+                TeamInvite.team_id == team_id,
+                TeamInvite.expires_at > datetime.utcnow(),
+            ).count()
+        )
+        if seats_used >= team.seat_limit:
+            raise ValueError(
+                f"Seat limit reached ({team.seat_limit}). Contact support to add seats."
+            )
+
     # Check if user is already a member
     existing_member = TeamMember.query.filter(
         TeamMember.team_id == team_id, TeamMember.user.has(email=member_data.email)
@@ -321,10 +409,6 @@ def add_team_member(
             },
         }
     else:
-        # Create invite (simplified - no email sending for now)
-        import uuid
-        from datetime import timedelta
-
         token = str(uuid.uuid4())
         expires_at = datetime.utcnow() + timedelta(days=7)
 
@@ -338,8 +422,9 @@ def add_team_member(
         )
         db.session.add(invite)
         db.session.commit()
+        _send_invite_email(invite, team)
 
-        return {"message": "Invite sent successfully"}
+        return {"message": "Invite sent successfully", "invited": True}
 
 
 def remove_team_member(
@@ -378,3 +463,10 @@ def remove_team_member(
     db.session.commit()
 
     return {"message": "Member removed successfully"}
+
+
+def get_team_features(team_id: str, user_id: str) -> Dict[str, bool]:
+    membership = TeamMember.query.filter_by(team_id=team_id, user_id=user_id).first()
+    if not membership:
+        raise ValueError("Access denied")
+    return team_features(membership.team)

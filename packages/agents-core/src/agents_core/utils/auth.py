@@ -14,7 +14,7 @@ from agents_core.constants.redis_keys import (
     REDIS_KEY_OAUTH_EXCHANGE,
     REDIS_KEY_RESEND_COOLDOWN,
 )
-from agents_core.models import User, db
+from agents_core.models import Role, User, db
 from agents_core.schemas import UserCreate, UserResponse
 
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379")
@@ -95,7 +95,9 @@ def create_oauth_exchange_code(jwt_token: str, state: str) -> str:
         raise RuntimeError("Redis unavailable")
     code = secrets.token_urlsafe(32)
     payload = json.dumps({"jwt": jwt_token, "state": state})
-    r.setex(REDIS_KEY_OAUTH_EXCHANGE.format(code=code), OAUTH_EXCHANGE_TTL_SECONDS, payload)
+    r.setex(
+        REDIS_KEY_OAUTH_EXCHANGE.format(code=code), OAUTH_EXCHANGE_TTL_SECONDS, payload
+    )
     return code
 
 
@@ -130,13 +132,19 @@ def verify_password(password: str, hashed: str) -> bool:
     return bcrypt.checkpw(password.encode("utf-8"), hashed.encode("utf-8"))
 
 
-def generate_token(user_id: str, email: str) -> str:
+def generate_token(
+    user_id: str,
+    email: str,
+    expires_in: timedelta = timedelta(days=7),
+    extra_claims: dict | None = None,
+) -> str:
     """Generate a JWT token for the user."""
     payload = {
         "userId": user_id,
         "email": email,
-        "exp": datetime.utcnow() + timedelta(days=7),  # 7 days
+        "exp": datetime.utcnow() + expires_in,
         "iat": datetime.utcnow(),
+        **(extra_claims or {}),
     }
     return jwt.encode(payload, current_app.config["JWT_SECRET_KEY"], algorithm="HS256")
 
@@ -156,11 +164,21 @@ def verify_token(token: str) -> dict:
 
 def get_user_from_token(token: str) -> User:
     """Get user from JWT token."""
+    user, _ = get_user_and_claims_from_token(token)
+    return user
+
+
+def get_user_and_claims_from_token(token: str) -> tuple[User, dict]:
     payload = verify_token(token)
     user = User.query.get(payload["userId"])
     if not user:
         raise ValueError("User not found")
-    return user
+    return user, payload
+
+
+def record_login(user: User) -> None:
+    user.last_login_at = datetime.utcnow()
+    db.session.commit()
 
 
 def exclude_password(user: User) -> dict:
@@ -203,7 +221,7 @@ def create_user(user_data: UserCreate) -> User:
         email=user_data.email,
         name=user_data.name,
         password=hashed_password,
-        role=user_data.role,
+        role=Role.USER,
         avatar=user_data.avatar,
     )
 

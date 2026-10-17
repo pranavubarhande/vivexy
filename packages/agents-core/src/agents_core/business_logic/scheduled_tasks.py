@@ -7,6 +7,7 @@ import logging
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
+from agents_core.models import Team, TeamMember
 from agents_core.models.base import db
 from agents_core.models.scheduled_task import ScheduledTask, ScheduledTaskRun
 
@@ -103,9 +104,23 @@ def get_task(task_id: str, user_id: str) -> ScheduledTask:
     return task
 
 
+def _resolve_task_team(user_id: str, team_id: Optional[str]) -> Optional[str]:
+    """Validate the team a task's runs will be billed to (None = personal)."""
+    if not team_id:
+        return None
+    team = Team.query.get(team_id)
+    membership = TeamMember.query.filter_by(team_id=team_id, user_id=user_id).first()
+    if not team or not membership:
+        raise PermissionError("You are not a member of this team")
+    if team.is_suspended:
+        raise PermissionError("This team is suspended. Contact your admin.")
+    return team_id
+
+
 def create_task(user_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
     task = ScheduledTask(
         user_id=user_id,
+        team_id=_resolve_task_team(user_id, data.get("team_id")),
         name=data["name"],
         prompt=data["prompt"],
         schedule_type=data.get("schedule_type", "once"),
@@ -155,6 +170,8 @@ def update_task(task_id: str, user_id: str, data: Dict[str, Any]) -> Dict[str, A
 
     if "scheduled_at" in data:
         task.scheduled_at = _parse_dt(data["scheduled_at"])
+    if "team_id" in data:
+        task.team_id = _resolve_task_team(user_id, data["team_id"])
 
     # Recompute next_run_at whenever schedule params change
     task.next_run_at = compute_next_run_at(task)

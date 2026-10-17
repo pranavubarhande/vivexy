@@ -387,6 +387,23 @@ class S3Service:
             print(f"Error listing generated files: {e}")
             return []
 
+    def delete_chat_files(self, chat_id: str) -> int:
+        """Delete every object stored under a chat (uploads and generated files)."""
+        if not self.s3_client:
+            return 0
+        deleted = 0
+        paginator = self.s3_client.get_paginator("list_objects_v2")
+        for page in paginator.paginate(
+            Bucket=self.bucket_name, Prefix=f"chats/{chat_id}/"
+        ):
+            keys = [{"Key": obj["Key"]} for obj in page.get("Contents", [])]
+            if keys:
+                self.s3_client.delete_objects(
+                    Bucket=self.bucket_name, Delete={"Objects": keys}
+                )
+                deleted += len(keys)
+        return deleted
+
     def delete_file(self, s3_key: str) -> bool:
         """
         Delete a file from S3.

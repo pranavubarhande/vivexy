@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { useActiveTeam } from './useActiveTeam';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   chatService,
@@ -74,9 +75,10 @@ export const useChatHistory = () => {
 // Models
 // ---------------------------------------------------------------------------
 export const useModels = () => {
+  const { activeTeamId } = useActiveTeam();
   const { data: models = [], isLoading } = useQuery<LLMModel[]>({
-    queryKey: chatKeys.models(),
-    queryFn: () => chatService.getModels(),
+    queryKey: [...chatKeys.models(), activeTeamId],
+    queryFn: () => chatService.getModels(activeTeamId),
     staleTime: 5 * 60_000, // Models rarely change — 5 min stale
   });
 

@@ -9,6 +9,14 @@ export interface UserApiKey {
 }
 
 export const userService = {
+  // Features left on after the user's teams' feature flags
+  getFeatures: async (): Promise<Record<string, boolean>> => {
+    const response = await axiosInstance.get<{
+      features: Record<string, boolean>;
+    }>('/users/me/features');
+    return response.data.features;
+  },
+
   // Get user settings
   getUserSettings: async (): Promise<AuthUser> => {
     const response = await axiosInstance.get<{ user: AuthUser }>('/users/me');
@@ -42,6 +50,13 @@ export const userService = {
   },
 
   // Delete account
+  exportMyData: async (): Promise<Blob> => {
+    const { data } = await axiosInstance.get('/users/me/export');
+    return new Blob([JSON.stringify(data, null, 2)], {
+      type: 'application/json',
+    });
+  },
+
   deleteAccount: async (): Promise<void> => {
     await axiosInstance.delete('/users/me');
   },
