@@ -97,3 +97,5 @@ This document provides architectural context, codebase patterns, and constraints
 - **Execution**:
   - Do not use global `pip`; always execute backend scripts with `uv run python <script>`.
   - Always check `package.json` for custom lifecycle scripts before running manual builds.
+- **Git Attribution**:
+  - Do not add Claude attribution, `Co-Authored-By`, or `Claude-Session` trailers to commit messages, and do not add "Generated with Claude Code" lines to PR descriptions.
