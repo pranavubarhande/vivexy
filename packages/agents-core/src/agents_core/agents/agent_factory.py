@@ -2,46 +2,59 @@ import base64
 import importlib
 import logging
 import os
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
+from agents_core.agents.config import (
+    AGENT_METADATA,
+    DEFAULT_AGENT_ID,
+    DESKTOP_ENVIRONMENT_PROMPT,
+    SYSTEM_PROMPTS,
+    TASK_TOOL_DESCRIPTION,
+    UNIFIED_SYSTEM_PROMPT,
+    WEB_ENVIRONMENT_PROMPT,
+    WRITE_TODOS_TOOL_DESCRIPTION,
+    AgentConfig,
+    FileContext,
+)
 from agents_core.constants.features import (
     FEATURE_CONNECTORS,
     FEATURE_GITHUB,
     FEATURE_RAG,
 )
 from agents_core.models.chat import Artifact, ChatAttachment
-from composio import Composio
-from composio_langchain import LangchainProvider
-from daytona import CreateSandboxFromSnapshotParams, Daytona
-from deepagents import create_deep_agent
-from langchain_core.tools import BaseTool, tool
-from langchain_daytona import DaytonaSandbox
-from langgraph.checkpoint.redis import RedisSaver
-
-from agents_core.agents.config import (
-    AGENT_METADATA,
-    DEFAULT_AGENT_ID,
-    SYSTEM_PROMPTS,
-    UNIFIED_SYSTEM_PROMPT,
-    AgentConfig,
-    FileContext,
-)
 from agents_core.services.s3_service import S3Service
+from agents_core.tools.chat.user_skill_tool import get_load_user_skill_tool
 from agents_core.tools.sandbox.daytona_tools import (
     get_execute_code_tool,
     get_list_sandbox_files_tool,
     get_upload_sandbox_file_tool,
     install_sandbox_dependencies,
 )
+from composio import Composio
+from composio_langchain import LangchainProvider
+from daytona import CreateSandboxFromSnapshotParams, Daytona
+from deepagents.middleware.patch_tool_calls import PatchToolCallsMiddleware
+from deepagents.middleware.subagents import SubAgentMiddleware
+from langchain.agents import create_agent as build_agent_graph
+from langchain.agents.middleware import (
+    ClearToolUsesEdit,
+    ContextEditingMiddleware,
+    HumanInTheLoopMiddleware,
+    SummarizationMiddleware,
+    TodoListMiddleware,
+)
+from langchain.chat_models import init_chat_model
+from langchain_anthropic.middleware import AnthropicPromptCachingMiddleware
+from langchain_core.tools import BaseTool, tool
+from langchain_daytona import DaytonaSandbox
+from langgraph.checkpoint.redis import RedisSaver
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
 
 logger = logging.getLogger(__name__)
 
-SKILLS_DIR = Path(
-    os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "skills")
-)
+CONTEXT_EDIT_TRIGGER_TOKENS = 50_000
+CONTEXT_EDIT_KEEP_TOOL_RESULTS = 5
 
 # Stateful checkpointer for cross-request chat history, backed by Redis so it
 # survives past a single process — any pod can resume any chat's LangGraph
@@ -175,7 +188,6 @@ def get_base_tools(chat_id: str) -> List[BaseTool]:
     """Get the base tools available to the main agent."""
     tools = []
     import_list = [
-        ("agents_core.tools.chat.chat_tools", "get_set_chat_title_tool", [chat_id]),
         ("agents_core.tools.chat.ask_user_tool", "get_ask_user_tool", []),
         ("agents_core.tools.chat.render_chart_tool", "get_render_chart_tool", []),
         ("agents_core.tools.files.file_tools", "get_file_read_tool", [chat_id]),
@@ -192,7 +204,11 @@ def get_finance_tools() -> List[BaseTool]:
     tools = []
     import_list = [
         ("agents_core.tools.stocks.yahoo_finance_tools", "get_stock_quote_tool", []),
-        ("agents_core.tools.stocks.yahoo_finance_tools", "get_yahoo_finance_quote_tool", []),
+        (
+            "agents_core.tools.stocks.yahoo_finance_tools",
+            "get_yahoo_finance_quote_tool",
+            [],
+        ),
         (
             "agents_core.tools.stocks.yahoo_finance_tools",
             "get_yahoo_finance_quote_summary_tool",
@@ -203,8 +219,16 @@ def get_finance_tools() -> List[BaseTool]:
             "get_yahoo_finance_historical_tool",
             [],
         ),
-        ("agents_core.tools.stocks.yahoo_finance_tools", "get_yahoo_finance_search_tool", []),
-        ("agents_core.tools.stocks.financial_sheets_tools", "get_financial_sheets_tool", []),
+        (
+            "agents_core.tools.stocks.yahoo_finance_tools",
+            "get_yahoo_finance_search_tool",
+            [],
+        ),
+        (
+            "agents_core.tools.stocks.financial_sheets_tools",
+            "get_financial_sheets_tool",
+            [],
+        ),
         ("agents_core.tools.stocks.news_tools", "get_stock_news_tool", []),
     ]
     for module_path, func_name, args in import_list:
@@ -233,7 +257,11 @@ def get_legal_tools() -> List[BaseTool]:
     tools = []
     for module_path, func_name, args in [
         ("agents_core.tools.legal.contract_tools", "get_contract_tools", []),
-        ("agents_core.tools.legal.legal_research_tools", "get_legal_research_tools", []),
+        (
+            "agents_core.tools.legal.legal_research_tools",
+            "get_legal_research_tools",
+            [],
+        ),
     ]:
         tools.extend(safe_import_tool(module_path, func_name, *args))
     return tools
@@ -243,7 +271,11 @@ def get_compliance_tools() -> List[BaseTool]:
     tools = []
     for module_path, func_name, args in [
         ("agents_core.tools.compliance.sanctions_tools", "get_sanctions_tools", []),
-        ("agents_core.tools.compliance.regulatory_feed_tools", "get_regulatory_feed_tools", []),
+        (
+            "agents_core.tools.compliance.regulatory_feed_tools",
+            "get_regulatory_feed_tools",
+            [],
+        ),
         ("agents_core.tools.compliance.audit_tools", "get_audit_tools", []),
     ]:
         tools.extend(safe_import_tool(module_path, func_name, *args))
@@ -262,7 +294,9 @@ def get_market_data_tools() -> List[BaseTool]:
 def get_sec_edgar_tools() -> List[BaseTool]:
     tools = []
     tools.extend(
-        safe_import_tool("agents_core.tools.finance.sec_edgar_tools", "get_sec_edgar_tools")
+        safe_import_tool(
+            "agents_core.tools.finance.sec_edgar_tools", "get_sec_edgar_tools"
+        )
     )
     return tools
 
@@ -279,7 +313,8 @@ def get_reg_feeds_tools() -> List[BaseTool]:
     tools = []
     tools.extend(
         safe_import_tool(
-            "agents_core.tools.compliance.regulatory_feed_tools", "get_regulatory_feed_tools"
+            "agents_core.tools.compliance.regulatory_feed_tools",
+            "get_regulatory_feed_tools",
         )
     )
     return tools
@@ -288,7 +323,9 @@ def get_reg_feeds_tools() -> List[BaseTool]:
 def get_workflow_tools() -> List[BaseTool]:
     tools = []
     tools.extend(
-        safe_import_tool("agents_core.tools.shared.workflow_tools", "get_workflow_tools")
+        safe_import_tool(
+            "agents_core.tools.shared.workflow_tools", "get_workflow_tools"
+        )
     )
     return tools
 
@@ -314,41 +351,19 @@ def get_composio_tools(chat_id: str, user_id: Optional[str] = None) -> List[Base
 
 
 def build_user_skills_context(user_skills: List[Dict]) -> str:
-    """Compile user-defined skills into a system prompt section.
-
-    Each skill may include:
-    - content: SKILL.md body (main instructions)
-    - files: dict of {filename → content} for supporting reference files
-    """
+    """List user-defined skills by name and description; bodies load via load_user_skill."""
     if not user_skills:
         return ""
-    parts = []
+    lines = []
     for skill in user_skills:
-        name = skill.get("name", "unnamed")
-        description = skill.get("description", "")
-        content = skill.get("content", "")
-        supporting_files: Dict[str, str] = skill.get("files") or {}
-
-        header = f"### User Skill: /{name}"
-        if description:
-            header += f"\n**Description**: {description}"
-
-        skill_body = f"{header}\n\n{content}"
-
-        # Append any supporting reference files as sub-sections
-        if supporting_files:
-            file_sections = []
-            for filename, file_content in supporting_files.items():
-                file_sections.append(f"#### Reference: {filename}\n\n{file_content}")
-            skill_body += "\n\n" + "\n\n".join(file_sections)
-
-        parts.append(skill_body)
-
+        line = f"- /{skill.get('name', 'unnamed')}"
+        if skill.get("description"):
+            line += f": {skill['description']}"
+        lines.append(line)
     return (
-        "## USER-DEFINED SKILLS\n\n"
-        "The following skills have been installed by the user. "
-        "When the user invokes /{skill-name} or asks you to use a skill, apply its instructions:\n\n"
-        + "\n\n---\n\n".join(parts)
+        "## User Skills\n"
+        "When the user invokes /{skill-name} or a request matches a skill, call "
+        "`load_user_skill` and follow its instructions.\n" + "\n".join(lines)
     )
 
 
@@ -556,6 +571,9 @@ def create_agent(
                 existing_names.add(t.name)
         logger.info("Registered %d MCP stub tool(s) from desktop", len(mcp_stubs))
 
+    if user_skills:
+        tools.append(get_load_user_skill_tool(user_skills))
+
     # 2. Subagents configuration
     finance_subagent = {
         "name": "finance_analyst",
@@ -644,35 +662,14 @@ def create_agent(
     # Generate system prompt — use agent-specific prompt if defined
     final_prompt = SYSTEM_PROMPTS.get(agent_id, UNIFIED_SYSTEM_PROMPT)
 
-    # Prepend active environment so the agent knows exactly where it's running
-    if client_tools_enabled:
-        env_banner = (
-            "\n\n## Current Environment: 🖥️ Desktop\n"
-            "You are running inside the Electron desktop app. "
-            "Filesystem and git tools operate directly on the user's local machine (workspace folder). "
-            "Code execution (`execute_code`) still runs in the Daytona cloud sandbox — it does NOT see local files unless the user uploads them."
-        )
-    else:
-        env_banner = (
-            "\n\n## Current Environment: 🌐 Web\n"
-            "You are running in a web browser. "
-            "Filesystem and git tools are NOT available. "
-            "All file generation must go through the Daytona sandbox via `execute_code` + `upload_sandbox_file_to_chat`."
-        )
-    final_prompt += env_banner
+    final_prompt += "\n\n" + (
+        DESKTOP_ENVIRONMENT_PROMPT if client_tools_enabled else WEB_ENVIRONMENT_PROMPT
+    )
 
     # Append user-defined skills context
     skills_ctx = build_user_skills_context(user_skills)
     if skills_ctx:
         final_prompt += f"\n\n{skills_ctx}"
-
-    # Note available MCP tools in the system prompt
-    if mcp_tools and client_tools_enabled:
-        mcp_names = [f"mcp__{t.get('serverName')}_{t.get('name')}" for t in mcp_tools]
-        final_prompt += (
-            f"\n\n## Available MCP Tools (Desktop)\nThe following MCP tools are available "
-            f"and will be executed on the desktop client: {', '.join(mcp_names)}"
-        )
 
     # Inject repository context
     if github_context:
@@ -740,26 +737,76 @@ def create_agent(
         file_ctx = "\n\n---\n\n".join(parts)
         final_prompt += f"\n\n[File Context]\n{file_ctx}"
 
-    # Ensure skills directory exists
-    SKILLS_DIR.mkdir(parents=True, exist_ok=True)
-
-    agent = create_deep_agent(
-        model=provider_str,
+    agent = _build_agent(
+        model=init_chat_model(provider_str),
         tools=tools,
-        backend=backend,
         subagents=[finance_subagent, research_subagent],
-        skills=[str(SKILLS_DIR)],
         checkpointer=checkpointer,
-        interrupt_on={
-            "delete_file": {"allowed_decisions": ["approve", "reject"]},
-            "move_file": {"allowed_decisions": ["approve", "reject"]},
-        },
         system_prompt=final_prompt,
     )
 
     # Store sandbox instance into the agent object for cleanup if necessary
     agent.__sandbox = sandbox
     return agent
+
+
+def _build_agent(model, tools, subagents, checkpointer, system_prompt):
+    """Assemble the agent graph with compact planning/subagent prompts and context management."""
+    if isinstance(model.profile, dict) and isinstance(
+        model.profile.get("max_input_tokens"), int
+    ):
+        summarize_trigger, summarize_keep = ("fraction", 0.85), ("fraction", 0.10)
+    else:
+        summarize_trigger, summarize_keep = ("tokens", 170_000), ("messages", 6)
+
+    prompt_caching = AnthropicPromptCachingMiddleware(
+        unsupported_model_behavior="ignore"
+    )
+    middleware = [
+        TodoListMiddleware(
+            system_prompt="", tool_description=WRITE_TODOS_TOOL_DESCRIPTION
+        ),
+        SubAgentMiddleware(
+            default_model=model,
+            default_tools=tools,
+            subagents=subagents,
+            default_middleware=[PatchToolCallsMiddleware(), prompt_caching],
+            general_purpose_agent=False,
+            system_prompt=None,
+            task_description=TASK_TOOL_DESCRIPTION,
+        ),
+        ContextEditingMiddleware(
+            edits=[
+                ClearToolUsesEdit(
+                    trigger=CONTEXT_EDIT_TRIGGER_TOKENS,
+                    keep=CONTEXT_EDIT_KEEP_TOOL_RESULTS,
+                    exclude_tools=("ask_user",),
+                    placeholder="[older tool result cleared to save context]",
+                )
+            ]
+        ),
+        SummarizationMiddleware(
+            model=model,
+            trigger=summarize_trigger,
+            keep=summarize_keep,
+            trim_tokens_to_summarize=None,
+        ),
+        prompt_caching,
+        PatchToolCallsMiddleware(),
+        HumanInTheLoopMiddleware(
+            interrupt_on={
+                "delete_file": {"allowed_decisions": ["approve", "reject"]},
+                "move_file": {"allowed_decisions": ["approve", "reject"]},
+            }
+        ),
+    ]
+    return build_agent_graph(
+        model,
+        system_prompt=system_prompt,
+        tools=tools,
+        middleware=middleware,
+        checkpointer=checkpointer,
+    ).with_config({"recursion_limit": 1000})
 
 
 # Alias for backward compatibility
