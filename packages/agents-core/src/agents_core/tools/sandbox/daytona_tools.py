@@ -199,7 +199,11 @@ def get_execute_code_tool(
             if getattr(write_res, "exit_code", -1) != 0:
                 return f"Failed to write script: {getattr(write_res, 'output', 'Unknown error')}"
 
-            cmd = f"python3 {filename}" if language == "python" else f"node {filename}"
+            cmd = (
+                f"python3 {filename}"
+                if language == "python"
+                else f'NODE_PATH="$PWD/node_modules:$(npm root -g)" node {filename}'
+            )
 
             # Execute the command in a background thread so we can poll for cancellation
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
