@@ -1,53 +1,107 @@
 """
 Skill Loader
-Dynamically loads SKILL.md files from the app/skills directory to inject into the system prompt.
-This gives the agent awareness of how to manipulate complex files in the E2B Sandbox.
+Indexes the built-in skills under agents_core/skills (name and description from each
+SKILL.md frontmatter) and copies a skill's files into the Daytona sandbox on demand.
 """
 
 import logging
 import os
+import re
+from functools import lru_cache
+from pathlib import Path
+from typing import Dict, Optional, Set, Tuple
 
 import yaml
 
 logger = logging.getLogger(__name__)
 
+BUILTIN_SKILLS_DIR = Path(__file__).resolve().parent.parent / "skills"
+SANDBOX_SKILLS_DIR = "skills"
+# skill-creator drives the `claude` CLI, which the sandbox does not have
+UNSUPPORTED_BUILTIN_SKILLS = {"skill-creator"}
 
-def load_skills_context() -> str:
-    """Reads all SKILL.md files and returns a compiled markdown string of descriptions."""
-    skills_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "skills")
 
-    skill_descriptions = []
-    if os.path.exists(skills_dir):
-        for root, _, files in os.walk(skills_dir):
-            if "SKILL.md" in files:
-                try:
-                    with open(
-                        os.path.join(root, "SKILL.md"), "r", encoding="utf-8"
-                    ) as f:
-                        content = f.read()
+def _parse_skill_md(text: str) -> Tuple[Dict, str]:
+    if text.startswith("---"):
+        parts = text.split("---", 2)
+        if len(parts) >= 3:
+            return yaml.safe_load(parts[1]) or {}, parts[2].strip()
+    return {}, text.strip()
 
-                    # Extract YAML frontmatter and Markdown body
-                    if content.startswith("---"):
-                        parts = content.split("---", 2)
-                        if len(parts) >= 3:
-                            yaml_content = parts[1]
-                            markdown_content = parts[2].strip()
-                            meta = yaml.safe_load(yaml_content) or {}
 
-                            name = meta.get("name", os.path.basename(root))
-                            desc = meta.get("description", "")
+def _first_sentence(text: str) -> str:
+    return re.split(r"(?<=[.!?])\s", " ".join(text.split()), maxsplit=1)[0]
 
-                            skill_text = f"### Category: {name}\n**Description**: {desc}\n\n{markdown_content}"
-                            skill_descriptions.append(skill_text)
-                except Exception as e:
-                    logger.warning("Failed to parse Skill in %s: %s", root, e)
 
-    if not skill_descriptions:
-        return ""
+@lru_cache(maxsize=1)
+def load_builtin_skills() -> Dict[str, Dict[str, str]]:
+    skills: Dict[str, Dict[str, str]] = {}
+    for skill_md in sorted(BUILTIN_SKILLS_DIR.glob("*/SKILL.md")):
+        try:
+            meta, body = _parse_skill_md(skill_md.read_text(encoding="utf-8"))
+        except Exception as e:
+            logger.warning("Failed to parse skill %s: %s", skill_md, e)
+            continue
+        name = meta.get("name") or skill_md.parent.name
+        if name in UNSUPPORTED_BUILTIN_SKILLS:
+            continue
+        skills[name] = {
+            "name": name,
+            "description": _first_sentence(str(meta.get("description", ""))),
+            "content": body,
+            "dir": str(skill_md.parent),
+        }
+    return skills
 
-    return "## AVAILABLE SANDBOX SKILLS & LIBRARIES\n\n" + "\n\n---\n\n".join(
-        skill_descriptions
-    )
+
+class SandboxSkillSync:
+    """Copies built-in skill files into the sandbox at ./skills/<name>/ once per sandbox."""
+
+    def __init__(self, backend):
+        self.backend = backend
+        self.synced: Set[str] = set()
+        self._cwd: Optional[str] = None
+
+    def _sandbox_cwd(self) -> str:
+        if self._cwd is None:
+            result = self.backend.execute("pwd")
+            self._cwd = getattr(result, "output", "").strip() or "/home/daytona"
+        return self._cwd
+
+    def ensure(self, name: str) -> Optional[str]:
+        skill = load_builtin_skills().get(name)
+        if not skill or self.backend is None:
+            return None
+        sandbox_path = f"./{SANDBOX_SKILLS_DIR}/{name}"
+        if name in self.synced:
+            return sandbox_path
+        skill_dir = Path(skill["dir"])
+        destination = f"{self._sandbox_cwd()}/{SANDBOX_SKILLS_DIR}/{name}"
+        files = [
+            (
+                f"{destination}/{path.relative_to(skill_dir).as_posix()}",
+                path.read_bytes(),
+            )
+            for path in skill_dir.rglob("*")
+            if path.is_file()
+            and "__pycache__" not in path.parts
+            and path.name != "LICENSE.txt"
+        ]
+        try:
+            responses = self.backend.upload_files(files)
+        except Exception as e:
+            logger.warning("Failed to sync skill %s to sandbox: %s", name, e)
+            return None
+        if any(getattr(response, "error", None) for response in responses):
+            logger.warning("Some files of skill %s failed to upload", name)
+            return None
+        self.synced.add(name)
+        return sandbox_path
+
+    def ensure_referenced(self, code: str) -> None:
+        for name in load_builtin_skills():
+            if re.search(rf"\b{SANDBOX_SKILLS_DIR}/{re.escape(name)}/", code):
+                self.ensure(name)
 
 
 def load_skill_deps() -> list[str]:
@@ -57,9 +111,7 @@ def load_skill_deps() -> list[str]:
     ``pip install`` or ``npm install`` patterns and returns a deduplicated
     list of shell commands that the sandbox should run at startup.
     """
-    import re
-
-    skills_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "skills")
+    skills_dir = str(BUILTIN_SKILLS_DIR)
     commands: list[str] = []
     seen: set[str] = set()
 

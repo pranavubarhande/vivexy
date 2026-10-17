@@ -16,6 +16,7 @@ from agents_core.agents.config import (
     AgentConfig,
     FileContext,
 )
+from agents_core.agents.skill_loader import SandboxSkillSync, load_builtin_skills
 from agents_core.constants.features import (
     FEATURE_CONNECTORS,
     FEATURE_GITHUB,
@@ -23,7 +24,7 @@ from agents_core.constants.features import (
 )
 from agents_core.models.chat import Artifact, ChatAttachment
 from agents_core.services.s3_service import S3Service
-from agents_core.tools.chat.user_skill_tool import get_load_user_skill_tool
+from agents_core.tools.chat.skill_tool import get_load_skill_tool
 from agents_core.tools.sandbox.daytona_tools import (
     get_execute_code_tool,
     get_list_sandbox_files_tool,
@@ -350,20 +351,23 @@ def get_composio_tools(chat_id: str, user_id: Optional[str] = None) -> List[Base
         return []
 
 
-def build_user_skills_context(user_skills: List[Dict]) -> str:
-    """List user-defined skills by name and description; bodies load via load_user_skill."""
-    if not user_skills:
-        return ""
-    lines = []
+def build_skills_context(user_skills: List[Dict]) -> str:
+    """List skills by name and description; full instructions load via load_skill."""
+    lines = [
+        f"- {skill['name']}: {skill['description']}"
+        for skill in load_builtin_skills().values()
+    ]
     for skill in user_skills:
-        line = f"- /{skill.get('name', 'unnamed')}"
+        line = f"- /{skill.get('name', 'unnamed')} (user skill)"
         if skill.get("description"):
             line += f": {skill['description']}"
         lines.append(line)
+    if not lines:
+        return ""
     return (
-        "## User Skills\n"
-        "When the user invokes /{skill-name} or a request matches a skill, call "
-        "`load_user_skill` and follow its instructions.\n" + "\n".join(lines)
+        "## Skills\n"
+        "Before a task that matches a skill, or when the user invokes /{skill-name}, call "
+        "`load_skill` with its name and follow its instructions.\n" + "\n".join(lines)
     )
 
 
@@ -571,9 +575,6 @@ def create_agent(
                 existing_names.add(t.name)
         logger.info("Registered %d MCP stub tool(s) from desktop", len(mcp_stubs))
 
-    if user_skills:
-        tools.append(get_load_user_skill_tool(user_skills))
-
     # 2. Subagents configuration
     finance_subagent = {
         "name": "finance_analyst",
@@ -603,7 +604,8 @@ def create_agent(
 
         # Register the upload and execute tools explicitly
         tools.append(get_upload_sandbox_file_tool(backend, chat_id))
-        tools.append(get_execute_code_tool(backend, chat_id))
+        skill_sync = SandboxSkillSync(backend)
+        tools.append(get_execute_code_tool(backend, chat_id, skill_sync))
         tools.append(get_list_sandbox_files_tool(backend))
 
         # 4. Restore previous artifacts to the sandbox
@@ -625,6 +627,9 @@ def create_agent(
         logger.warning(f"Failed to initialize Daytona sandbox: {e}")
         sandbox = None
         backend = None
+        skill_sync = None
+
+    tools.append(get_load_skill_tool(user_skills, skill_sync))
 
     # 5. Agent Checkpointer
     checkpointer = get_global_checkpointer()
@@ -666,8 +671,8 @@ def create_agent(
         DESKTOP_ENVIRONMENT_PROMPT if client_tools_enabled else WEB_ENVIRONMENT_PROMPT
     )
 
-    # Append user-defined skills context
-    skills_ctx = build_user_skills_context(user_skills)
+    # Append skills context
+    skills_ctx = build_skills_context(user_skills)
     if skills_ctx:
         final_prompt += f"\n\n{skills_ctx}"
 

@@ -12,10 +12,11 @@ import tempfile
 import time
 import uuid
 from io import BytesIO
+from typing import Optional
 
 import openpyxl
 from agents_core.agents.cancel_store import check_cancel_flag
-from agents_core.agents.skill_loader import load_skill_deps
+from agents_core.agents.skill_loader import SandboxSkillSync, load_skill_deps
 from agents_core.models import Artifact, db
 from agents_core.models.enums import ArtifactType
 from agents_core.services.s3_service import S3Service
@@ -178,11 +179,17 @@ def get_upload_sandbox_file_tool(backend: DaytonaSandbox, chat_id: str) -> BaseT
     return upload_sandbox_file_to_chat
 
 
-def get_execute_code_tool(backend: DaytonaSandbox, chat_id: str) -> BaseTool:
+def get_execute_code_tool(
+    backend: DaytonaSandbox,
+    chat_id: str,
+    skill_sync: Optional[SandboxSkillSync] = None,
+) -> BaseTool:
     @tool
     def execute_code(code: str, language: str = "python") -> str:
         """Executes a script in the sandbox. Supports 'python' or 'javascript' (Node.js)."""
         try:
+            if skill_sync:
+                skill_sync.ensure_referenced(code)
             file_ext = "py" if language == "python" else "js"
             filename = f"/tmp/script_{uuid.uuid4().hex}.{file_ext}"
 
