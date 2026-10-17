@@ -5,10 +5,6 @@ export type PlanConfig = {
   name: string;
   priceMonthly: number;
   features: string[];
-  // If provided, open this payment link directly
-  paymentLink?: string;
-  // If provided (and paymentLink missing), create a Checkout Session
-  priceId?: string;
 };
 
 export const plans: PlanConfig[] = [
@@ -28,8 +24,6 @@ export const plans: PlanConfig[] = [
       'Advanced Features',
       'API Access',
     ],
-    paymentLink: process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK_PRO,
-    priceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_PRO,
   },
   {
     key: 'ENTERPRISE',
@@ -41,7 +35,5 @@ export const plans: PlanConfig[] = [
       'Custom Integrations',
       'SLA Guarantee',
     ],
-    paymentLink: process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK_ENTERPRISE,
-    priceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_ENTERPRISE,
   },
 ];

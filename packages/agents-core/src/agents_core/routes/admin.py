@@ -10,12 +10,15 @@ from agents_core.business_logic.admin import (
     list_team_invites,
     remove_member,
     revoke_invite,
+    transfer_ownership,
     update_member_role,
     update_team_settings,
+    verify_team_domain,
 )
 from agents_core.middlewares.auth import auth_middleware
 from agents_core.schemas import (
     BulkInviteCreate,
+    OwnershipTransfer,
     TeamMemberRoleUpdate,
     TeamSettingsUpdate,
 )
@@ -137,6 +140,56 @@ def change_member_role(team_id, user_id):
     try:
         payload = TeamMemberRoleUpdate(**(request.get_json() or {}))
         return jsonify(update_member_role(team_id, user_id, payload, request.user))
+    except Exception as e:
+        return _fail(e)
+
+
+@bp.route("/teams/<team_id>/transfer-ownership", methods=["POST"])
+@auth_middleware
+def transfer_team_ownership(team_id):
+    """Hand the team to another member (owner only); you become an admin.
+    ---
+    tags:
+      - Admin
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            userId:
+              type: string
+    responses:
+      200:
+        description: Ownership transferred
+    """
+    try:
+        payload = OwnershipTransfer(**(request.get_json() or {}))
+        return jsonify(transfer_ownership(team_id, payload.user_id, request.user))
+    except Exception as e:
+        return _fail(e)
+
+
+@bp.route("/teams/<team_id>/domain/verify", methods=["POST"])
+@auth_middleware
+def verify_domain(team_id):
+    """Verify the team's email domain by checking its DNS TXT record.
+    ---
+    tags:
+      - Admin
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Domain verified
+      400:
+        description: Record not found yet
+    """
+    try:
+        return jsonify(verify_team_domain(team_id, request.user))
     except Exception as e:
         return _fail(e)
 

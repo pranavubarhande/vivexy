@@ -86,6 +86,23 @@ export const useUpdateMemberRole = () => {
   });
 };
 
+export const useTransferOwnership = () => {
+  const invalidateTeam = useInvalidateTeam();
+  return useMutation({
+    mutationFn: ({ teamId, userId }: { teamId: string; userId: string }) =>
+      adminService.transferOwnership(teamId, userId),
+    onSuccess: (_, { teamId }) => invalidateTeam(teamId),
+  });
+};
+
+export const useVerifyDomain = () => {
+  const invalidateTeam = useInvalidateTeam();
+  return useMutation({
+    mutationFn: (teamId: string) => adminService.verifyDomain(teamId),
+    onSuccess: (_, teamId) => invalidateTeam(teamId),
+  });
+};
+
 export const useAdminRemoveMember = () => {
   const invalidateTeam = useInvalidateTeam();
   return useMutation({

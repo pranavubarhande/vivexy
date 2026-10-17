@@ -1348,6 +1348,15 @@ wheels = [
 ]
 
 [[package]]
+name = "dnspython"
+version = "2.9.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/ef/4a/50822184bd67cc6493f0fb6a880749158fcd31ab3fa07409acfd91f9fc85/dnspython-2.9.0.tar.gz", hash = "sha256:b44dc6b18f07a8b1c56676a19fbfdb5209415b046a9cece286baafa87ff3f7f1", size = 423560, upload-time = "2026-10-09T00:07:24.352Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/10/02/cdcc9b7c051786a103c3b09e1003a82fa0c66bcb91ffbdabcfbf7b4163b9/dnspython-2.9.0-py3-none-any.whl", hash = "sha256:9a4aedb833c3c1b49214d04d44d3032ab7a9135f7c1d29a549b4ff78fd82fda9", size = 354822, upload-time = "2026-10-09T00:07:22.622Z" },
+]
+
+[[package]]
 name = "docstring-parser"
 version = "0.17.0"
 source = { registry = "https://pypi.org/simple" }
@@ -5553,6 +5562,19 @@ wheels = [
 ]
 
 [[package]]
+name = "stripe"
+version = "16.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "requests" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/0b/a7/4a8546b293a09f39a2b55ca8a11539ae9654126df59065868c5d3993f0dd/stripe-16.0.0.tar.gz", hash = "sha256:5016068d54aebb43e61b3c377ef45bede4e0b4eb1817d7a12af81630c55a23d2", size = 1665584, upload-time = "2026-10-01T00:42:03.388Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b5/de/5141ae3990862cc3d61a1cdd4acff72bcb587afb7b4d31c52eaddbb6bc8f/stripe-16.0.0-py3-none-any.whl", hash = "sha256:6a401baf2fc19c59ccb59005e674f8da8fa256e8db319ad8c50292f4cddf8c26", size = 2543794, upload-time = "2026-10-01T00:42:01.65Z" },
+]
+
+[[package]]
 name = "sympy"
 version = "1.14.0"
 source = { registry = "https://pypi.org/simple" }
@@ -5944,6 +5966,7 @@ dependencies = [
     { name = "cryptography" },
     { name = "daytona" },
     { name = "deepagents" },
+    { name = "dnspython" },
     { name = "exa-py" },
     { name = "flasgger" },
     { name = "flask" },
@@ -5987,6 +6010,7 @@ dependencies = [
     { name = "resend" },
     { name = "sentence-transformers" },
     { name = "sentry-sdk", extra = ["flask"] },
+    { name = "stripe" },
     { name = "weasyprint" },
     { name = "yfinance" },
 ]
@@ -6011,6 +6035,7 @@ requires-dist = [
     { name = "cryptography", specifier = ">=43.0.0" },
     { name = "daytona", specifier = ">=0.18.1" },
     { name = "deepagents", specifier = ">=0.3.3" },
+    { name = "dnspython", specifier = ">=2.6.0" },
     { name = "exa-py", specifier = ">=0.1.8" },
     { name = "flake8", marker = "extra == 'dev'", specifier = ">=7.0.0" },
     { name = "flasgger" },
@@ -6058,6 +6083,7 @@ requires-dist = [
     { name = "resend", specifier = ">=2.5.1" },
     { name = "sentence-transformers", specifier = "==5.2.0" },
     { name = "sentry-sdk", extras = ["flask"], specifier = ">=2.54.0" },
+    { name = "stripe", specifier = ">=11.0.0" },
     { name = "weasyprint", specifier = ">=68.1" },
     { name = "yfinance", specifier = ">=0.2.0" },
 ]

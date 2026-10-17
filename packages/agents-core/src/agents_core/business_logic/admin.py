@@ -6,7 +6,12 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
 from agents_core.business_logic.audit import list_audit_logs, record_audit_log
-from agents_core.business_logic.org_policy import normalize_domain
+from agents_core.business_logic.org_policy import (
+    domain_txt_record_present,
+    domain_verification_record,
+    ensure_domain_available,
+    normalize_domain,
+)
 from agents_core.business_logic.team_policy import month_start
 from agents_core.business_logic.teams import bulk_invite_members
 from agents_core.business_logic.usage import (
@@ -19,9 +24,11 @@ from agents_core.constants.audit_actions import (
     AUDIT_TARGET_INVITE,
     AUDIT_TARGET_TEAM,
     AUDIT_TARGET_USER,
+    AUDIT_TEAM_DOMAIN_VERIFIED,
     AUDIT_TEAM_INVITE_REVOKED,
     AUDIT_TEAM_MEMBER_REMOVED,
     AUDIT_TEAM_MEMBER_ROLE_CHANGED,
+    AUDIT_TEAM_OWNERSHIP_TRANSFERRED,
     AUDIT_TEAM_SETTINGS_UPDATED,
 )
 from agents_core.models import (
@@ -111,6 +118,10 @@ def get_team_overview(team_id: str, user: User, days: int = 30) -> Dict[str, Any
     ).count()
     period_usage = get_usage_totals(team_id=team_id, since=since)
     active_members = len(get_usage_totals_by_user(since=since, team_id=team_id))
+    had_token = bool(team.domain_verification_token)
+    verification_record = domain_verification_record(team)
+    if verification_record and not had_token:
+        db.session.commit()
 
     return {
         "team": {
@@ -126,9 +137,11 @@ def get_team_overview(team_id: str, user: User, days: int = 30) -> Dict[str, Any
             "featureFlags": team.feature_flags or {},
             "emailDomain": team.email_domain,
             "domainVerified": team.domain_verified,
+            "domainVerificationRecord": verification_record,
             "autoJoinDomain": team.auto_join_domain,
             "requireSso": team.require_sso,
             "retentionDays": team.retention_days,
+            "ownerId": team.owner_id,
             "createdAt": team.created_at.isoformat() if team.created_at else None,
         },
         "viewerRole": membership.role.value,
@@ -194,7 +207,7 @@ def update_member_role(
     if membership.role != TeamRole.OWNER:
         raise PermissionError("Only the team owner can change member roles")
     if payload.role == TeamRole.OWNER:
-        raise ValueError("Ownership transfer is not supported yet")
+        raise ValueError("Use ownership transfer to make someone the owner")
     if target_user_id == team.owner_id:
         raise ValueError("The team owner's role cannot be changed")
 
@@ -249,6 +262,87 @@ def remove_member(team_id: str, target_user_id: str, actor: User) -> Dict[str, A
     )
     db.session.commit()
     return {"message": "Member removed"}
+
+
+def transfer_team_ownership(
+    team: Team, new_owner_id: str, actor: User, via_platform: bool = False
+) -> Dict[str, Any]:
+    """Make an existing member the owner; the previous owner becomes an ADMIN."""
+    if new_owner_id == team.owner_id:
+        raise ValueError("That member already owns this team")
+    new_owner = TeamMember.query.filter_by(
+        team_id=team.id, user_id=new_owner_id
+    ).first()
+    if not new_owner:
+        raise LookupError("Member not found")
+    if new_owner.user.is_suspended or new_owner.user.deleted_at:
+        raise ValueError("Ownership can't go to a suspended or erased account")
+
+    previous_owner_id = team.owner_id
+    previous_owner = TeamMember.query.filter_by(
+        team_id=team.id, user_id=previous_owner_id
+    ).first()
+    if previous_owner:
+        previous_owner.role = TeamRole.ADMIN
+    new_owner.role = TeamRole.OWNER
+    team.owner_id = new_owner_id
+
+    record_audit_log(
+        actor,
+        AUDIT_TEAM_OWNERSHIP_TRANSFERRED,
+        AUDIT_TARGET_TEAM,
+        team.id,
+        team_id=team.id,
+        details={
+            "fromUserId": previous_owner_id,
+            "toUserId": new_owner_id,
+            "toEmail": new_owner.user.email,
+            "viaPlatform": via_platform,
+        },
+        commit=False,
+    )
+    db.session.commit()
+    return {"message": "Ownership transferred", "ownerId": new_owner_id}
+
+
+def transfer_ownership(team_id: str, new_owner_id: str, actor: User) -> Dict[str, Any]:
+    team, membership = get_team_for_admin(team_id, actor)
+    _ensure_writable(team)
+    if membership.role != TeamRole.OWNER:
+        raise PermissionError("Only the team owner can transfer ownership")
+    return transfer_team_ownership(team, new_owner_id, actor)
+
+
+def verify_team_domain(team_id: str, actor: User) -> Dict[str, Any]:
+    """Check DNS for the team's TXT record and mark the domain verified."""
+    team, _ = get_team_for_admin(team_id, actor)
+    _ensure_writable(team)
+    if not team.email_domain:
+        raise ValueError("Set an email domain first")
+    if team.domain_verified:
+        return {"domainVerified": True}
+    ensure_domain_available(team, team.email_domain)
+
+    record = domain_verification_record(team)
+    if not domain_txt_record_present(team):
+        db.session.commit()  # keep a freshly generated token
+        raise ValueError(
+            f"No matching TXT record at {record['host']} yet. "
+            "DNS changes can take a while to appear."
+        )
+
+    team.domain_verified = True
+    record_audit_log(
+        actor,
+        AUDIT_TEAM_DOMAIN_VERIFIED,
+        AUDIT_TARGET_TEAM,
+        team.id,
+        team_id=team.id,
+        details={"domain": team.email_domain, "method": "dns_txt"},
+        commit=False,
+    )
+    db.session.commit()
+    return {"domainVerified": True}
 
 
 def get_team_members_with_usage(
@@ -346,6 +440,7 @@ def update_team_settings(
             changes["emailDomain"] = {"from": team.email_domain, "to": email_domain}
             team.email_domain = email_domain
             team.domain_verified = False
+            team.domain_verification_token = None
     for field, key in (
         ("auto_join_domain", "autoJoinDomain"),
         ("require_sso", "requireSso"),

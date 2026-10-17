@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
-import { Building2, Search } from 'lucide-react';
+import { Building2, Crown, Search } from 'lucide-react';
 import { Card } from '@vivexy/ui/card';
 import { Badge } from '@vivexy/ui/badge';
 import { Button } from '@vivexy/ui/button';
@@ -47,6 +47,7 @@ import {
 import {
   useClient,
   useClients,
+  useTransferClientOwnership,
   useUpdateClient,
 } from '@vivexy/core/hooks/useSuperadmin';
 import { useDebouncedValue } from '@vivexy/core/hooks/useDebouncedValue';
@@ -184,7 +185,18 @@ const ClientDetailSheet = ({
 }) => {
   const { data: client, isLoading } = useClient(teamId);
   const updateClient = useUpdateClient();
+  const transferOwnership = useTransferClientOwnership();
   const { canManage } = usePlatformAccess();
+
+  const handleTransfer = async (userId: string, email: string) => {
+    if (!client) return;
+    try {
+      await transferOwnership.mutateAsync({ teamId: client.id, userId });
+      toast.success(`${email} now owns ${client.name}`);
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, 'Failed to transfer ownership'));
+    }
+  };
 
   const toggleSuspension = async () => {
     if (!client) return;
@@ -335,6 +347,7 @@ const ClientDetailSheet = ({
                         <TableHead>Role</TableHead>
                         <TableHead>Last login</TableHead>
                         <TableHead className="text-right">Spend</TableHead>
+                        {canManage && <TableHead />}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -357,6 +370,35 @@ const ClientDetailSheet = ({
                           <TableCell className="text-right tabular-nums">
                             {formatCost(member.usage.totalCostUsd)}
                           </TableCell>
+                          {canManage && (
+                            <TableCell className="text-right">
+                              {member.role !== 'OWNER' &&
+                                !member.user.isSuspended && (
+                                  <ConfirmAction
+                                    title="Transfer ownership?"
+                                    description={`${member.user.email} will own ${client.name}. The current owner stays on as an admin.`}
+                                    confirmLabel="Transfer"
+                                    onConfirm={() =>
+                                      handleTransfer(
+                                        member.user.id,
+                                        member.user.email
+                                      )
+                                    }
+                                    trigger={
+                                      <Button
+                                        variant="ghost"
+                                        size="icon-sm"
+                                        aria-label={`Make ${member.user.email} the owner`}
+                                        title="Make owner"
+                                        disabled={transferOwnership.isPending}
+                                      >
+                                        <Crown />
+                                      </Button>
+                                    }
+                                  />
+                                )}
+                            </TableCell>
+                          )}
                         </TableRow>
                       ))}
                     </TableBody>

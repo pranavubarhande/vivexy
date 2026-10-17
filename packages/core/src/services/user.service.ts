@@ -9,6 +9,14 @@ export interface UserApiKey {
 }
 
 export const userService = {
+  // Features left on after the user's teams' feature flags
+  getFeatures: async (): Promise<Record<string, boolean>> => {
+    const response = await axiosInstance.get<{
+      features: Record<string, boolean>;
+    }>('/users/me/features');
+    return response.data.features;
+  },
+
   // Get user settings
   getUserSettings: async (): Promise<AuthUser> => {
     const response = await axiosInstance.get<{ user: AuthUser }>('/users/me');

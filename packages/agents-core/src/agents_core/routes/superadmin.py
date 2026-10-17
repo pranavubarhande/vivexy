@@ -20,6 +20,7 @@ from agents_core.business_logic.superadmin import (
     list_users,
     set_client_plan,
     start_impersonation,
+    transfer_client_ownership,
     update_client,
     update_model,
     update_user,
@@ -32,6 +33,7 @@ from agents_core.schemas import (
     ClientPlanUpdate,
     ClientUpdate,
     LLMModelAdminUpdate,
+    OwnershipTransfer,
     PlatformUserUpdate,
 )
 from agents_core.utils.http import bool_arg, error_response, int_arg
@@ -350,6 +352,37 @@ def client_plan(team_id):
     try:
         payload = ClientPlanUpdate(**(request.get_json() or {}))
         return jsonify(set_client_plan(team_id, payload, request.user))
+    except Exception as e:
+        return _fail(e)
+
+
+@bp.route("/clients/<team_id>/transfer-ownership", methods=["POST"])
+@superadmin_required
+def client_transfer_ownership(team_id):
+    """Make another member the client's owner (e.g. the owner left).
+    ---
+    tags:
+      - Superadmin
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            userId:
+              type: string
+    responses:
+      200:
+        description: Updated client detail
+    """
+    try:
+        payload = OwnershipTransfer(**(request.get_json() or {}))
+        return jsonify(
+            transfer_client_ownership(team_id, payload.user_id, request.user)
+        )
     except Exception as e:
         return _fail(e)
 

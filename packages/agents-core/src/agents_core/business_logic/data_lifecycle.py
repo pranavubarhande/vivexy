@@ -36,8 +36,25 @@ logger = logging.getLogger(__name__)
 MIN_RETENTION_DAYS = 7
 
 
+def _delete_agent_state(chat_ids: List[str]) -> None:
+    """Drop the LangGraph checkpoints in Redis (thread_id == chat_id)."""
+    try:
+        from agents_core.agents.agent_factory import get_global_checkpointer
+
+        checkpointer = get_global_checkpointer()
+    except Exception:
+        logger.exception("Checkpointer unavailable; agent state left in Redis")
+        return
+    for chat_id in chat_ids:
+        try:
+            checkpointer.delete_thread(chat_id)
+        except Exception:
+            logger.exception("Failed to delete agent state for chat %s", chat_id)
+
+
 def hard_delete_chats(chat_ids: Iterable[str], delete_files: bool = True) -> int:
-    """Delete chats and everything hanging off them, in FK-safe order.
+    """Delete chats and everything hanging off them, in FK-safe order, plus
+    their stored files and the agent's saved conversation state.
 
     Token usage rows are kept (detached from their message) so spend history
     and invoices stay correct after content is gone."""
@@ -63,6 +80,7 @@ def hard_delete_chats(chat_ids: Iterable[str], delete_files: bool = True) -> int
     deleted = Chat.query.filter(Chat.id.in_(chat_ids)).delete(synchronize_session=False)
     db.session.commit()
 
+    _delete_agent_state(chat_ids)
     if delete_files:
         storage = S3Service()
         for chat_id in chat_ids:

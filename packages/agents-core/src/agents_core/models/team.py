@@ -26,9 +26,11 @@ class Team(db.Model):
     feature_flags = db.Column(db.JSON, nullable=True)
     email_domain = db.Column(db.String, nullable=True, index=True)
     domain_verified = db.Column(db.Boolean, default=False, nullable=False)
+    domain_verification_token = db.Column(db.String, nullable=True)
     auto_join_domain = db.Column(db.Boolean, default=False, nullable=False)
     require_sso = db.Column(db.Boolean, default=False, nullable=False)
     retention_days = db.Column(db.Integer, nullable=True)
+    stripe_customer_id = db.Column(db.String, nullable=True, unique=True, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow

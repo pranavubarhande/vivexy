@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List
 from urllib.parse import urlencode
 
+from agents_core.business_logic.features import team_features
 from agents_core.models import Chat, Team, TeamInvite, TeamMember, User, db
 from agents_core.schemas import TeamCreate, TeamMemberCreate, TeamUpdate
 from agents_core.utils.email import send_team_invite_email
@@ -468,11 +469,4 @@ def get_team_features(team_id: str, user_id: str) -> Dict[str, bool]:
     membership = TeamMember.query.filter_by(team_id=team_id, user_id=user_id).first()
     if not membership:
         raise ValueError("Access denied")
-    return membership.team.feature_flags or {}
-
-
-def team_has_feature(team_id: str, flag: str, default: bool = False) -> bool:
-    team = Team.query.get(team_id) if team_id else None
-    if not team or not team.feature_flags:
-        return default
-    return bool(team.feature_flags.get(flag, default))
+    return team_features(membership.team)

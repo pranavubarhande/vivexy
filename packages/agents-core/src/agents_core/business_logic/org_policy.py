@@ -1,10 +1,13 @@
-"""Organization-level identity policy: SSO enforcement and verified-domain
-auto-join."""
+"""Organization-level identity policy: SSO enforcement, DNS domain
+verification and verified-domain auto-join."""
 
 import re
+import secrets
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
+import dns.exception
+import dns.resolver
 from agents_core.business_logic.audit import record_audit_log
 from agents_core.business_logic.teams import claim_pending_invites
 from agents_core.constants.audit_actions import (
@@ -112,3 +115,44 @@ def ensure_domain_available(team: Team, domain: str) -> None:
     ).first()
     if conflict:
         raise ValueError(f"{domain} is already verified by another client")
+
+
+DOMAIN_TXT_HOST_PREFIX = "_vivexy-verification"
+DOMAIN_TXT_VALUE_PREFIX = "vivexy-verification="
+DNS_LOOKUP_TIMEOUT_SECONDS = 5.0
+
+
+def ensure_domain_token(team: Team) -> str:
+    """The token a team publishes in DNS to prove it controls email_domain.
+    It is reset whenever the domain changes."""
+    if not team.domain_verification_token:
+        team.domain_verification_token = secrets.token_urlsafe(24)
+    return team.domain_verification_token
+
+
+def domain_verification_record(team: Team) -> Optional[Dict[str, Any]]:
+    if not team.email_domain:
+        return None
+    return {
+        "type": "TXT",
+        "host": f"{DOMAIN_TXT_HOST_PREFIX}.{team.email_domain}",
+        "value": f"{DOMAIN_TXT_VALUE_PREFIX}{ensure_domain_token(team)}",
+    }
+
+
+def lookup_txt_records(host: str) -> List[str]:
+    try:
+        answer = dns.resolver.resolve(host, "TXT", lifetime=DNS_LOOKUP_TIMEOUT_SECONDS)
+    except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer):
+        return []
+    except dns.exception.DNSException as e:
+        raise ValueError(f"DNS lookup for {host} failed; try again shortly") from e
+    # A TXT record can be split into several quoted strings; join them back.
+    return [b"".join(record.strings).decode("utf-8", "replace") for record in answer]
+
+
+def domain_txt_record_present(team: Team) -> bool:
+    record = domain_verification_record(team)
+    if not record:
+        raise ValueError("Set an email domain first")
+    return record["value"] in lookup_txt_records(record["host"])

@@ -113,6 +113,18 @@ export const useUpdatePlatformUser = () => {
   });
 };
 
+export const useTransferClientOwnership = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ teamId, userId }: { teamId: string; userId: string }) =>
+      superadminService.transferClientOwnership(teamId, userId),
+    onSuccess: (client) => {
+      queryClient.setQueryData(superadminKeys.client(client.id), client);
+      queryClient.invalidateQueries({ queryKey: superadminKeys.all });
+    },
+  });
+};
+
 export const useSetClientPlan = () => {
   const queryClient = useQueryClient();
   return useMutation({

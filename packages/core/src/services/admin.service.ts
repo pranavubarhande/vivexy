@@ -50,6 +50,16 @@ export const adminService = {
     });
   },
 
+  transferOwnership: async (teamId: string, userId: string): Promise<void> => {
+    await axiosInstance.post(`/admin/teams/${teamId}/transfer-ownership`, {
+      userId,
+    });
+  },
+
+  verifyDomain: async (teamId: string): Promise<void> => {
+    await axiosInstance.post(`/admin/teams/${teamId}/domain/verify`);
+  },
+
   removeMember: async (teamId: string, userId: string): Promise<void> => {
     await axiosInstance.delete(`/admin/teams/${teamId}/members/${userId}`);
   },

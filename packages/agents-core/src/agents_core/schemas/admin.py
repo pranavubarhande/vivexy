@@ -18,6 +18,10 @@ class TeamMemberRoleUpdate(BaseModel):
     role: TeamRole
 
 
+class OwnershipTransfer(BaseModel):
+    user_id: str = Field(min_length=1)
+
+
 class TeamSettingsUpdate(BaseModel):
     monthly_budget_usd: Optional[float] = Field(default=None, ge=0)
     budget_enforcement: Optional[Literal["warn", "block"]] = None

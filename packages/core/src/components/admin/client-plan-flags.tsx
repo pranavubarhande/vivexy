@@ -29,6 +29,7 @@ import {
 } from '@vivexy/core/hooks/useSuperadmin';
 import { ClientDetail, PlanKey } from '@vivexy/core/types/admin';
 import { getApiErrorMessage } from '@vivexy/core/lib/admin-format';
+import { FEATURE_LABELS, FeatureName } from '@vivexy/core/constants/features';
 
 const planSchema = z.object({
   plan: z.enum(['FREE', 'PRO', 'ENTERPRISE']),
@@ -150,6 +151,18 @@ export const FeatureFlagsEditor = ({ client }: { client: ClientDetail }) => {
   const updateClient = useUpdateClient();
   const [newFlag, setNewFlag] = useState('');
   const flags = client.featureFlags ?? {};
+  const builtInFlags = Object.keys(FEATURE_LABELS) as FeatureName[];
+  const customFlags = Object.entries(flags).filter(
+    ([flagName]) => !(flagName in FEATURE_LABELS)
+  );
+
+  const setBuiltIn = (flagName: FeatureName, enabled: boolean) => {
+    // Built-ins default to on, so re-enabling just drops the override.
+    const nextFlags = { ...flags };
+    if (enabled) delete nextFlags[flagName];
+    else nextFlags[flagName] = false;
+    saveFlags(nextFlags);
+  };
 
   const saveFlags = async (nextFlags: Record<string, boolean>) => {
     try {
@@ -183,10 +196,27 @@ export const FeatureFlagsEditor = ({ client }: { client: ClientDetail }) => {
 
   return (
     <div className="space-y-2 rounded-xl border border-border p-3">
-      {Object.keys(flags).length === 0 && (
-        <p className="text-xs text-muted-foreground">No flags set.</p>
+      <p className="text-xs text-muted-foreground">
+        Turning a feature off removes it for every member of this client.
+      </p>
+      {builtInFlags.map((flagName) => (
+        <div key={flagName} className="flex items-center justify-between gap-2">
+          <span className="text-sm">{FEATURE_LABELS[flagName]}</span>
+          <Switch
+            checked={flags[flagName] !== false}
+            aria-label={`Toggle ${FEATURE_LABELS[flagName]}`}
+            disabled={updateClient.isPending}
+            onCheckedChange={(checked) => setBuiltIn(flagName, checked)}
+          />
+        </div>
+      ))}
+      <div className="border-t border-border pt-2 text-xs font-medium text-muted-foreground">
+        Custom flags
+      </div>
+      {customFlags.length === 0 && (
+        <p className="text-xs text-muted-foreground">No custom flags set.</p>
       )}
-      {Object.entries(flags).map(([flagName, enabled]) => (
+      {customFlags.map(([flagName, enabled]) => (
         <div key={flagName} className="flex items-center justify-between gap-2">
           <code className="text-xs">{flagName}</code>
           <div className="flex items-center gap-1">
@@ -278,9 +308,16 @@ export const DomainVerification = ({
         </p>
         <p className="text-xs text-muted-foreground">
           Auto-join {client.autoJoinDomain ? 'on' : 'off'} · SSO{' '}
-          {client.requireSso ? 'required' : 'optional'}. Verify only after
-          confirming the client controls this domain.
+          {client.requireSso ? 'required' : 'optional'}. Clients verify
+          themselves through a DNS TXT record; override only after confirming
+          they control this domain.
         </p>
+        {client.domainVerificationRecord && !client.domainVerified && (
+          <p className="mt-1 break-all text-xs text-muted-foreground">
+            Expected TXT at <code>{client.domainVerificationRecord.host}</code>:{' '}
+            <code>{client.domainVerificationRecord.value}</code>
+          </p>
+        )}
       </div>
       {canManage && (
         <Button

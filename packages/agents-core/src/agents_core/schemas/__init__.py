@@ -16,6 +16,7 @@ from agents_core.schemas.admin import (
     ClientPlanUpdate,
     ClientUpdate,
     LLMModelAdminUpdate,
+    OwnershipTransfer,
     PlatformUserUpdate,
     TeamMemberRoleUpdate,
     TeamSettingsUpdate,

@@ -40,6 +40,7 @@ from agents_core.agents.config import FileContext
 from agents_core.business_logic.api_keys import get_decrypted_api_keys
 from agents_core.business_logic.artifacts import link_artifacts_to_message
 from agents_core.business_logic.chat import create_message
+from agents_core.business_logic.features import disabled_features_for_user
 from agents_core.business_logic.team_policy import maybe_send_budget_alerts
 from agents_core.business_logic.compact import (
     compact_chat,
@@ -97,6 +98,7 @@ def run_agent_stream(
             mcp_tools=mcp_tools or [],
             user_api_keys=user_api_keys,
             github_context=github_context,
+            disabled_features=disabled_features_for_user(user_id),
         )
 
         full_content = ""

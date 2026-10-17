@@ -90,6 +90,17 @@ export const superadminService = {
     return data;
   },
 
+  transferClientOwnership: async (
+    teamId: string,
+    userId: string
+  ): Promise<ClientDetail> => {
+    const { data } = await axiosInstance.post<ClientDetail>(
+      `/superadmin/clients/${teamId}/transfer-ownership`,
+      { userId }
+    );
+    return data;
+  },
+
   setClientPlan: async (
     teamId: string,
     planData: ClientPlanData

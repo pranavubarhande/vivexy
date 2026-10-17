@@ -67,6 +67,12 @@ export interface AdministeredTeam {
   memberCount: number;
 }
 
+export interface DomainVerificationRecord {
+  type: 'TXT';
+  host: string;
+  value: string;
+}
+
 export interface TeamAdminOverview {
   team: {
     id: string;
@@ -81,9 +87,11 @@ export interface TeamAdminOverview {
     featureFlags: Record<string, boolean>;
     emailDomain: string | null;
     domainVerified: boolean;
+    domainVerificationRecord: DomainVerificationRecord | null;
     autoJoinDomain: boolean;
     requireSso: boolean;
     retentionDays: number | null;
+    ownerId: string;
     createdAt: string | null;
   };
   viewerRole: TeamRole;
@@ -191,6 +199,7 @@ export interface ClientDetail {
   budgetEnforcement: BudgetEnforcement;
   emailDomain: string | null;
   domainVerified: boolean;
+  domainVerificationRecord: DomainVerificationRecord | null;
   autoJoinDomain: boolean;
   requireSso: boolean;
   retentionDays: number | null;

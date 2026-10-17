@@ -32,9 +32,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@vivexy/ui/select';
-import { useUpdateTeamSettings } from '@vivexy/core/hooks/useAdmin';
+import {
+  useUpdateTeamSettings,
+  useVerifyDomain,
+} from '@vivexy/core/hooks/useAdmin';
 import { chatService } from '@vivexy/core/services/chat.service';
-import { TeamAdminOverview } from '@vivexy/core/types/admin';
+import {
+  DomainVerificationRecord,
+  TeamAdminOverview,
+} from '@vivexy/core/types/admin';
 import { getApiErrorMessage } from '@vivexy/core/lib/admin-format';
 
 const budgetSchema = z.object({
@@ -308,6 +314,70 @@ const identitySchema = z.object({
 
 type IdentityFormData = z.infer<typeof identitySchema>;
 
+const DnsRecordField = ({ label, value }: { label: string; value: string }) => (
+  <div className="min-w-0">
+    <div className="text-xs text-muted-foreground">{label}</div>
+    <div className="flex items-center gap-2">
+      <code className="min-w-0 flex-1 truncate rounded-md bg-muted px-2 py-1 text-xs">
+        {value}
+      </code>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        onClick={() => {
+          navigator.clipboard
+            ?.writeText(value)
+            .then(() => toast.success(`${label} copied`))
+            .catch(() => toast.error('Copy failed'));
+        }}
+      >
+        Copy
+      </Button>
+    </div>
+  </div>
+);
+
+const DomainVerification = ({
+  teamId,
+  record,
+  readOnly,
+}: {
+  teamId: string;
+  record: DomainVerificationRecord;
+  readOnly: boolean;
+}) => {
+  const verifyDomain = useVerifyDomain();
+
+  const handleVerify = async () => {
+    try {
+      await verifyDomain.mutateAsync(teamId);
+      toast.success('Domain verified');
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, 'Domain could not be verified'));
+    }
+  };
+
+  return (
+    <div className="mb-4 space-y-3 rounded-xl border border-border p-3">
+      <p className="text-sm">
+        Add this TXT record at your DNS provider, then check it here.
+      </p>
+      <DnsRecordField label="Host" value={record.host} />
+      <DnsRecordField label="Value" value={record.value} />
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={handleVerify}
+        disabled={readOnly || verifyDomain.isPending}
+      >
+        {verifyDomain.isPending ? 'Checking DNS…' : 'Verify domain'}
+      </Button>
+    </div>
+  );
+};
+
 const IdentityCard = ({
   overview,
   readOnly,
@@ -349,11 +419,20 @@ const IdentityCard = ({
           {overview.team.emailDomain
             ? overview.team.domainVerified
               ? `@${overview.team.emailDomain} is verified.`
-              : `@${overview.team.emailDomain} is waiting for verification by support.`
+              : `@${overview.team.emailDomain} is not verified yet.`
             : 'Claim your company domain to let colleagues join automatically.'}
         </CardDescription>
       </CardHeader>
       <CardContent>
+        {overview.team.emailDomain &&
+          !overview.team.domainVerified &&
+          overview.team.domainVerificationRecord && (
+            <DomainVerification
+              teamId={overview.team.id}
+              record={overview.team.domainVerificationRecord}
+              readOnly={readOnly}
+            />
+          )}
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField

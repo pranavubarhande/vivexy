@@ -40,10 +40,16 @@ def resolve_chat_team(team_id: Optional[str], user: User) -> Optional[str]:
 def check_chat_policy(chat: Chat, model_db_id: Optional[str]) -> Dict[str, Any]:
     """Raise PermissionError when the team blocks this request; otherwise return
     non-blocking warnings for the caller to surface."""
-    if not chat.team_id:
+    return check_team_policy(chat.team_id, model_db_id)
+
+
+def check_team_policy(
+    team_id: Optional[str], model_db_id: Optional[str]
+) -> Dict[str, Any]:
+    if not team_id:
         return {"warnings": []}
 
-    team = Team.query.get(chat.team_id)
+    team = Team.query.get(team_id)
     if not team:
         return {"warnings": []}
     if team.is_suspended:

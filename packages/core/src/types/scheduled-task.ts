@@ -4,6 +4,7 @@ export type RunStatus = 'running' | 'completed' | 'failed';
 export interface ScheduledTask {
   id: string;
   userId: string;
+  teamId: string | null; // team billed for runs; null = personal
   name: string;
   prompt: string;
   scheduleType: ScheduleType;
@@ -38,6 +39,7 @@ export interface ScheduledTaskRun {
 }
 
 export interface CreateScheduledTaskPayload {
+  teamId?: string | null;
   name: string;
   prompt: string;
   scheduleType: ScheduleType;

@@ -29,6 +29,7 @@ from agents_core.business_logic.chat import (
     build_image_contexts,
     create_chat,
     create_message,
+    delete_chat,
     get_chat_messages,
     get_llm_models,
     get_user_chat,
@@ -272,6 +273,31 @@ def rename_chat(chat_id):
         db.session.commit()
         return jsonify({"id": chat.id, "title": chat.title})
     except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@bp.route("/<chat_id>", methods=["DELETE"])
+@auth_middleware
+def delete_chat_endpoint(chat_id):
+    """Delete a chat permanently, including its messages, artifacts and files.
+    ---
+    tags:
+      - Chat
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Chat deleted
+      404:
+        description: Chat not found
+    """
+    try:
+        delete_chat(chat_id, request.user.id)
+        return jsonify({"success": True})
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 404
+    except Exception as e:
+        logger.exception("delete_chat error for chat %s", chat_id)
         return jsonify({"error": str(e)}), 500
 
 

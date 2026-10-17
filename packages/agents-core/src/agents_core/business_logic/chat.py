@@ -251,15 +251,12 @@ def update_chat(
 
 
 def delete_chat(chat_id: str, user_id: str) -> int:
-    """Delete a chat."""
-    chat = Chat.query.filter_by(id=chat_id, user_id=user_id).first()
-    if not chat:
-        raise ValueError("Chat not found")
+    """Delete a chat with its messages, artifacts, files and agent state."""
+    from agents_core.business_logic.data_lifecycle import hard_delete_chats
 
-    # Messages will be deleted automatically due to cascade
-    db.session.delete(chat)
-    db.session.commit()
-    return 1
+    if not Chat.query.filter_by(id=chat_id, user_id=user_id).first():
+        raise ValueError("Chat not found")
+    return hard_delete_chats([chat_id])
 
 
 def revert_to_message(

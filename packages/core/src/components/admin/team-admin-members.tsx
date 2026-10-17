@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
-import { MailX, Trash2, UserPlus } from 'lucide-react';
+import { Crown, MailX, Trash2, UserPlus } from 'lucide-react';
 import { Card } from '@vivexy/ui/card';
 import { Badge } from '@vivexy/ui/badge';
 import { Button } from '@vivexy/ui/button';
@@ -39,6 +39,7 @@ import {
   useRevokeInvite,
   useTeamAdminInvites,
   useTeamAdminMembers,
+  useTransferOwnership,
   useUpdateMemberRole,
 } from '@vivexy/core/hooks/useAdmin';
 import { useInviteMember } from '@vivexy/core/hooks/useTeams';
@@ -146,6 +147,7 @@ export const TeamAdminMembers = ({
   const { data: members, isLoading } = useTeamAdminMembers(teamId, days);
   const updateRole = useUpdateMemberRole();
   const removeMember = useAdminRemoveMember();
+  const transferOwnership = useTransferOwnership();
 
   const handleRoleChange = async (userId: string, role: TeamRole) => {
     try {
@@ -153,6 +155,15 @@ export const TeamAdminMembers = ({
       toast.success('Role updated');
     } catch (error) {
       toast.error(getApiErrorMessage(error, 'Failed to update role'));
+    }
+  };
+
+  const handleTransfer = async (userId: string, email: string) => {
+    try {
+      await transferOwnership.mutateAsync({ teamId, userId });
+      toast.success(`${email} now owns this team`);
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, 'Failed to transfer ownership'));
     }
   };
 
@@ -199,6 +210,7 @@ export const TeamAdminMembers = ({
                   !isSelf &&
                   !readOnly &&
                   (isOwner || member.role !== 'ADMIN');
+                const canTransfer = canEditRole && !member.user.isSuspended;
                 return (
                   <TableRow key={member.id}>
                     <TableCell>
@@ -249,7 +261,27 @@ export const TeamAdminMembers = ({
                     <TableCell className="text-right font-medium tabular-nums">
                       {formatCost(member.usage.totalCostUsd)}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="whitespace-nowrap text-right">
+                      {canTransfer && (
+                        <ConfirmAction
+                          title="Transfer ownership?"
+                          description={`${member.user.email} will own this team. You'll stay on as an admin and can't undo this yourself.`}
+                          confirmLabel="Transfer"
+                          onConfirm={() =>
+                            handleTransfer(member.user.id, member.user.email)
+                          }
+                          trigger={
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              aria-label={`Make ${member.user.email} the owner`}
+                              title="Make owner"
+                            >
+                              <Crown />
+                            </Button>
+                          }
+                        />
+                      )}
                       {canRemove && (
                         <ConfirmAction
                           destructive

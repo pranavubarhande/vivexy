@@ -10,9 +10,13 @@ import redis as redis_lib
 from agents_core.business_logic.admin import (
     build_members_with_usage,
     build_team_invites,
+    transfer_team_ownership,
 )
 from agents_core.business_logic.audit import list_audit_logs, record_audit_log
-from agents_core.business_logic.org_policy import ensure_domain_available
+from agents_core.business_logic.org_policy import (
+    domain_verification_record,
+    ensure_domain_available,
+)
 from agents_core.business_logic.team_policy import month_start
 from agents_core.business_logic.usage import (
     get_daily_usage_for_users,
@@ -262,6 +266,9 @@ def get_client_detail(team_id: str, days: int = 30) -> Dict[str, Any]:
         "budgetEnforcement": team.budget_enforcement,
         "emailDomain": team.email_domain,
         "domainVerified": team.domain_verified,
+        "domainVerificationRecord": (
+            domain_verification_record(team) if team.domain_verification_token else None
+        ),
         "autoJoinDomain": team.auto_join_domain,
         "requireSso": team.require_sso,
         "retentionDays": team.retention_days,
@@ -318,6 +325,16 @@ def update_client(team_id: str, payload: ClientUpdate, actor: User) -> Dict[str,
             commit=False,
         )
     db.session.commit()
+    return get_client_detail(team_id)
+
+
+def transfer_client_ownership(
+    team_id: str, new_owner_id: str, actor: User
+) -> Dict[str, Any]:
+    team = Team.query.get(team_id)
+    if not team:
+        raise LookupError("Client not found")
+    transfer_team_ownership(team, new_owner_id, actor, via_platform=True)
     return get_client_detail(team_id)
 
 

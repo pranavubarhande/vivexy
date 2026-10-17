@@ -311,7 +311,10 @@ def test_feature_flags_visible_to_members(client, platform):
     response = client.get(
         f"/teams/{team_id}/features", headers=_headers(platform["owner"])
     )
-    assert response.get_json()["features"] == {"beta-agents": True}
+    features = response.get_json()["features"]
+    assert features["beta-agents"] is True
+    # Built-in flags are reported too, on unless the team turned them off.
+    assert features["scheduled-tasks"] is True
     response = client.get(
         f"/teams/{team_id}/features", headers=_headers(platform["platform_admin"])
     )

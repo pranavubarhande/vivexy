@@ -4,11 +4,13 @@ from agents_core.business_logic.api_keys import (
     upsert_user_api_key,
 )
 from agents_core.business_logic.data_lifecycle import erase_user, export_user_data
+from agents_core.business_logic.features import require_feature, user_features
 from agents_core.business_logic.users import (
     get_user_profile,
     update_user_password,
     update_user_profile,
 )
+from agents_core.constants.features import FEATURE_API_KEYS
 from agents_core.middlewares.auth import auth_middleware
 from flask import Blueprint, jsonify, request
 
@@ -187,6 +189,25 @@ def delete_account():
         return jsonify({"error": str(e)}), 500
 
 
+@bp.route("/me/features", methods=["GET"])
+@auth_middleware
+def my_features():
+    """Features available to the caller after their teams' feature flags.
+    ---
+    tags:
+      - Users
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Map of feature name to enabled
+    """
+    try:
+        return jsonify({"features": user_features(request.user.id)})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @bp.route("/me/api-keys", methods=["GET"])
 @auth_middleware
 def list_api_keys():
@@ -216,6 +237,7 @@ def list_api_keys():
 
 @bp.route("/me/api-keys/<provider>", methods=["PUT"])
 @auth_middleware
+@require_feature(FEATURE_API_KEYS)
 def set_api_key(provider):
     """Set or update an API key for a specific provider.
     ---

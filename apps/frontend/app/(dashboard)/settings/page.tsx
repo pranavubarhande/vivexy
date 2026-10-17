@@ -32,13 +32,30 @@ import { SkillsSettings } from '@vivexy/core/settings/skills-settings';
 import { ApiKeysSettings } from '@vivexy/core/settings/api-keys-settings';
 import { ThemeSettings } from '@vivexy/core/settings/theme-settings';
 import { GithubSettings } from '@vivexy/core/settings/github-settings';
+import { useFeatures } from '@vivexy/core/hooks/useFeatures';
+import { FEATURES, FeatureName } from '@vivexy/core/constants/features';
 
-const SECTIONS = [
+const SECTIONS: {
+  value: string;
+  label: string;
+  icon: typeof User;
+  feature?: FeatureName;
+}[] = [
   { value: 'profile', label: 'Profile', icon: User },
   { value: 'password', label: 'Password', icon: KeyRound },
   { value: 'notifications', label: 'Notifications', icon: Bell },
-  { value: 'api-keys', label: 'API keys', icon: KeySquare },
-  { value: 'connections', label: 'Connections', icon: Link2 },
+  {
+    value: 'api-keys',
+    label: 'API keys',
+    icon: KeySquare,
+    feature: FEATURES.apiKeys,
+  },
+  {
+    value: 'connections',
+    label: 'Connections',
+    icon: Link2,
+    feature: FEATURES.github,
+  },
   { value: 'extensions', label: 'Extensions', icon: Puzzle },
   { value: 'appearance', label: 'Appearance', icon: Palette },
   { value: 'danger', label: 'Danger zone', icon: TriangleAlert },
@@ -50,7 +67,14 @@ const SettingsContent = () => {
   );
   const searchParams = useSearchParams();
   const router = useRouter();
-  const tab = searchParams.get('tab') ?? 'profile';
+  const { isEnabled } = useFeatures();
+  const sections = SECTIONS.filter(
+    (section) => !section.feature || isEnabled(section.feature)
+  );
+  const requestedTab = searchParams.get('tab') ?? 'profile';
+  const tab = sections.some((section) => section.value === requestedTab)
+    ? requestedTab
+    : 'profile';
 
   const setTab = (value: string) =>
     router.replace(`?tab=${value}`, { scroll: false });
@@ -69,7 +93,7 @@ const SettingsContent = () => {
         className="flex flex-col gap-8 md:flex-row"
       >
         <TabsList className="no-scrollbar h-auto w-full shrink-0 justify-start gap-1 overflow-x-auto rounded-2xl bg-transparent p-0 md:sticky md:top-6 md:w-52 md:flex-col md:items-stretch md:self-start">
-          {SECTIONS.map(({ value, label, icon: Icon }) => (
+          {sections.map(({ value, label, icon: Icon }) => (
             <TabsTrigger
               key={value}
               value={value}
