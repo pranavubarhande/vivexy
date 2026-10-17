@@ -1,15 +1,6 @@
 import os
-import sys
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config, pool
-
-from alembic import context
-
-# Add the app directory to the Python path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-
-# Import your models here
 from agents_core.models import (
     Artifact,
     Chat,
@@ -31,6 +22,8 @@ from agents_core.models import (
     User,
     db,
 )
+from alembic import context
+from sqlalchemy import engine_from_config, pool
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -44,6 +37,14 @@ if config.config_file_name is not None:
 # add your model's MetaData object here
 # for 'autogenerate' support
 target_metadata = db.metadata
+
+
+def include_object(obj, name, type_, reflected, compare_to):
+    # Tables owned by extensions (e.g. vivexy-legal) share this database but
+    # are migrated by the extension, so never autogenerate drops for them.
+    # Dropping a core table therefore needs a hand-written op.drop_table().
+    return not (type_ == "table" and reflected and compare_to is None)
+
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
@@ -67,6 +68,7 @@ def run_migrations_offline() -> None:
     context.configure(
         url=url,
         target_metadata=target_metadata,
+        include_object=include_object,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
     )
@@ -98,7 +100,11 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata)
+        context.configure(
+            connection=connection,
+            target_metadata=target_metadata,
+            include_object=include_object,
+        )
 
         with context.begin_transaction():
             context.run_migrations()
