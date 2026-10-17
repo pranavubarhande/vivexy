@@ -26,7 +26,8 @@
     "format:check": "turbo format:check",
     "clean": "turbo clean",
     "prepare": "if [ -z \"$VERCEL\" ]; then husky || true; fi",
-    "test": "turbo test"
+    "test": "turbo test",
+    "release:version": "node scripts/release-version.mjs"
   },
   "devDependencies": {
     "husky": "^9.1.7",

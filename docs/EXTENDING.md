@@ -96,3 +96,53 @@ uv run alembic --name legal upgrade head # extension
 
 Core's `env.py` never autogenerates drops for tables it doesn't define, so extension
 tables in the same database are safe.
+
+## Consuming the packages
+
+All three packages share one version and are released together.
+
+```toml
+# Python (pyproject.toml of the product)
+dependencies = ["vivexy-agents-core==0.2.0"]
+
+# Before the first PyPI release, pin a git tag instead:
+[tool.uv.sources]
+vivexy-agents-core = { git = "https://github.com/pranavubarhande/vivexy", subdirectory = "packages/agents-core", tag = "v0.2.0" }
+```
+
+```jsonc
+// package.json of the product frontend
+"dependencies": { "@vivexy/core": "0.2.0", "@vivexy/ui": "0.2.0" }
+```
+
+`@vivexy/core` and `@vivexy/ui` ship TypeScript source, so the Next.js app must
+transpile them and let Tailwind scan them:
+
+```ts
+// next.config.ts
+transpilePackages: ['@vivexy/ui', '@vivexy/core'],
+```
+
+```css
+/* globals.css */
+@import '@vivexy/ui/theme.css';
+@source '../node_modules/@vivexy/ui/src/**/*.{ts,tsx}';
+@source '../node_modules/@vivexy/core/src/**/*.{ts,tsx}';
+```
+
+For local co-development against a vivexy checkout, point the dependencies at it
+(`vivexy-agents-core = { path = "../vivexy/packages/agents-core", editable = true }`,
+`npm link`) and switch back before committing.
+
+## Releasing
+
+```bash
+npm run release:version -- 0.2.0   # bumps ui, core, agents-core and lockfiles
+git commit -am "chore: release 0.2.0"
+git tag v0.2.0 && git push && git push --tags
+```
+
+The `release` workflow verifies the versions match the tag, then publishes to npm
+(`NPM_TOKEN` secret) and PyPI (trusted publishing, `pypi` environment). Follow semver:
+until 1.0, a minor bump may break extensions, so call out breaking changes in
+`CHANGELOG.md`.

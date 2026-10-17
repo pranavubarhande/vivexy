@@ -1,8 +1,20 @@
 {
   "name": "@vivexy/core",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
+  "license": "AGPL-3.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pranavubarhande/vivexy.git",
+    "directory": "packages/core"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "src",
+    "!src/**/__tests__"
+  ],
   "exports": {
     "./shared/*": "./src/components/shared/*.tsx",
     "./chat": "./src/components/chat/index.ts",
