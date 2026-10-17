@@ -70,6 +70,6 @@ Ask the user what they would change.
 
 ## 5. Save
 
-Once the user approves, call `save_user_skill` with the name, description, content and any files. Reusing an existing name updates that skill, so check with the user before overwriting one they already have. Tell them the skill now appears on their Skills page, applies from their next message, and can be invoked as `/name`.
+Once the user approves the draft in chat, call `save_user_skill` with the name, description, content and any files. The app then shows them an approval dialog to confirm the save; if they reject it, ask what to change. Reusing an existing name updates that skill, so check with the user before overwriting one they already have. Tell them the skill now appears on their Skills page, applies from their next message, and can be invoked as `/name`.
 
 To edit an existing skill, load it with `load_skill`, make the changes with the user, and save it under the same name.

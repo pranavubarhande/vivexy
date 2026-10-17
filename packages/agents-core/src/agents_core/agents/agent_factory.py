@@ -370,7 +370,8 @@ def build_skills_context(user_skills: List[Dict]) -> str:
     return (
         "## Skills\n"
         "Before a task that matches a skill, or when the user invokes /{skill-name}, call "
-        "`load_skill` with its name and follow its instructions.\n" + "\n".join(lines)
+        "`load_skill` with its name and follow its instructions. To create or edit a "
+        "skill, load `skill-creator` first.\n" + "\n".join(lines)
     )
 
 
@@ -807,6 +808,7 @@ def _build_agent(model, tools, subagents, checkpointer, system_prompt):
             interrupt_on={
                 "delete_file": {"allowed_decisions": ["approve", "reject"]},
                 "move_file": {"allowed_decisions": ["approve", "reject"]},
+                "save_user_skill": {"allowed_decisions": ["approve", "reject"]},
             }
         ),
     ]

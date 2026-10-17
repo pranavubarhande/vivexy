@@ -583,6 +583,7 @@ APPROVAL_REQUIRED_TOOLS = {
     "delete_file",
     "move_file",
     "git_checkout",
+    "save_user_skill",
 }
 
 # Tools that can be executed on the Electron desktop client.

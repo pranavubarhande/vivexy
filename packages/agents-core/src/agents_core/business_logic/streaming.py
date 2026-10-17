@@ -344,9 +344,15 @@ def run_agent_stream(
                     approved = loop.run_until_complete(
                         wait_for_approval(request_id, timeout=120.0)
                     )
-                    inputs = Command(
-                        resume=[{"type": "approve"} if approved else {"type": "reject"}]
+                    decision = (
+                        {"type": "approve"}
+                        if approved
+                        else {
+                            "type": "reject",
+                            "message": "The user rejected this action.",
+                        }
                     )
+                    inputs = Command(resume={"decisions": [decision for _ in actions]})
 
         finally:
             loop.close()
