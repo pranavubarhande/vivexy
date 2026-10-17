@@ -5,6 +5,7 @@ that loads .env for this codebase).
 """
 
 import logging
+import os
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -25,9 +26,13 @@ def load_worker_env() -> None:
     only logged, not raised. If this ever logs unexpectedly in local dev,
     the path below has drifted from actual repo layout; fix it here, not
     by re-adding a copy in consumer.py/scheduler.py.
+
+    Products that install agents-core as a package set VIVEXY_ENV_FILE to
+    their own .env, since the default path only exists inside this repo.
     """
-    env_path = (
-        Path(__file__).resolve().parents[5] / "apps" / "agents-service" / ".env"
+    env_path = Path(
+        os.environ.get("VIVEXY_ENV_FILE")
+        or Path(__file__).resolve().parents[5] / "apps" / "agents-service" / ".env"
     )
     if not env_path.exists():
         logger.warning(".env not found at %s — using real process env vars only", env_path)
