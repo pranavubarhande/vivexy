@@ -1,3 +1,4 @@
+import { getActiveTeamId } from '../../lib/active-team';
 import axiosInstance from '../axiosInstance.service';
 import { Chat, Message } from '../../types/chat';
 
@@ -40,6 +41,7 @@ export const chatApi = {
     const response = await axiosInstance.post<Chat>('/chat', {
       agentId,
       title,
+      teamId: getActiveTeamId(),
     });
     return response.data;
   },

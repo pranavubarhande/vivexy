@@ -8,7 +8,8 @@ import {
 } from '@vivexy/ui/card';
 import { Button } from '@vivexy/ui/button';
 import { Badge } from '@vivexy/ui/badge';
-import { PageContainer, PageHeader } from '@vivexy/ui/page-header';
+import { Skeleton } from '@vivexy/ui/skeleton';
+import { EmptyState, PageContainer, PageHeader } from '@vivexy/ui/page-header';
 import { cn } from '@vivexy/ui/utils';
 import {
   Table,
@@ -19,22 +20,6 @@ import {
   TableRow,
 } from '@vivexy/ui/table';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from '@vivexy/ui/dropdown-menu';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@vivexy/ui/dialog';
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -42,98 +27,56 @@ import {
   SelectValue,
 } from '@vivexy/ui/select';
 import {
-  CreditCard,
-  Download,
-  MoreHorizontal,
-  Calendar,
-  DollarSign,
-  Check,
-  CheckCircle,
-  XCircle,
-  Clock,
-  Crown,
-  Zap,
   Building,
+  Check,
+  CreditCard,
+  Crown,
+  ExternalLink,
+  Zap,
 } from 'lucide-react';
-import { useState } from 'react';
-import { plans, type PlanConfig } from '@vivexy/core/configs/billing';
+import { Suspense, useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
-import axiosInstance from '@vivexy/core/services/axiosInstance.service';
-import { Invoice, Plan, Subscription } from '@vivexy/core/types/subscription';
+import { plans, type PlanConfig } from '@vivexy/core/configs/billing';
+import { useActiveTeam } from '@vivexy/core/hooks/useActiveTeam';
+import { useAdministeredTeams } from '@vivexy/core/hooks/useAdmin';
+import {
+  useBillingSummary,
+  useOpenBillingPortal,
+  useStartCheckout,
+} from '@vivexy/core/hooks/useBilling';
+import { getApiErrorMessage } from '@vivexy/core/lib/admin-format';
+import {
+  BillingInvoice,
+  Plan,
+  TeamSubscription,
+} from '@vivexy/core/types/subscription';
 
-// Mock data for demonstration - in real app, this would come from API
-const mockSubscription: Subscription = {
-  id: 'sub_1',
-  userId: 'user_1',
-  teamId: null,
-  stripeSubscriptionId: 'sub_stripe_123',
-  stripeCustomerId: 'cus_stripe_456',
-  status: 'ACTIVE',
-  plan: 'PRO',
-  currentPeriodStart: new Date('2024-01-01'),
-  currentPeriodEnd: new Date('2024-02-01'),
-  cancelAtPeriodEnd: false,
-  createdAt: new Date('2024-01-01'),
-  updatedAt: new Date('2024-01-01'),
-};
+const PLAN_ORDER: Plan[] = ['FREE', 'PRO', 'ENTERPRISE'];
+const LIVE_STATUSES = ['ACTIVE', 'TRIALING'];
 
-const mockInvoices: Invoice[] = [
-  {
-    id: 'inv_1',
-    userId: 'user_1',
-    subscriptionId: 'sub_1',
-    stripeInvoiceId: 'in_stripe_123',
-    amount: 2900,
-    currency: 'USD',
-    status: 'PAID',
-    invoicePdf: null,
-    hostedInvoiceUrl: 'https://stripe.com/invoice/123',
-    createdAt: new Date('2024-01-01'),
-    user: {
-      id: 'user_1',
-      email: 'user@example.com',
-      name: 'John Doe',
-      role: 'USER' as const,
-      avatar: null,
-      password: '', // Mock required field
-      createdAt: new Date('2024-01-01'),
-      updatedAt: new Date('2024-01-01'),
-    },
-  },
-  {
-    id: 'inv_2',
-    userId: 'user_1',
-    subscriptionId: 'sub_1',
-    stripeInvoiceId: 'in_stripe_456',
-    amount: 2900,
-    currency: 'USD',
-    status: 'PAID',
-    invoicePdf: null,
-    hostedInvoiceUrl: 'https://stripe.com/invoice/456',
-    createdAt: new Date('2023-12-01'),
-    user: {
-      id: 'user_1',
-      email: 'user@example.com',
-      name: 'John Doe',
-      role: 'USER' as const,
-      avatar: null,
-      password: '', // Mock required field
-      createdAt: new Date('2024-01-01'),
-      updatedAt: new Date('2024-01-01'),
-    },
-  },
-];
+const formatDate = (value: string | null) =>
+  value ? new Date(value).toLocaleDateString() : '—';
+
+const formatAmount = (invoice: BillingInvoice) =>
+  new Intl.NumberFormat(undefined, {
+    style: 'currency',
+    currency: invoice.currency.toUpperCase(),
+  }).format(invoice.amount / 100);
 
 const PlanCard = ({
   plan,
-  currentPlan,
+  isCurrent,
+  canPurchase,
+  isPending,
   onSelect,
 }: {
   plan: Plan;
-  currentPlan: Plan;
+  isCurrent: boolean;
+  canPurchase: boolean;
+  isPending: boolean;
   onSelect: (plan: Plan) => void;
 }) => {
-  const isCurrent = plan === currentPlan;
   const config = plans.find((p) => p.key === plan) as PlanConfig;
 
   return (
@@ -172,8 +115,8 @@ const PlanCard = ({
         </span>
       </div>
       <ul className="mt-6 mb-8 space-y-2.5">
-        {config.features.map((feature, index) => (
-          <li key={index} className="flex items-center gap-2.5 text-sm">
+        {config.features.map((feature) => (
+          <li key={feature} className="flex items-center gap-2.5 text-sm">
             <span
               className={cn(
                 'flex size-4 items-center justify-center rounded-full',
@@ -186,285 +129,306 @@ const PlanCard = ({
           </li>
         ))}
       </ul>
-      <Button
-        onClick={() => onSelect(plan)}
-        disabled={isCurrent}
-        className="mt-auto w-full"
-        variant={isCurrent ? 'secondary' : 'outline'}
-      >
-        {isCurrent ? 'Your current plan' : `Choose ${config.name}`}
-      </Button>
+      {plan !== 'FREE' && (
+        <Button
+          onClick={() => onSelect(plan)}
+          disabled={isCurrent || !canPurchase || isPending}
+          className="mt-auto w-full"
+          variant={isCurrent ? 'secondary' : 'outline'}
+        >
+          {isCurrent ? 'Your current plan' : `Choose ${config.name}`}
+        </Button>
+      )}
     </Card>
   );
 };
 
-const SubscriptionStatus = ({
+const SubscriptionDetails = ({
   subscription,
 }: {
-  subscription: Subscription;
+  subscription: TeamSubscription | null;
 }) => {
-  const getStatusIcon = () => {
-    switch (subscription.status) {
-      case 'ACTIVE':
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case 'PAST_DUE':
-        return <XCircle className="h-4 w-4 text-red-500" />;
-      case 'CANCELED':
-        return <XCircle className="h-4 w-4 text-gray-500" />;
-      default:
-        return <Clock className="h-4 w-4 text-yellow-500" />;
-    }
-  };
-
+  if (!subscription) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        This team is on the Free plan.
+      </p>
+    );
+  }
+  const isLive = LIVE_STATUSES.includes(subscription.status);
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          {getStatusIcon()}
-          <span className="font-medium">Current Subscription</span>
-        </div>
-        <Badge
-          variant={subscription.status === 'ACTIVE' ? 'success' : 'secondary'}
-        >
-          {subscription.status}
-        </Badge>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4 text-sm">
+      <div className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
         <div>
           <div className="text-muted-foreground">Plan</div>
           <div className="font-medium">{subscription.plan}</div>
         </div>
         <div>
-          <div className="text-muted-foreground">Next Billing</div>
+          <div className="text-muted-foreground">Status</div>
+          <Badge variant={isLive ? 'success' : 'secondary'}>
+            {subscription.status}
+          </Badge>
+        </div>
+        <div>
+          <div className="text-muted-foreground">
+            {subscription.cancelAtPeriodEnd ? 'Ends on' : 'Renews on'}
+          </div>
           <div className="font-medium">
-            {subscription.currentPeriodEnd
-              ? new Date(subscription.currentPeriodEnd).toLocaleDateString()
-              : 'N/A'}
+            {formatDate(subscription.currentPeriodEnd)}
           </div>
         </div>
       </div>
-
-      {subscription.cancelAtPeriodEnd && (
-        <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-          <p className="text-sm text-yellow-800">
-            Your subscription will be canceled at the end of the current billing
-            period.
-          </p>
-        </div>
+      {subscription.isManual && (
+        <p className="text-sm text-muted-foreground">
+          This plan was arranged with our team rather than billed by card.
+          Contact support to change it.
+        </p>
       )}
-
-      <div className="flex gap-2">
-        <Button variant="outline" size="sm">
-          <CreditCard className="mr-2 h-4 w-4" />
-          Update Payment Method
-        </Button>
-        <Button variant="outline" size="sm">
-          View Details
-        </Button>
-      </div>
+      {subscription.cancelAtPeriodEnd && (
+        <p className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3 text-sm">
+          The subscription will cancel at the end of the current billing period.
+        </p>
+      )}
     </div>
   );
 };
 
-const InvoiceActions = ({ invoice }: { invoice: Invoice }) => {
-  const handleDownload = () => {
-    if (invoice.hostedInvoiceUrl) {
-      window.open(invoice.hostedInvoiceUrl, '_blank');
-    } else {
-      toast.error('Invoice not available for download');
-    }
-  };
-
+const InvoiceTable = ({ invoices }: { invoices: BillingInvoice[] }) => {
+  if (!invoices.length) {
+    return <p className="text-sm text-muted-foreground">No invoices yet.</p>;
+  }
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="h-8 w-8 p-0">
-          <span className="sr-only">Open menu</span>
-          <MoreHorizontal className="h-4 w-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-        <DropdownMenuItem onClick={handleDownload}>
-          <Download className="mr-2 h-4 w-4" />
-          Download PDF
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={handleDownload}>
-          View Online
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <div className="overflow-x-auto">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Date</TableHead>
+            <TableHead>Plan</TableHead>
+            <TableHead>Amount</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead className="text-right">Invoice</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {invoices.map((invoice) => (
+            <TableRow key={invoice.id}>
+              <TableCell className="whitespace-nowrap">
+                {formatDate(invoice.createdAt)}
+              </TableCell>
+              <TableCell>{invoice.plan ?? '—'}</TableCell>
+              <TableCell className="tabular-nums">
+                {formatAmount(invoice)}
+              </TableCell>
+              <TableCell>
+                <Badge
+                  variant={invoice.status === 'PAID' ? 'success' : 'secondary'}
+                >
+                  {invoice.status}
+                </Badge>
+              </TableCell>
+              <TableCell className="text-right">
+                {invoice.hostedInvoiceUrl || invoice.invoicePdf ? (
+                  <Button variant="ghost" size="sm" asChild>
+                    <a
+                      href={
+                        invoice.hostedInvoiceUrl ?? invoice.invoicePdf ?? ''
+                      }
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      View
+                      <ExternalLink />
+                    </a>
+                  </Button>
+                ) : (
+                  '—'
+                )}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   );
 };
 
-const ChangePlanDialog = () => {
-  const [open, setOpen] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<Plan>('PRO');
+const BillingContent = () => {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { activeTeamId } = useActiveTeam();
+  const { data: teams, isLoading: teamsLoading } = useAdministeredTeams();
+  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
 
-  const handlePlanChange = async () => {
-    try {
-      // TODO: Implement plan change logic
-      toast.success(`Plan changed to ${selectedPlan}`);
-      setOpen(false);
-    } catch {
-      toast.error('Failed to change plan');
+  const teamId =
+    selectedTeamId ??
+    (teams?.some((team) => team.id === activeTeamId)
+      ? activeTeamId
+      : (teams?.[0]?.id ?? null));
+
+  const { data: summary, isLoading, refetch } = useBillingSummary(teamId);
+  const startCheckout = useStartCheckout();
+  const openPortal = useOpenBillingPortal();
+
+  const checkoutResult = searchParams.get('checkout');
+  useEffect(() => {
+    if (!checkoutResult) return;
+    if (checkoutResult === 'success') {
+      // The webhook may land a moment after the redirect.
+      toast.success('Payment received — your plan will update shortly');
+      const timer = setTimeout(() => refetch(), 3000);
+      router.replace('/billing', { scroll: false });
+      return () => clearTimeout(timer);
     }
+    toast.message('Checkout cancelled');
+    router.replace('/billing', { scroll: false });
+  }, [checkoutResult, refetch, router]);
+
+  const handleSelectPlan = (plan: Plan) => {
+    if (!teamId || plan === 'FREE') return;
+    startCheckout.mutate(
+      { teamId, plan },
+      {
+        onError: (error) =>
+          toast.error(getApiErrorMessage(error, 'Unable to start checkout')),
+      }
+    );
   };
 
+  const handleManage = () => {
+    if (!teamId) return;
+    openPortal.mutate(teamId, {
+      onError: (error) =>
+        toast.error(getApiErrorMessage(error, 'Unable to open billing')),
+    });
+  };
+
+  if (!teamsLoading && !teams?.length) {
+    return (
+      <EmptyState
+        icon={<CreditCard />}
+        title="Billing is managed by team admins"
+        description="Plans are billed per team. Ask your team's owner or an admin to manage billing."
+      />
+    );
+  }
+
+  const subscription = summary?.subscription ?? null;
+  const hasLivePlan =
+    !!subscription && LIVE_STATUSES.includes(subscription.status);
+  const currentPlan: Plan = hasLivePlan ? subscription.plan : 'FREE';
+  const hasStripePlan = hasLivePlan && !subscription.isManual;
+  // A manual comp/trial can be replaced by a paid plan; a card-billed one is
+  // changed through the Stripe portal instead.
+  const canPurchase = (plan: Plan) =>
+    !!summary?.billingConfigured &&
+    !hasStripePlan &&
+    summary.purchasablePlans.includes(plan);
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button>Change Plan</Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>Change Subscription Plan</DialogTitle>
-          <DialogDescription>
-            Select a new plan for your subscription.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="py-4">
+    <div className="space-y-8">
+      {teams && teams.length > 1 && (
+        <div className="max-w-xs">
           <Select
-            value={selectedPlan}
-            onValueChange={(value: Plan) => setSelectedPlan(value)}
+            value={teamId ?? undefined}
+            onValueChange={(value) => setSelectedTeamId(value)}
           >
-            <SelectTrigger>
-              <SelectValue placeholder="Select a plan" />
+            <SelectTrigger aria-label="Team">
+              <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="FREE">Free - $0/month</SelectItem>
-              <SelectItem value="PRO">Pro - $29/month</SelectItem>
-              <SelectItem value="ENTERPRISE">Enterprise - $99/month</SelectItem>
+              {teams.map((team) => (
+                <SelectItem key={team.id} value={team.id}>
+                  {team.name}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
-        <DialogFooter>
-          <Button onClick={handlePlanChange}>Change Plan</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      )}
+
+      {summary && !summary.billingConfigured && (
+        <p className="rounded-lg border border-border p-3 text-sm text-muted-foreground">
+          Online payments aren&apos;t set up yet. Contact support to change your
+          plan.
+        </p>
+      )}
+
+      <Card>
+        <CardHeader className="flex flex-row items-start justify-between gap-4">
+          <div>
+            <CardTitle>Current subscription</CardTitle>
+            <CardDescription>
+              {summary ? `Billing for ${summary.teamName}` : 'Loading…'}
+            </CardDescription>
+          </div>
+          {summary?.hasBillingAccount && summary.billingConfigured && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleManage}
+              disabled={openPortal.isPending}
+            >
+              <CreditCard />
+              Manage billing
+            </Button>
+          )}
+        </CardHeader>
+        <CardContent>
+          {isLoading || !summary ? (
+            <Skeleton className="h-16 w-full" />
+          ) : (
+            <SubscriptionDetails subscription={subscription} />
+          )}
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        {PLAN_ORDER.map((plan) => (
+          <PlanCard
+            key={plan}
+            plan={plan}
+            isCurrent={plan === currentPlan}
+            canPurchase={canPurchase(plan)}
+            isPending={startCheckout.isPending}
+            onSelect={handleSelectPlan}
+          />
+        ))}
+      </div>
+      {hasStripePlan && (
+        <p className="text-sm text-muted-foreground">
+          To switch plans or cancel, use Manage billing.
+        </p>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Billing history</CardTitle>
+          <CardDescription>Invoices for this team</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoading || !summary ? (
+            <Skeleton className="h-24 w-full" />
+          ) : (
+            <InvoiceTable invoices={summary.invoices} />
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 
 export default function BillingPage() {
-  const handleSelectPlan = async (planKey: Plan) => {
-    try {
-      const cfg = plans.find((p) => p.key === planKey);
-      if (!cfg) return;
-      if (cfg.paymentLink) {
-        window.open(cfg.paymentLink, '_blank');
-        return;
-      }
-      if (cfg.priceId) {
-        const { data } = await axiosInstance.post('/stripe/checkout', {
-          priceId: cfg.priceId,
-          mode: 'subscription',
-        });
-        if (data.url) {
-          window.location.href = data.url;
-        } else {
-          toast.error('Checkout session URL not found');
-        }
-        return;
-      }
-      toast.error('No payment method configured for this plan');
-    } catch {
-      toast.error('Unable to start checkout');
-    }
-  };
   return (
     <PageContainer className="space-y-8">
       <PageHeader
         className="mb-0"
         eyebrow="Billing"
         title="Plans & billing"
-        description="Manage your subscription, payment method and invoices."
-        actions={<ChangePlanDialog />}
+        description="Manage your team's subscription, payment method and invoices."
       />
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Current subscription</CardTitle>
-          <CardDescription>Your active subscription details</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <SubscriptionStatus subscription={mockSubscription} />
-        </CardContent>
-      </Card>
-
-      <div className="grid gap-4 md:grid-cols-3">
-        {(['FREE', 'PRO', 'ENTERPRISE'] as Plan[]).map((p) => (
-          <PlanCard
-            key={p}
-            plan={p}
-            currentPlan={mockSubscription.plan}
-            onSelect={handleSelectPlan}
-          />
-        ))}
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Billing history</CardTitle>
-          <CardDescription>
-            Your past invoices and payment history
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {mockInvoices.map((invoice) => (
-                <TableRow key={invoice.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                      {new Date(invoice.createdAt).toLocaleDateString()}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div>
-                      <div className="font-medium">
-                        {invoice.subscription?.plan} Plan
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {new Date(invoice.createdAt).getFullYear()}
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <DollarSign className="h-4 w-4 text-muted-foreground" />$
-                      {(invoice.amount / 100).toFixed(2)}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={
-                        invoice.status === 'PAID' ? 'success' : 'secondary'
-                      }
-                    >
-                      {invoice.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <InvoiceActions invoice={invoice} />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <Suspense>
+        <BillingContent />
+      </Suspense>
     </PageContainer>
   );
 }

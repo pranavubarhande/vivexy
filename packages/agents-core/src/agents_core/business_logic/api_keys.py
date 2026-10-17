@@ -1,5 +1,7 @@
 from typing import Dict, List, Optional
 
+from agents_core.business_logic.features import user_has_feature
+from agents_core.constants.features import FEATURE_API_KEYS
 from agents_core.models import db
 from agents_core.models.user_api_key import UserApiKey
 from agents_core.utils.crypto import decrypt_api_key, encrypt_api_key
@@ -57,7 +59,10 @@ def delete_user_api_key(user_id: str, provider: str) -> None:
 
 
 def get_decrypted_api_keys(user_id: str) -> Dict[str, str]:
-    """Returns a dict of provider -> plain-text API key for use by the agent."""
+    """Returns a dict of provider -> plain-text API key for use by the agent.
+    Empty when the user's organization has turned bring-your-own keys off."""
+    if not user_has_feature(user_id, FEATURE_API_KEYS):
+        return {}
     keys = UserApiKey.query.filter_by(user_id=user_id).all()
     result = {}
     for k in keys:
@@ -69,6 +74,8 @@ def get_decrypted_api_keys(user_id: str) -> Dict[str, str]:
 
 
 def get_decrypted_key_for_provider(user_id: str, provider: str) -> Optional[str]:
+    if not user_has_feature(user_id, FEATURE_API_KEYS):
+        return None
     record = UserApiKey.query.filter_by(user_id=user_id, provider=provider).first()
     if not record:
         return None

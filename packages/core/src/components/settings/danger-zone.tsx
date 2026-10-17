@@ -17,6 +17,11 @@ import {
   AlertDialogTrigger,
 } from '@vivexy/ui/alert-dialog';
 import { toast } from 'sonner';
+import { userService } from '@vivexy/core/services/user.service';
+import {
+  downloadBlob,
+  getApiErrorMessage,
+} from '@vivexy/core/lib/admin-format';
 
 export function DangerZone() {
   const deleteAccount = useDeleteAccount();
@@ -42,8 +47,28 @@ export function DangerZone() {
     }
   };
 
+  const handleExport = async () => {
+    try {
+      const exportBlob = await userService.exportMyData();
+      downloadBlob(exportBlob, 'my-vivexy-data.json');
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, 'Failed to export your data'));
+    }
+  };
+
   return (
     <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-4">
+        <div className="space-y-1">
+          <h4 className="text-sm font-medium">Download your data</h4>
+          <p className="text-sm text-muted-foreground">
+            Get a copy of your profile, teams, chats and usage as JSON.
+          </p>
+        </div>
+        <Button variant="outline" size="sm" onClick={handleExport}>
+          Download
+        </Button>
+      </div>
       <div className="rounded-lg border border-destructive/50 p-4">
         <div className="flex">
           <div className="space-y-1">

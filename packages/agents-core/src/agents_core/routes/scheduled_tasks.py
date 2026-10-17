@@ -5,6 +5,7 @@ CRUD for user-defined tasks that run a chat prompt on a schedule.
 
 import logging
 
+from agents_core.business_logic.features import require_feature
 from agents_core.business_logic.scheduled_tasks import (
     create_task,
     delete_task,
@@ -14,6 +15,7 @@ from agents_core.business_logic.scheduled_tasks import (
     get_user_tasks,
     update_task,
 )
+from agents_core.constants.features import FEATURE_SCHEDULED_TASKS
 from agents_core.middlewares.auth import auth_middleware
 from agents_core.models.scheduled_task import ScheduledTask
 from flask import Blueprint, jsonify, request
@@ -35,6 +37,7 @@ def list_tasks():
 
 @bp.route("", methods=["POST"])
 @auth_middleware
+@require_feature(FEATURE_SCHEDULED_TASKS)
 def create_new_task():
     try:
         data = request.get_json() or {}
@@ -42,6 +45,8 @@ def create_new_task():
             return jsonify({"error": "name and prompt are required"}), 400
         task = create_task(request.user.id, data)
         return jsonify(task), 201
+    except PermissionError as e:
+        return jsonify({"error": str(e)}), 403
     except Exception as e:
         logger.exception("create_task error")
         return jsonify({"error": str(e)}), 500
@@ -64,11 +69,14 @@ def get_one_task(task_id):
 
 @bp.route("/<task_id>", methods=["PUT"])
 @auth_middleware
+@require_feature(FEATURE_SCHEDULED_TASKS)
 def update_existing_task(task_id):
     try:
         data = request.get_json() or {}
         task = update_task(task_id, request.user.id, data)
         return jsonify(task)
+    except PermissionError as e:
+        return jsonify({"error": str(e)}), 403
     except ValueError as e:
         return jsonify({"error": str(e)}), 404
     except Exception as e:
@@ -90,6 +98,7 @@ def delete_existing_task(task_id):
 
 @bp.route("/<task_id>/run", methods=["POST"])
 @auth_middleware
+@require_feature(FEATURE_SCHEDULED_TASKS)
 def run_task_now(task_id):
     """Trigger a task immediately regardless of schedule."""
     try:

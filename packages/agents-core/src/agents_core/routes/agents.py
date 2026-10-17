@@ -1,6 +1,8 @@
 import logging
 
 from agents_core.agents.config import AGENT_METADATA
+from agents_core.business_logic.features import require_feature
+from agents_core.constants.features import FEATURE_DEPLOYED_AGENTS
 from agents_core.middlewares.auth import auth_middleware
 from agents_core.models.base import db
 from agents_core.models.deployed_agent import DeployedAgent
@@ -30,6 +32,7 @@ def list_deployed_agents():
 
 @bp.route("/user", methods=["POST"])
 @auth_middleware
+@require_feature(FEATURE_DEPLOYED_AGENTS)
 def deploy_agent():
     user_id = request.user.id
     body = request.get_json() or {}

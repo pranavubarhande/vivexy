@@ -3,7 +3,9 @@ import os
 
 import sentry_sdk
 from agents_core.models import db
+from agents_core.routes.admin import bp as admin_bp
 from agents_core.routes.agents import bp as agents_bp
+from agents_core.routes.announcements import bp as announcements_bp
 from agents_core.routes.approval import bp as approval_bp
 from agents_core.routes.auth import bp as auth_bp
 from agents_core.routes.chat import bp as chat_bp
@@ -14,6 +16,7 @@ from agents_core.routes.rag import bp as rag_bp
 from agents_core.routes.scheduled_tasks import bp as scheduled_tasks_bp
 from agents_core.routes.skills import bp as skills_bp
 from agents_core.routes.stripe import bp as stripe_bp
+from agents_core.routes.superadmin import bp as superadmin_bp
 from agents_core.routes.teams import bp as teams_bp
 from agents_core.routes.usage import bp as usage_bp
 from agents_core.routes.users import bp as users_bp
@@ -113,6 +116,9 @@ def create_app(config_object=None):
     app.register_blueprint(scheduled_tasks_bp)
     app.register_blueprint(projects_bp)
     app.register_blueprint(usage_bp)
+    app.register_blueprint(admin_bp)
+    app.register_blueprint(superadmin_bp)
+    app.register_blueprint(announcements_bp)
 
     @app.route("/health")
     def _health():

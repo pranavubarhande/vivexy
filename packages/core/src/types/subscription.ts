@@ -43,8 +43,41 @@ export type SubscriptionStatus =
 export type Plan = 'FREE' | 'PRO' | 'ENTERPRISE';
 
 export interface CreateSubscriptionData {
-  priceId: string;
-  teamId?: string;
+  plan: Exclude<Plan, 'FREE'>;
+  teamId: string;
+}
+
+export interface TeamSubscription {
+  id: string;
+  teamId: string | null;
+  plan: Plan;
+  status: SubscriptionStatus;
+  isManual: boolean;
+  currentPeriodStart: string | null;
+  currentPeriodEnd: string | null;
+  cancelAtPeriodEnd: boolean;
+}
+
+export interface BillingInvoice {
+  id: string;
+  amount: number; // cents
+  currency: string;
+  status: string;
+  plan: Plan | null;
+  invoicePdf: string | null;
+  hostedInvoiceUrl: string | null;
+  createdAt: string | null;
+}
+
+export interface BillingSummary {
+  teamId: string;
+  teamName: string;
+  viewerRole: 'OWNER' | 'ADMIN';
+  billingConfigured: boolean;
+  hasBillingAccount: boolean;
+  purchasablePlans: Plan[];
+  subscription: TeamSubscription | null;
+  invoices: BillingInvoice[];
 }
 
 export interface UpdateSubscriptionData {

@@ -17,6 +17,8 @@ class ScheduledTask(db.Model):
 
     id = db.Column(db.String, primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = db.Column(db.String, db.ForeignKey("users.id"), nullable=False)
+    # Team the run's chats are billed to; None means personal usage.
+    team_id = db.Column(db.String, db.ForeignKey("teams.id"), nullable=True, index=True)
 
     name = db.Column(db.String, nullable=False)
     prompt = db.Column(db.Text, nullable=False)
@@ -64,6 +66,7 @@ class ScheduledTask(db.Model):
         return {
             "id": self.id,
             "user_id": self.user_id,
+            "team_id": self.team_id,
             "name": self.name,
             "prompt": self.prompt,
             "schedule_type": self.schedule_type,

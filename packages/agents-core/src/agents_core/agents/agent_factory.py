@@ -3,8 +3,13 @@ import importlib
 import logging
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
+from agents_core.constants.features import (
+    FEATURE_CONNECTORS,
+    FEATURE_GITHUB,
+    FEATURE_RAG,
+)
 from agents_core.models.chat import Artifact, ChatAttachment
 from composio import Composio
 from composio_langchain import LangchainProvider
@@ -207,7 +212,7 @@ def get_finance_tools() -> List[BaseTool]:
     return tools
 
 
-def get_document_tools(chat_id: str) -> List[BaseTool]:
+def get_document_tools(chat_id: str, include_rag: bool = True) -> List[BaseTool]:
     """Get document-specific tools (e.g. analyze data, RAG)."""
     tools = []
     tools.extend(
@@ -215,9 +220,12 @@ def get_document_tools(chat_id: str) -> List[BaseTool]:
             "agents_core.tools.files.file_tools", "get_analyze_data_tool", [chat_id]
         )
     )
-    tools.extend(
-        safe_import_tool("agents_core.tools.rag.rag_tools", "get_rag_tools", [chat_id])
-    )
+    if include_rag:
+        tools.extend(
+            safe_import_tool(
+                "agents_core.tools.rag.rag_tools", "get_rag_tools", [chat_id]
+            )
+        )
     return tools
 
 
@@ -470,15 +478,23 @@ def create_agent(
     mcp_tools: Optional[List[Dict]] = None,
     user_api_keys: Optional[Dict[str, str]] = None,
     github_context: Optional[Dict] = None,
+    disabled_features: Optional[Set[str]] = None,
 ):
     """
     Create the single unified LangGraph agent using deepagents.
+
+    disabled_features: feature flags the user's organization has switched off
+    (see constants/features.py); their tools are left out of the agent.
     """
     ag_config = AgentConfig.from_env(
         provider=provider, model=model_id, user_api_keys=user_api_keys
     )
     user_skills = user_skills or []
     mcp_tools = mcp_tools or []
+    disabled_features = disabled_features or set()
+    include_rag = FEATURE_RAG not in disabled_features
+    if FEATURE_GITHUB in disabled_features:
+        github_context = None
 
     # 1. Assemble tools based on agent's declared tool groups
     meta = AGENT_METADATA.get(agent_id, AGENT_METADATA[DEFAULT_AGENT_ID])
@@ -489,7 +505,7 @@ def create_agent(
         "finance": get_finance_tools,
         "legal": get_legal_tools,
         "compliance": get_compliance_tools,
-        "document": lambda: get_document_tools(chat_id),
+        "document": lambda: get_document_tools(chat_id, include_rag),
         "market_data": get_market_data_tools,
         "sec_edgar": get_sec_edgar_tools,
         "legal_db": get_legal_db_tools,
@@ -514,11 +530,12 @@ def create_agent(
                 tools.append(t)
                 seen_names.add(t.name)
 
-    # Always add Composio tools for the user's connected accounts
-    for t in get_composio_tools(chat_id, user_id):
-        if t.name not in seen_names:
-            tools.append(t)
-            seen_names.add(t.name)
+    # Composio tools for the user's connected accounts, unless switched off
+    if FEATURE_CONNECTORS not in disabled_features:
+        for t in get_composio_tools(chat_id, user_id):
+            if t.name not in seen_names:
+                tools.append(t)
+                seen_names.add(t.name)
 
     # Optional client filesystem execution tools
     if client_tools_enabled:
@@ -551,7 +568,7 @@ def create_agent(
         "name": "researcher",
         "description": "Reads and analyzes documents, and searches files using RAG.",
         "system_prompt": "You are a thorough researcher. Look into the documents and files context using the RAG and data analysis tools to answer questions.",
-        "tools": get_document_tools(chat_id),
+        "tools": get_document_tools(chat_id, include_rag),
     }
 
     # 3. Sandbox backend

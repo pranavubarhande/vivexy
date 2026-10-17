@@ -1,3 +1,4 @@
+import { toast } from 'sonner';
 import { camelToSnake } from '@vivexy/core/lib/caseConverters';
 import { platform } from '@vivexy/core/lib/platform';
 import type {
@@ -76,8 +77,17 @@ export async function streamMessage(
     body,
     signal,
   });
-  if (!startRes.ok) throw new Error(`HTTP ${startRes.status}`);
-  const { streamId } = (await startRes.json()) as { streamId: string };
+  if (!startRes.ok) {
+    const errorBody = (await startRes.json().catch(() => null)) as {
+      error?: string;
+    } | null;
+    throw new Error(errorBody?.error ?? `HTTP ${startRes.status}`);
+  }
+  const { streamId, warnings } = (await startRes.json()) as {
+    streamId: string;
+    warnings?: string[];
+  };
+  warnings?.forEach((warning) => toast.warning(warning));
 
   // Step 2: Subscribe via EventSource — native browser SSE API, not intercepted
   // by Sentry's fetch instrumentation, so events arrive incrementally.

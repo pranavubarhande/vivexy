@@ -2,15 +2,17 @@
 Scheduled Task Runner
 Handles the heavy lifting for a single scheduled-task job:
   1. Load task from DB
-  2. Create a new Chat for this run
-  3. Fetch the user's enabled skills from DB
-  4. Build file contexts (S3 downloads)
-  5. Persist the user message
-  6. Record a ScheduledTaskRun (status=running)
-  7. Run the agent by draining run_agent_stream — this handles the full
+  2. Check the scheduled-tasks feature flag and the task team's policy
+     (membership, suspension, allowed models, budget block)
+  3. Create a new Chat for this run, billed to the task's team (if any)
+  4. Record a ScheduledTaskRun (status=running)
+  5. Fetch the user's enabled skills from DB
+  6. Build file contexts (S3 downloads)
+  7. Persist the user message
+  8. Run the agent by draining run_agent_stream — this handles the full
      LangGraph loop, tool calls, DB persistence of the assistant message,
      and artifact creation.  SSE strings are discarded (no client connected).
-  8. Update ScheduledTaskRun → completed / failed
+  9. Update ScheduledTaskRun → completed / failed
 
 Desktop vs Web
 --------------
@@ -39,7 +41,14 @@ def run_scheduled_task(task_id: str) -> None:
         create_chat,
         create_message,
     )
+    from agents_core.business_logic.features import ensure_feature
     from agents_core.business_logic.streaming import NoopAppContext, run_agent_stream
+    from agents_core.business_logic.team_policy import (
+        check_team_policy,
+        resolve_chat_team,
+    )
+    from agents_core.constants.features import FEATURE_SCHEDULED_TASKS
+    from agents_core.models.user import User
     from agents_core.services.file_processor import FileProcessor
     from agents_core.services.s3_service import S3Service
 
@@ -49,21 +58,44 @@ def run_scheduled_task(task_id: str) -> None:
         logger.error("Scheduled task id=%s not found — skipping", task_id)
         return
 
-    # ── 2. Create a fresh chat for this run ─────────────────────────────────
+    # ── 2. Check the org still allows this run, and who pays for it ──────────
+    # Policy refusals are recorded as failed runs, not raised: retrying won't
+    # help until an admin changes the team's settings.
+    try:
+        ensure_feature(task.user_id, FEATURE_SCHEDULED_TASKS)
+        team_id = resolve_chat_team(task.team_id, User.query.get(task.user_id))
+        check_team_policy(team_id, task.model_db_id)
+    except PermissionError as exc:
+        logger.warning("Scheduled task id=%s refused: %s", task_id, exc)
+        now = datetime.utcnow()
+        db.session.add(
+            ScheduledTaskRun(
+                task_id=task.id,
+                status="failed",
+                error=str(exc),
+                ran_at=now,
+                completed_at=now,
+            )
+        )
+        db.session.commit()
+        return
+
+    # ── 3. Create a fresh chat for this run ─────────────────────────────────
     chat_data = ChatCreate(
         agent_id=task.agent_id or DEFAULT_AGENT_ID,
         title=f"[Scheduled] {task.name}",
+        team_id=team_id,
     )
     chat = create_chat(chat_data, task.user_id)
     chat_id = chat.id if hasattr(chat, "id") else chat["id"]
 
-    # ── 3. Record the run (status=running) ──────────────────────────────────
+    # ── 4. Record the run (status=running) ──────────────────────────────────
     run = ScheduledTaskRun(task_id=task.id, chat_id=chat_id, status="running")
     db.session.add(run)
     db.session.commit()
 
     try:
-        # ── 4. Fetch user's enabled skills from DB ───────────────────────────
+        # ── 5. Fetch user's enabled skills from DB ───────────────────────────
         skills = UserSkill.query.filter_by(user_id=task.user_id, enabled=True).all()
         user_skills = [
             {
@@ -75,12 +107,12 @@ def run_scheduled_task(task_id: str) -> None:
             for s in skills
         ]
 
-        # ── 5. Build file and image contexts from pre-uploaded S3 attachments ─
+        # ── 6. Build file and image contexts from pre-uploaded S3 attachments ─
         file_contexts = _build_file_contexts(task.file_ids or [])
         # build_image_contexts with chat_id=None falls back to ID-only lookup
         image_contexts = build_image_contexts("", task.file_ids or [])
 
-        # ── 6. Persist the user message ─────────────────────────────────────
+        # ── 7. Persist the user message ─────────────────────────────────────
         messages = [{"role": "user", "content": task.prompt}]
         saved_msg = create_message(
             chat_id,
@@ -93,7 +125,7 @@ def run_scheduled_task(task_id: str) -> None:
             skip_auto_response=True,
         )
 
-        # ── 7. Run the agent ─────────────────────────────────────────────────
+        # ── 8. Run the agent ─────────────────────────────────────────────────
         # Drain run_agent_stream — it handles the full LangGraph loop, tool
         # calls, and DB persistence.  SSE strings are discarded (no client).
         #
@@ -118,7 +150,7 @@ def run_scheduled_task(task_id: str) -> None:
         ):
             pass  # SSE strings discarded — DB writes happen inside the generator
 
-        # ── 8. Mark run completed ────────────────────────────────────────────
+        # ── 9. Mark run completed ────────────────────────────────────────────
         run.status = "completed"
         run.completed_at = datetime.utcnow()
         db.session.commit()

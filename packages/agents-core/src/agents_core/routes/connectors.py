@@ -1,3 +1,5 @@
+from agents_core.business_logic.features import require_feature
+from agents_core.constants.features import FEATURE_CONNECTORS
 from agents_core.middlewares.auth import auth_middleware
 from composio import Composio
 from flask import Blueprint, jsonify, request
@@ -7,6 +9,7 @@ bp = Blueprint("connectors", __name__, url_prefix="/api/connectors")
 
 @bp.route("/active", methods=["GET"])
 @auth_middleware
+@require_feature(FEATURE_CONNECTORS)
 def list_active_connectors():
     """Get all connected apps for the authenticated user via Composio.
     ---
@@ -67,6 +70,7 @@ def list_active_connectors():
 
 @bp.route("/generate_link", methods=["GET"])
 @auth_middleware
+@require_feature(FEATURE_CONNECTORS)
 def generate_connection_link():
     """Generate a Composio OAuth link for a specific app.
     ---

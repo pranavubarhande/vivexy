@@ -10,6 +10,7 @@ from agents_core.models.enums import ArtifactType, MessageRole, TodoPriority, To
 class ChatBase(BaseModel):
     title: Optional[str] = None
     agent_id: Optional[str] = None
+    team_id: Optional[str] = None
 
 
 class ChatCreate(ChatBase):
