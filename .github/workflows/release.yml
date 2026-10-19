@@ -40,7 +40,8 @@ jobs:
         with:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
-      - run: npm publish --provenance --workspace @vivexy/ui --workspace @vivexy/core
+      # npm only signs provenance for public repositories.
+      - run: npm publish ${{ github.event.repository.private && '' || '--provenance' }} --workspace @vivexy/ui --workspace @vivexy/core
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
