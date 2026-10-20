@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Keeps @vivexy/ui, @vivexy/core, vivexy-agents-core and the Helm chart on one
-// version.
+// Keeps @vivexy/ui, @vivexy/core, @vivexy/desktop, vivexy-agents-core and the
+// Helm chart on one version.
 //   node scripts/release-version.mjs 0.2.0          bump manifests and lockfiles
 //   node scripts/release-version.mjs --check 0.2.0  fail unless all match (CI)
 // It also refreshes packages/agents-core/constraints.txt: the exact versions
@@ -11,7 +11,11 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const npmManifests = ['packages/ui/package.json', 'packages/core/package.json'];
+const npmManifests = [
+  'packages/ui/package.json',
+  'packages/core/package.json',
+  'packages/desktop/package.json',
+];
 const dependentManifests = [
   'packages/core/package.json',
   'apps/frontend/package.json',
@@ -91,6 +95,10 @@ const bump = (version) => {
   );
   execSync('npm install --package-lock-only --ignore-scripts', {
     cwd: root,
+    stdio: 'inherit',
+  });
+  execSync('npm install --package-lock-only --ignore-scripts --no-workspaces', {
+    cwd: join(root, 'packages/desktop'),
     stdio: 'inherit',
   });
   execSync('uv lock', { cwd: root, stdio: 'inherit' });

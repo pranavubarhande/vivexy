@@ -1,8 +1,9 @@
 name: release
 
-# Publishes @vivexy/ui, @vivexy/core (npm), vivexy-agents-core (PyPI) and the
-# Helm chart (oci://ghcr.io/<owner>/charts/vivexy) at one shared version. While the repository is private, a tag only runs
-# `verify` (products pin the tag via git); publishing starts once it's public.
+# Publishes @vivexy/ui, @vivexy/core, @vivexy/desktop (npm), vivexy-agents-core
+# (PyPI) and the Helm chart (oci://ghcr.io/<owner>/charts/vivexy) at one shared
+# version. While the repository is private, a tag only runs `verify` (products
+# pin the tag via git); publishing starts once it's public.
 # Bump with `npm run release:version -- 0.2.0`, commit, then
 # `git tag v0.2.0 && git push --tags`.
 #
@@ -44,6 +45,14 @@ jobs:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
       - run: npm publish --provenance --workspace @vivexy/ui --workspace @vivexy/core
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      # @vivexy/desktop ships compiled JS and lives outside the root workspaces;
+      # npm publish runs its prepack (tsc) build.
+      - run: npm ci --no-workspaces --ignore-scripts
+        working-directory: packages/desktop
+      - run: npm publish --provenance --no-workspaces
+        working-directory: packages/desktop
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
