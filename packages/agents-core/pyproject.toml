@@ -1,6 +1,6 @@
 [project]
 name = "vivexy-agents-core"
-version = "0.2.0"
+version = "0.3.0"
 description = "Core agent orchestration, tools, and business logic for Vivexy"
 requires-python = ">=3.11"
 license = "AGPL-3.0-or-later"
