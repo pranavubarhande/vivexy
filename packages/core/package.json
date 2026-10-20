@@ -1,6 +1,6 @@
 {
   "name": "@vivexy/core",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "license": "AGPL-3.0-or-later",
   "repository": {
@@ -44,7 +44,7 @@
     "next": "^16.0.10"
   },
   "dependencies": {
-    "@vivexy/ui": "0.1.0",
+    "@vivexy/ui": "0.2.0",
     "react-hook-form": "^7.65.0",
     "lucide-react": "^0.546.0",
     "axios": "^1.12.2",
