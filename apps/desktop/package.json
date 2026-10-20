@@ -14,12 +14,15 @@
     "private": true,
     "main": "dist/main.js",
     "scripts": {
-        "dev": "concurrently -k \"tsc -w\" \"tsc-alias -w\" \"electronmon .\"",
+        "dev": "concurrently -k \"tsc -w\" \"npm run build:preload -- --watch=forever\" \"electronmon .\"",
         "format": "npx prettier --write .",
         "format:check": "npx prettier --check .",
-        "build": "tsc && tsc-alias",
+        "build": "tsc && npm run build:preload",
+        "build:preload": "tsc -p tsconfig.preload.json && esbuild preload.ts --bundle --platform=node --format=cjs --target=es2022 --external:electron --outfile=dist/preload.js",
+        "build:package": "cd ../../packages/desktop && npm install --no-workspaces --ignore-scripts && npm run build",
+        "install:package": "node -e \"require('fs').rmSync('node_modules/@vivexy/desktop',{recursive:true,force:true})\" && npm install",
         "build:renderer": "cd ../frontend && NEXT_DESKTOP=1 npx next build && cp -r out/ ../desktop/renderer/",
-        "build:all": "npm run build:renderer && npm run build",
+        "build:all": "npm run build:package && npm run install:package && npm run build:renderer && npm run build",
         "start": "electron .",
         "package": "npm run build:all && electron-builder --mac --win --linux",
         "package:mac": "npm run build:all && electron-builder --mac",
@@ -28,21 +31,17 @@
         "release": "npm run build:all && electron-builder --publish always"
     },
     "dependencies": {
-        "@modelcontextprotocol/sdk": "^1.29.0",
-        "csv-parse": "^5.6.0",
-        "pdf-parse": "^1.1.1",
-        "xlsx": "^0.18.5"
+        "@vivexy/desktop": "file:../../packages/desktop"
     },
     "devDependencies": {
-        "@types/pdf-parse": "^1.1.4",
         "concurrently": "^9.2.1",
         "electron": "33.4.11",
         "electron-builder": "^25.1.8",
         "electronmon": "^2.0.4",
+        "esbuild": "^0.25.0",
         "png-to-ico": "^3.0.1",
         "sharp": "^0.34.5",
         "to-ico": "^1.1.5",
-        "tsc-alias": "^1.8.16",
         "typescript": "^5.7.0"
     }
 }
