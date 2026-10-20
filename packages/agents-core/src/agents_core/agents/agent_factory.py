@@ -5,7 +5,6 @@ import os
 from typing import Any, Callable, Dict, List, Optional, Set
 
 from agents_core.agents.config import (
-    DEFAULT_AGENT_ID,
     DESKTOP_ENVIRONMENT_PROMPT,
     TASK_TOOL_DESCRIPTION,
     WEB_ENVIRONMENT_PROMPT,
@@ -13,6 +12,7 @@ from agents_core.agents.config import (
     AgentConfig,
     FileContext,
     get_agent_metadata,
+    get_default_agent_id,
     get_system_prompt,
 )
 from agents_core.agents.skill_loader import SandboxSkillSync, load_builtin_skills
@@ -531,7 +531,9 @@ def create_agent(
 
     # 1. Assemble tools based on agent's declared tool groups
     agent_metadata = get_agent_metadata()
-    meta = agent_metadata.get(agent_id, agent_metadata[DEFAULT_AGENT_ID])
+    if agent_id not in agent_metadata:
+        agent_id = get_default_agent_id()
+    meta = agent_metadata[agent_id]
     tool_groups = meta.get("tools", ["base"])
 
     _TOOL_LOADERS = {

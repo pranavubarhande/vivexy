@@ -16,7 +16,7 @@ from agents_core.schemas import ChatCreate, ChatResponse, LLMModelResponse, Mess
 from sqlalchemy.orm import joinedload
 
 from agents_core.agents.agent_factory import create_langgraph_agent
-from agents_core.agents.config import DEFAULT_AGENT_ID, FileContext
+from agents_core.agents.config import FileContext, get_default_agent_id
 from agents_core.business_logic.artifacts import resolve_artifact_content
 from agents_core.services.file_processor import FileProcessor
 from agents_core.services.s3_service import S3Service
@@ -632,7 +632,7 @@ def create_agent_response(
     """Create an AI response using the unified agent."""
     try:
         agent = create_langgraph_agent(
-            DEFAULT_AGENT_ID, provider, model_id, chat_id, user_id=user_id
+            get_default_agent_id(), provider, model_id, chat_id, user_id=user_id
         )
         simple_messages = [
             {"role": msg["role"], "content": msg["content"]} for msg in messages

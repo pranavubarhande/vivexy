@@ -13,7 +13,7 @@ from dataclasses import asdict
 
 import redis as redis_lib
 from agents_core.agents.client_tool_store import resolve_client_tool
-from agents_core.agents.config import DEFAULT_AGENT_ID
+from agents_core.agents.config import get_default_agent_id
 from agents_core.business_logic.artifacts import (
     create_artifact,
     export_artifact,
@@ -1283,7 +1283,7 @@ def start_chat_stream():
 
         update_chat(
             chat_id,
-            {"last_model_id": model_db_id, "agent_id": DEFAULT_AGENT_ID},
+            {"last_model_id": model_db_id, "agent_id": get_default_agent_id()},
             user_id,
         )
 

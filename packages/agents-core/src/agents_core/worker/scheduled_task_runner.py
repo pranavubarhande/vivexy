@@ -35,7 +35,7 @@ def run_scheduled_task(task_id: str) -> None:
     from agents_core.models.skill import UserSkill
     from agents_core.schemas.chat import ChatCreate
 
-    from agents_core.agents.config import DEFAULT_AGENT_ID, FileContext
+    from agents_core.agents.config import FileContext, get_default_agent_id
     from agents_core.business_logic.chat import (
         build_image_contexts,
         create_chat,
@@ -82,7 +82,7 @@ def run_scheduled_task(task_id: str) -> None:
 
     # ── 3. Create a fresh chat for this run ─────────────────────────────────
     chat_data = ChatCreate(
-        agent_id=task.agent_id or DEFAULT_AGENT_ID,
+        agent_id=task.agent_id or get_default_agent_id(),
         title=f"[Scheduled] {task.name}",
         team_id=team_id,
     )

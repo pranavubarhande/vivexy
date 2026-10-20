@@ -10,7 +10,12 @@ from operator import add
 from typing import Annotated, Any, Dict, List, Optional, TypedDict
 
 from agents_core.enum.agent_enums import AgentPhase, AgentType, TaskStatus
-from agents_core.extensions import get_extension_agents, get_extension_system_prompt
+from agents_core.extensions import (
+    core_agents_included,
+    get_extension_agents,
+    get_extension_default_agent_id,
+    get_extension_system_prompt,
+)
 from agents_core.types.agent_types import (
     AgentState,
     ApprovalRequest,
@@ -573,7 +578,16 @@ SYSTEM_PROMPTS: Dict[str, str] = {
 
 
 def get_agent_metadata() -> Dict[str, Dict[str, Any]]:
-    return {**AGENT_METADATA, **get_extension_agents()}
+    core_agents = AGENT_METADATA if core_agents_included() else {}
+    return {**core_agents, **get_extension_agents()}
+
+
+def get_default_agent_id() -> str:
+    agent_metadata = get_agent_metadata()
+    for agent_id in (get_extension_default_agent_id(), DEFAULT_AGENT_ID):
+        if agent_id in agent_metadata:
+            return agent_id
+    return next(iter(agent_metadata), DEFAULT_AGENT_ID)
 
 
 def get_system_prompt(agent_id: str) -> str:
