@@ -1,8 +1,10 @@
 name: release
 
 # Publishes @vivexy/ui, @vivexy/core (npm) and vivexy-agents-core (PyPI) at
-# one shared version. Bump with `npm run release:version -- 0.2.0`, commit,
-# then `git tag v0.2.0 && git push --tags`.
+# one shared version. While the repository is private, a tag only runs
+# `verify` (products pin the tag via git); publishing starts once it's public.
+# Bump with `npm run release:version -- 0.2.0`, commit, then
+# `git tag v0.2.0 && git push --tags`.
 #
 # One-time setup:
 #   - npm: create the `vivexy` org and add an automation token as NPM_TOKEN.
@@ -30,6 +32,7 @@ jobs:
 
   npm:
     needs: verify
+    if: ${{ !github.event.repository.private }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -40,13 +43,13 @@ jobs:
         with:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
-      # npm only signs provenance for public repositories.
-      - run: npm publish ${{ github.event.repository.private && '' || '--provenance' }} --workspace @vivexy/ui --workspace @vivexy/core
+      - run: npm publish --provenance --workspace @vivexy/ui --workspace @vivexy/core
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   pypi:
     needs: verify
+    if: ${{ !github.event.repository.private }}
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
