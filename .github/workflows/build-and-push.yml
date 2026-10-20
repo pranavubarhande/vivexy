@@ -48,6 +48,13 @@ jobs:
       - name: Run tests (pytest + vitest via turbo)
         run: npm run test
 
+      - name: Test @vivexy/desktop (outside the root workspaces)
+        working-directory: packages/desktop
+        run: |
+          npm ci --no-workspaces --ignore-scripts
+          npm run typecheck
+          npm test
+
       - name: Set up Helm
         uses: azure/setup-helm@v4
         with:

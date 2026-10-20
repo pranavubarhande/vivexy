@@ -13,18 +13,18 @@ import * as path from 'path';
  * Example: report.xlsx → report_v2.xlsx → report_v3.xlsx
  */
 export const nextAvailableName = (filePath: string): string => {
-    if (!fs.existsSync(filePath)) return filePath;
+  if (!fs.existsSync(filePath)) return filePath;
 
-    const dir = path.dirname(filePath);
-    const ext = path.extname(filePath);
-    const base = path.basename(filePath, ext);
+  const dir = path.dirname(filePath);
+  const ext = path.extname(filePath);
+  const base = path.basename(filePath, ext);
 
-    let version = 2;
-    let candidate: string;
-    do {
-        candidate = path.join(dir, `${base}_v${version}${ext}`);
-        version++;
-    } while (fs.existsSync(candidate));
+  let version = 2;
+  let candidate: string;
+  do {
+    candidate = path.join(dir, `${base}_v${version}${ext}`);
+    version++;
+  } while (fs.existsSync(candidate));
 
-    return candidate;
+  return candidate;
 };

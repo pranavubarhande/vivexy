@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Keeps @vivexy/ui, @vivexy/core and vivexy-agents-core on one version.
+// Keeps @vivexy/ui, @vivexy/core, @vivexy/desktop, vivexy-agents-core and the
+// Helm chart on one version.
 //   node scripts/release-version.mjs 0.2.0          bump manifests and lockfiles
 //   node scripts/release-version.mjs --check 0.2.0  fail unless all match (CI)
 // It also refreshes packages/agents-core/constraints.txt: the exact versions
@@ -10,7 +11,11 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const npmManifests = ['packages/ui/package.json', 'packages/core/package.json'];
+const npmManifests = [
+  'packages/ui/package.json',
+  'packages/core/package.json',
+  'packages/desktop/package.json',
+];
 const dependentManifests = [
   'packages/core/package.json',
   'apps/frontend/package.json',
@@ -18,6 +23,9 @@ const dependentManifests = [
 const pyproject = 'packages/agents-core/pyproject.toml';
 const pyVersionPattern = /^version = "([^"]+)"/m;
 const constraintsFile = 'packages/agents-core/constraints.txt';
+const chartFile = 'infra/k8s/charts/vivexy/Chart.yaml';
+const chartVersionPattern = /^version: (.+)$/m;
+const chartAppVersionPattern = /^appVersion: .+$/m;
 const exportConstraints = () =>
   execSync(
     'uv export --package vivexy-agents-core --frozen --no-dev --no-hashes --no-emit-workspace --no-header --no-annotate',
@@ -34,6 +42,9 @@ const currentVersions = () => ({
   ),
   [pyproject]: readFileSync(join(root, pyproject), 'utf8').match(
     pyVersionPattern
+  )[1],
+  [chartFile]: readFileSync(join(root, chartFile), 'utf8').match(
+    chartVersionPattern
   )[1],
 });
 
@@ -75,8 +86,19 @@ const bump = (version) => {
       `version = "${version}"`
     )
   );
+  const chartPath = join(root, chartFile);
+  writeFileSync(
+    chartPath,
+    readFileSync(chartPath, 'utf8')
+      .replace(chartVersionPattern, `version: ${version}`)
+      .replace(chartAppVersionPattern, `appVersion: "${version}"`)
+  );
   execSync('npm install --package-lock-only --ignore-scripts', {
     cwd: root,
+    stdio: 'inherit',
+  });
+  execSync('npm install --package-lock-only --ignore-scripts --no-workspaces', {
+    cwd: join(root, 'packages/desktop'),
     stdio: 'inherit',
   });
   execSync('uv lock', { cwd: root, stdio: 'inherit' });

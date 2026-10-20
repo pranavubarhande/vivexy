@@ -42,14 +42,20 @@ extension = VivexyExtension(
 )
 ```
 
-| Field         | Effect                                                                                               |
-| ------------- | ---------------------------------------------------------------------------------------------------- |
-| `tool_groups` | Group name → `loader(ToolContext) -> list[BaseTool]`. Agents reference groups in their `tools` list. |
-| `agents`      | Merged over core `AGENT_METADATA`; an extension may override a core agent by reusing its id.         |
-| `blueprints`  | Registered by `agents_core.app_factory.create_app` after the core blueprints.                        |
-| `skill_dirs`  | Directories of `<skill>/SKILL.md`, indexed alongside the built-in skills.                            |
+| Field                 | Effect                                                                                               |
+| --------------------- | ---------------------------------------------------------------------------------------------------- |
+| `tool_groups`         | Group name → `loader(ToolContext) -> list[BaseTool]`. Agents reference groups in their `tools` list. |
+| `agents`              | Merged over core `AGENT_METADATA`; an extension may override a core agent by reusing its id.         |
+| `blueprints`          | Registered by `agents_core.app_factory.create_app` after the core blueprints.                        |
+| `skill_dirs`          | Directories of `<skill>/SKILL.md`, indexed alongside the built-in skills.                            |
+| `include_core_agents` | `False` hides Vivexy's example agents, so the product offers only its own.                           |
+| `default_agent_id`    | Agent used when a request names none (chat, scheduled tasks).                                        |
 
 A failing extension or tool loader is logged and skipped; it never takes core down.
+
+Operational commands ship in the package and run from any product image:
+`python -m agents_core.cli.seed_llm_models`, `python -m agents_core.cli.promote_superadmin
+<email>` and `python -m agents_core.cli.run_maintenance`.
 
 The extension's Flask entrypoint is just:
 
@@ -58,6 +64,107 @@ from agents_core.app_factory import create_app
 
 app = create_app(Config, swagger_template=SWAGGER_TEMPLATE)
 ```
+
+## Frontend
+
+`@vivexy/core` ships every page as a screen, so a product's Next.js routes are
+one-line re-exports:
+
+```tsx
+// app/(dashboard)/teams/page.tsx
+export { default } from '@vivexy/core/screens/teams';
+```
+
+Available screens: `chat`, `dashboard`, `scheduled-tasks`, `settings`, `billing`,
+`connectors`, `cost-manager`, `teams`, `admin`, `superadmin`, `login`, `register`,
+`verify-email`, `auth-callback`.
+
+Branding, the sidebar and the agent catalogue come from `AppConfigProvider`. The config
+holds icon components, so render the provider from a `'use client'` module and wrap the
+root layout's children with it:
+
+```tsx
+'use client';
+import { Scale } from 'lucide-react';
+import { AppConfigProvider } from '@vivexy/core/shared/app-config-provider';
+import { DEFAULT_NAV_GROUPS } from '@vivexy/core/configs/app-config';
+
+export const LegalAppConfig = ({ children }: { children: React.ReactNode }) => (
+  <AppConfigProvider
+    config={{
+      appName: 'Vivexy Legal',
+      logoSrc: '/logo.png',
+      auth: { headline: 'AI workspaces for legal teams' },
+      navGroups: [
+        ...DEFAULT_NAV_GROUPS,
+        {
+          label: 'Legal',
+          items: [{ label: 'Clause Library', href: '/clauses', icon: Scale }],
+        },
+      ],
+      agents: {
+        base: [legalAssistant],
+        catalogue: legalCatalogue,
+        categories: [{ name: 'Legal', color: '#0891b2' }],
+        defaultAgentId: 'legal-assistant',
+      },
+    }}
+  >
+    {children}
+  </AppConfigProvider>
+);
+```
+
+Anything left out keeps Vivexy's default (`DEFAULT_APP_CONFIG` in
+`@vivexy/core/configs/app-config`). Agent ids in the frontend config must match the
+agents the backend extension registers.
+
+## Desktop app
+
+`@vivexy/desktop` holds the whole Electron runtime. A product's desktop app is two small
+files plus its own `electron-builder.yml` (appId, productName, icons, publish repo) and a
+`build:renderer` script that static-exports its own frontend (`NEXT_DESKTOP=1`):
+
+```ts
+// main.ts
+import * as path from 'path';
+import { createDesktopApp } from '@vivexy/desktop';
+
+createDesktopApp({
+  productName: 'Vivexy Legal',
+  dataNamespace: 'vivexy-legal', // ~/.vivexy-legal-config.json, .vivexy-legal/ in workspaces
+  preloadPath: path.join(__dirname, 'preload.js'),
+});
+```
+
+```ts
+// preload.ts (bundle with esbuild: sandboxed preloads can only require 'electron')
+import { exposeElectronAPI } from '@vivexy/desktop/preload';
+
+exposeElectronAPI();
+```
+
+See `packages/desktop/README.md` for every config option.
+
+## Deployment
+
+The Helm chart is published as `oci://ghcr.io/<owner>/charts/vivexy` at the shared
+version. A product deploys it with its own values: its images (`image.owner`,
+`image.agentsRepository`, `image.frontendRepository`), hosts, database name and secrets,
+`partOf`/`nameOverride` for labels, and `migrations.commands` to run its own Alembic
+history after core's:
+
+```yaml
+migrations:
+  commands:
+    - uv run alembic upgrade head
+    - uv run alembic -n legal upgrade head
+    - uv run python -m agents_core.cli.seed_llm_models
+```
+
+The product's agents image must contain a `wsgi.py` exposing `app` (or set
+`agents.wsgiApp`), an `alembic.ini`, and uv with the project in its WORKDIR, like
+vivexy's `infra/docker/agents-service.Dockerfile`.
 
 ## Database migrations
 

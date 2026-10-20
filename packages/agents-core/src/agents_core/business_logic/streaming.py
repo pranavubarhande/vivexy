@@ -16,7 +16,7 @@ from agents_core.agents.client_tool_store import (
     create_client_tool_event,
     wait_for_client_tool,
 )
-from agents_core.agents.config import FileContext
+from agents_core.agents.config import FileContext, get_default_agent_id
 from agents_core.business_logic.api_keys import get_decrypted_api_keys
 from agents_core.business_logic.artifacts import link_artifacts_to_message
 from agents_core.business_logic.chat import create_message
@@ -95,7 +95,7 @@ def run_agent_stream(
             pass
 
         agent = create_agent(
-            agent_id="assistant",
+            agent_id=get_default_agent_id(),
             provider=model_provider,
             model_id=model_id,
             chat_id=chat_id,

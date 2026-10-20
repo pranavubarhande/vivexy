@@ -1,12 +1,12 @@
-Vivexy deployed as release {{ .Release.Name }} in namespace {{ .Release.Namespace }}.
+{{ .Values.partOf }} deployed as release {{ .Release.Name }} in namespace {{ .Release.Namespace }}.
 
 Frontend:  http{{ if .Values.ingress.clusterIssuer }}s{{ end }}://{{ .Values.ingress.frontendHost }}
 API:       http{{ if .Values.ingress.clusterIssuer }}s{{ end }}://{{ .Values.ingress.apiHost }}
 
 Check rollout status:
   kubectl -n {{ .Release.Namespace }} get pods
-  kubectl -n {{ .Release.Namespace }} logs -l app.kubernetes.io/name=vivexy-agents -f
-  kubectl -n {{ .Release.Namespace }} logs -l app.kubernetes.io/name=vivexy-worker -f
+  kubectl -n {{ .Release.Namespace }} logs -l app.kubernetes.io/name={{ .Values.nameOverride }}-agents -f
+  kubectl -n {{ .Release.Namespace }} logs -l app.kubernetes.io/name={{ .Values.nameOverride }}-worker -f
 
 Check the migration Job if the release is stuck pending:
   kubectl -n {{ .Release.Namespace }} logs job/{{ .Release.Name }}-migrations-{{ .Release.Revision }}

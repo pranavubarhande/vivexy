@@ -3,8 +3,10 @@ from unittest.mock import MagicMock, patch
 import pytest
 from agents_core import extensions
 from agents_core.agents.config import (
+    DEFAULT_AGENT_ID,
     UNIFIED_SYSTEM_PROMPT,
     get_agent_metadata,
+    get_default_agent_id,
     get_system_prompt,
 )
 from agents_core.agents.skill_loader import load_builtin_skills
@@ -97,6 +99,26 @@ def test_extension_agents_and_prompt(installed, legal_extension):
     assert "system_prompt" not in metadata
     assert get_system_prompt("nda-reviewer") == "You review NDAs."
     assert get_system_prompt("unknown-agent") == UNIFIED_SYSTEM_PROMPT
+
+
+def test_core_agents_stay_by_default(installed, legal_extension):
+    installed(legal_extension)
+    assert "contract-review" in get_agent_metadata()
+    assert get_default_agent_id() == DEFAULT_AGENT_ID
+
+
+def test_extension_can_hide_core_agents_and_set_default(installed, legal_extension):
+    legal_extension.include_core_agents = False
+    legal_extension.default_agent_id = "nda-reviewer"
+    installed(legal_extension)
+    assert list(get_agent_metadata()) == ["nda-reviewer"]
+    assert get_default_agent_id() == "nda-reviewer"
+
+
+def test_default_agent_falls_back_to_first_available(installed, legal_extension):
+    legal_extension.include_core_agents = False
+    installed(legal_extension)
+    assert get_default_agent_id() == "nda-reviewer"
 
 
 def test_extension_factory_and_tool_groups(installed, legal_extension):

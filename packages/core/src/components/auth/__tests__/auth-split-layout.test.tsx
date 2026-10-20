@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { AuthSplitLayout } from '../auth-split-layout';
+import { AppConfigProvider } from '@vivexy/core/shared/app-config-provider';
 
 // This test file is the first in this codebase to render a component
 // that uses next/image. There's no existing precedent/mock for it in
@@ -32,5 +33,35 @@ describe('AuthSplitLayout', () => {
     expect(
       screen.getByText('AI Workspaces for Professional Teams')
     ).toBeInTheDocument();
+  });
+
+  it('uses the product branding from AppConfigProvider', () => {
+    render(
+      <AppConfigProvider
+        config={{
+          appName: 'Vivexy Legal',
+          logoSrc: '/legal-logo.png',
+          auth: {
+            headline: 'AI for legal teams',
+            highlights: ['Clause library'],
+          },
+        }}
+      >
+        <AuthSplitLayout>
+          <div>Form content</div>
+        </AuthSplitLayout>
+      </AppConfigProvider>
+    );
+
+    expect(screen.getAllByText('Vivexy Legal').length).toBe(2);
+    expect(screen.getByText('AI for legal teams')).toBeInTheDocument();
+    expect(screen.getByText('Clause library')).toBeInTheDocument();
+    expect(
+      screen.getByText('Built for legal, finance & compliance')
+    ).toBeInTheDocument();
+    expect(screen.getAllByAltText('Vivexy Legal')[0]).toHaveAttribute(
+      'src',
+      '/legal-logo.png'
+    );
   });
 });

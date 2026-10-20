@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { usePathname } from 'next/navigation';
-import { PUBLIC_ROUTES, AUTH_ROUTES } from '@vivexy/core/constants/routes';
+import { useAppConfig } from '@vivexy/core/shared/app-config-provider';
 import { AppSidebar } from '@vivexy/core/dashboard/sidebar';
 import { SidebarProvider, useSidebar } from '@vivexy/ui/sidebar';
 import { DashboardHeader } from '@vivexy/core/dashboard/header';
@@ -48,13 +48,14 @@ export function AppShell({
   appName?: string;
 }) {
   const pathname = usePathname();
+  const { publicRoutes, authRoutes } = useAppConfig();
 
   const normalizedPath = pathname.replace(/\/$/, '') || '/';
   const noChrome = React.useMemo(
     () =>
-      PUBLIC_ROUTES.includes(normalizedPath) ||
-      AUTH_ROUTES.includes(normalizedPath),
-    [normalizedPath]
+      publicRoutes.includes(normalizedPath) ||
+      authRoutes.includes(normalizedPath),
+    [normalizedPath, publicRoutes, authRoutes]
   );
 
   if (noChrome) return <>{children}</>;

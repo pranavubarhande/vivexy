@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import type { SkillConfig } from '@vivexy/core/types/electron';
+import { useAppConfig } from '@vivexy/core/shared/app-config-provider';
 import type { OfficialSkill } from '@vivexy/core/services/skills.service';
 import { useInstalledSkills } from '@vivexy/core/hooks/useInstalledSkills';
 import { useOfficialSkills } from '@vivexy/core/hooks/useOfficialSkills';
@@ -236,7 +237,13 @@ const GithubSkillCard = ({
 
 // ── Main Component ────────────────────────────────────────────────────
 
-export const SkillsSettings = ({ appName = 'App' }: { appName?: string }) => {
+export const SkillsSettings = ({
+  appName: appNameProp,
+}: {
+  appName?: string;
+}) => {
+  const { appName: configAppName } = useAppConfig();
+  const appName = appNameProp ?? configAppName;
   const { skills, skillsDir, saveSkill, toggleSkill, deleteSkill } =
     useInstalledSkills();
   const { data: officialSkills = [], isLoading: officialLoading } =

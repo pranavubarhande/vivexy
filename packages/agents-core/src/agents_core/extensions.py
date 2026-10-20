@@ -39,6 +39,9 @@ class VivexyExtension:
     tool_groups: group name -> loader; agents list group names under "tools".
     agents: agent id -> metadata in the same shape as AGENT_METADATA, plus an
         optional "system_prompt" that overrides the unified prompt.
+    include_core_agents: False hides Vivexy's example agents, so the product
+        offers only its own.
+    default_agent_id: agent used when a request names none (e.g. chat).
     """
 
     name: str
@@ -46,6 +49,8 @@ class VivexyExtension:
     agents: Dict[str, Dict[str, Any]] = field(default_factory=dict)
     blueprints: List[Blueprint] = field(default_factory=list)
     skill_dirs: List[Path] = field(default_factory=list)
+    include_core_agents: bool = True
+    default_agent_id: Optional[str] = None
 
 
 @lru_cache(maxsize=1)
@@ -85,6 +90,17 @@ def get_extension_agents() -> Dict[str, Dict[str, Any]]:
                 **{k: v for k, v in metadata.items() if k != "system_prompt"},
             }
     return agents
+
+
+def core_agents_included() -> bool:
+    return all(extension.include_core_agents for extension in load_extensions())
+
+
+def get_extension_default_agent_id() -> Optional[str]:
+    agent_id = None
+    for extension in load_extensions():
+        agent_id = extension.default_agent_id or agent_id
+    return agent_id
 
 
 def get_extension_blueprints() -> List[Blueprint]:

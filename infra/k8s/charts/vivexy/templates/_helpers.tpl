@@ -11,7 +11,7 @@ Common labels applied to every resource this chart owns.
 {{- define "vivexy.labels" -}}
 helm.sh/chart: {{ include "vivexy.chart" . }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
-app.kubernetes.io/part-of: vivexy
+app.kubernetes.io/part-of: {{ .Values.partOf }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end -}}
 
@@ -20,7 +20,7 @@ Selector labels for a given component (frontend/agents/worker/scheduler).
 Usage: {{ include "vivexy.selectorLabels" (dict "component" "agents" "root" $) }}
 */}}
 {{- define "vivexy.selectorLabels" -}}
-app.kubernetes.io/name: vivexy-{{ .component }}
+app.kubernetes.io/name: {{ .root.Values.nameOverride }}-{{ .component }}
 app.kubernetes.io/instance: {{ .root.Release.Name }}
 {{- end -}}
 

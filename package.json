@@ -6,7 +6,8 @@
   "workspaces": [
     "apps/frontend",
     "apps/agents-service",
-    "packages/*"
+    "packages/core",
+    "packages/ui"
   ],
   "scripts": {
     "install:all": "npm install && npm run install:apps && npm run setup:agents",

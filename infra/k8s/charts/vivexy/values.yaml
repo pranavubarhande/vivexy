@@ -3,6 +3,11 @@
 #   helm upgrade --install vivexy . -f values.yaml -f values-prod.yaml \
 #     --set image.tag=$IMAGE_TAG -n vivexy --create-namespace
 
+# Products built on Vivexy (e.g. vivexy-legal) install this chart with their own
+# images and values; these two only change labels and selectors.
+partOf: vivexy
+nameOverride: vivexy
+
 # ---------------------------------------------------------------------------
 # Images
 # ---------------------------------------------------------------------------
@@ -62,6 +67,8 @@ frontend:
 agents:
   replicaCount: 2
   containerPort: 5000
+  wsgiApp: wsgi:app # module:attribute gunicorn serves, relative to the image WORKDIR
+  s3Region: us-east-1
   resources:
     requests: { cpu: 500m, memory: 1Gi }
     limits: { cpu: '2', memory: 2Gi }
@@ -136,6 +143,11 @@ migrations:
   enabled: true
   backoffLimit: 2
   activeDeadlineSeconds: 1800
+  # Run in order from the image WORKDIR once Postgres is reachable. Products add
+  # their own history, e.g. "uv run alembic -n legal upgrade head".
+  commands:
+    - uv run alembic upgrade head
+    - uv run python -m agents_core.cli.seed_llm_models
 
 # ---------------------------------------------------------------------------
 # Ingress

@@ -10,14 +10,8 @@
         "skipLibCheck": true,
         "forceConsistentCasingInFileNames": true,
         "resolveJsonModule": true,
-        "declaration": true,
-        "declarationMap": true,
-        "sourceMap": true,
-        "baseUrl": ".",
-        "paths": {
-            "@/*": ["./*"]
-        }
+        "sourceMap": true
     },
-    "include": ["main.ts", "preload.ts", "tools/**/*.ts"],
+    "include": ["main.ts"],
     "exclude": ["node_modules", "dist"]
 }
