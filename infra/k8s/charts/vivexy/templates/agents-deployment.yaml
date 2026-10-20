@@ -28,7 +28,7 @@ spec:
             - |
               set -e
               {{- include "vivexy.composeConnectionUrls" . | nindent 14 }}
-              exec gunicorn --bind 0.0.0.0:5000 --workers 2 --threads 4 --timeout 120 --access-logfile - wsgi:app
+              exec gunicorn --bind 0.0.0.0:{{ .Values.agents.containerPort }} --workers 2 --threads 4 --timeout 120 --access-logfile - {{ .Values.agents.wsgiApp }}
           ports:
             - name: http
               containerPort: {{ .Values.agents.containerPort }}

@@ -1,7 +1,7 @@
 name: release
 
-# Publishes @vivexy/ui, @vivexy/core (npm) and vivexy-agents-core (PyPI) at
-# one shared version. While the repository is private, a tag only runs
+# Publishes @vivexy/ui, @vivexy/core (npm), vivexy-agents-core (PyPI) and the
+# Helm chart (oci://ghcr.io/<owner>/charts/vivexy) at one shared version. While the repository is private, a tag only runs
 # `verify` (products pin the tag via git); publishing starts once it's public.
 # Bump with `npm run release:version -- 0.2.0`, commit, then
 # `git tag v0.2.0 && git push --tags`.
@@ -60,3 +60,21 @@ jobs:
       - uses: astral-sh/setup-uv@v3
       - run: uv build --package vivexy-agents-core --out-dir dist
       - uses: pypa/gh-action-pypi-publish@release/v1
+
+  chart:
+    needs: verify
+    if: ${{ !github.event.repository.private }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.16.3
+      - run: helm repo add minio https://charts.min.io/
+      - run: helm dependency build infra/k8s/charts/vivexy
+      - run: helm package infra/k8s/charts/vivexy --destination dist
+      - run: echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io --username "${{ github.actor }}" --password-stdin
+      - run: helm push dist/vivexy-*.tgz "oci://ghcr.io/${{ github.repository_owner }}/charts"

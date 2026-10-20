@@ -10,7 +10,7 @@ data:
   {{- end }}
   AWS_S3_ENDPOINT_URL: {{ include "vivexy.minioEndpoint" . | quote }}
   AWS_S3_BUCKET_NAME: {{ (first .Values.minio.buckets).name | quote }}
-  AWS_S3_REGION: "us-east-1"
+  AWS_S3_REGION: {{ .Values.agents.s3Region | quote }}
 ---
 apiVersion: v1
 kind: ConfigMap
