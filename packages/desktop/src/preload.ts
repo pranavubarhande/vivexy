@@ -111,10 +111,11 @@ export const createElectronAPI = () => ({
     return ipcRenderer.invoke('delete-skill-file', skillName, filename);
   },
 
-  /** Get extensions directory paths */
+  /** Get extensions directory paths and the per-workspace data folder name */
   getExtensionsPaths: (): Promise<{
     skillsDir: string;
     configDir: string;
+    dataDirName: string;
   }> => {
     return ipcRenderer.invoke('get-extensions-paths');
   },

@@ -18,6 +18,7 @@ import {
   ensureDataDirs,
   ensureFilesDir,
   getConfigDir,
+  getDataDirName,
   getMcpServers,
   getRecentWorkspaces,
   getSkills,
@@ -399,9 +400,10 @@ const registerExtensionHandlers = (): void => {
 
   ipcMain.handle(
     'get-extensions-paths',
-    (): { skillsDir: string; configDir: string } => ({
+    (): { skillsDir: string; configDir: string; dataDirName: string } => ({
       skillsDir: getSkillsDir(),
       configDir: getConfigDir(),
+      dataDirName: getDataDirName(),
     })
   );
 

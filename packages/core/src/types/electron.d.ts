@@ -119,7 +119,12 @@ interface ElectronAPI {
   deleteSkillFile: (skillName: string, filename: string) => Promise<void>;
 
   /** Get extensions directory paths */
-  getExtensionsPaths: () => Promise<{ skillsDir: string; configDir: string }>;
+  getExtensionsPaths: () => Promise<{
+    skillsDir: string;
+    configDir: string;
+    // Per-workspace data folder, e.g. '.vivexy'; absent in older desktop builds
+    dataDirName?: string;
+  }>;
 
   /** Start (or restart) all enabled MCP servers from saved config */
   startMcpServers: () => Promise<{ success: boolean; error?: string }>;

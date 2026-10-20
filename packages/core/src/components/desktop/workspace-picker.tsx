@@ -22,9 +22,14 @@ export const WorkspacePicker = ({
 }: WorkspacePickerProps) => {
   const [recentWorkspaces, setRecentWorkspaces] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [dataDirName, setDataDirName] = useState('.vivexy');
 
   useEffect(() => {
     platform.getRecentWorkspaces().then(setRecentWorkspaces);
+    window.electronAPI
+      ?.getExtensionsPaths?.()
+      .then((paths) => paths.dataDirName && setDataDirName(paths.dataDirName))
+      .catch(() => undefined);
   }, []);
 
   const handleSelectFolder = useCallback(async () => {
@@ -152,9 +157,9 @@ export const WorkspacePicker = ({
             className="shrink-0 mt-0.5 text-muted-foreground"
           />
           <p className="text-xs text-muted-foreground leading-relaxed">
-            A hidden <code className="text-foreground">.vivexy</code> folder
-            will be created inside your project to store generated files and
-            artifacts. Your existing files won&apos;t be modified.
+            A hidden <code className="text-foreground">{dataDirName}</code>{' '}
+            folder will be created inside your project to store generated files
+            and artifacts. Your existing files won&apos;t be modified.
           </p>
         </div>
       </div>
