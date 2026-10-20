@@ -119,6 +119,53 @@ Anything left out keeps Vivexy's default (`DEFAULT_APP_CONFIG` in
 `@vivexy/core/configs/app-config`). Agent ids in the frontend config must match the
 agents the backend extension registers.
 
+## Desktop app
+
+`@vivexy/desktop` holds the whole Electron runtime. A product's desktop app is two small
+files plus its own `electron-builder.yml` (appId, productName, icons, publish repo) and a
+`build:renderer` script that static-exports its own frontend (`NEXT_DESKTOP=1`):
+
+```ts
+// main.ts
+import * as path from 'path';
+import { createDesktopApp } from '@vivexy/desktop';
+
+createDesktopApp({
+  productName: 'Vivexy Legal',
+  dataNamespace: 'vivexy-legal', // ~/.vivexy-legal-config.json, .vivexy-legal/ in workspaces
+  preloadPath: path.join(__dirname, 'preload.js'),
+});
+```
+
+```ts
+// preload.ts (bundle with esbuild: sandboxed preloads can only require 'electron')
+import { exposeElectronAPI } from '@vivexy/desktop/preload';
+
+exposeElectronAPI();
+```
+
+See `packages/desktop/README.md` for every config option.
+
+## Deployment
+
+The Helm chart is published as `oci://ghcr.io/<owner>/charts/vivexy` at the shared
+version. A product deploys it with its own values: its images (`image.owner`,
+`image.agentsRepository`, `image.frontendRepository`), hosts, database name and secrets,
+`partOf`/`nameOverride` for labels, and `migrations.commands` to run its own Alembic
+history after core's:
+
+```yaml
+migrations:
+  commands:
+    - uv run alembic upgrade head
+    - uv run alembic -n legal upgrade head
+    - uv run python -m agents_core.cli.seed_llm_models
+```
+
+The product's agents image must contain a `wsgi.py` exposing `app` (or set
+`agents.wsgiApp`), an `alembic.ini`, and uv with the project in its WORKDIR, like
+vivexy's `infra/docker/agents-service.Dockerfile`.
+
 ## Database migrations
 
 Core migrations ship inside the package (`agents_core/migrations`), so every product
