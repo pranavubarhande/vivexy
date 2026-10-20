@@ -158,13 +158,19 @@ interface ElectronAPI {
   gitExecAt: (workspacePath: string, args: string[]) => Promise<string>;
 
   /** Read a file within a workspace path */
-  readWorkspaceFile: (workspacePath: string, filePath: string) => Promise<string>;
+  readWorkspaceFile: (
+    workspacePath: string,
+    filePath: string
+  ) => Promise<string>;
 
   /** List files/folders in a directory within a workspace */
   listWorkspaceDir: (
     workspacePath: string,
     dirPath: string
-  ) => Promise<{ items?: Array<{ name: string; type: 'file' | 'dir' }>; error?: string }>;
+  ) => Promise<{
+    items?: Array<{ name: string; type: 'file' | 'dir' }>;
+    error?: string;
+  }>;
 
   /** Write a file within a workspace path */
   writeWorkspaceFile: (
@@ -180,7 +186,10 @@ interface ElectronAPI {
   snapshotGit: (workspacePath?: string) => Promise<string>;
 
   /** Restore workspace files to a previously captured SHA. */
-  restoreGitSnapshot: (workspacePath: string, sha: string) => Promise<{ success?: boolean; error?: string }>;
+  restoreGitSnapshot: (
+    workspacePath: string,
+    sha: string
+  ) => Promise<{ success?: boolean; error?: string }>;
 }
 
 export interface McpToolDefinition {

@@ -32,7 +32,8 @@
     "./lib/*": "./src/lib/*.ts",
     "./constants/*": "./src/constants/*.ts",
     "./configs/*": "./src/configs/*.ts",
-    "./agents/*": "./src/agents/*.ts"
+    "./agents/*": "./src/agents/*.ts",
+    "./screens/*": "./src/screens/*.tsx"
   },
   "scripts": {
     "test": "vitest run",

@@ -52,7 +52,12 @@ describe('RegisterForm SSO buttons', () => {
     const setItemSpy = vi.spyOn(Storage.prototype, 'setItem');
     const hrefSetter = vi.fn();
     Object.defineProperty(window, 'location', {
-      value: { ...window.location, set href(v: string) { hrefSetter(v); } },
+      value: {
+        ...window.location,
+        set href(v: string) {
+          hrefSetter(v);
+        },
+      },
       writable: true,
     });
 

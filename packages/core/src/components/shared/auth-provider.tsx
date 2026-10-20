@@ -7,7 +7,11 @@ import {
   useRegister,
   useLogout,
 } from '../../hooks/useAuth';
-import { AuthUser, LoginCredentials, RegisterCredentials } from '../../types/user';
+import {
+  AuthUser,
+  LoginCredentials,
+  RegisterCredentials,
+} from '../../types/user';
 
 interface AuthContextType {
   user: AuthUser | null;

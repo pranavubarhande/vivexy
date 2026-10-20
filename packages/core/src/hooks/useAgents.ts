@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { agentsService } from '../services/agents.service';
-import { CATALOGUE_AGENTS } from '@vivexy/core/agents/catalogue';
-import { AGENT_SUMMARIES } from '@vivexy/core/agents/client-config';
+import { useAppConfig } from '@vivexy/core/shared/app-config-provider';
 import type { AgentSummary, DeployedAgent } from '../types/agent';
 
 const QUERY_KEY = ['agents', 'deployed'] as const;
@@ -29,21 +28,22 @@ export const useUndeployAgent = () => {
   });
 };
 
-/** Merges the base assistant with any catalogue agents the user has deployed. */
+/** Merges the product's base agents with any catalogue agents the user has deployed. */
 export const useDeployedAgentSummaries = (): AgentSummary[] => {
   const { data: deployed = [] } = useDeployedAgents();
+  const { agents } = useAppConfig();
 
   const deployedIds = new Set(deployed.map((d: DeployedAgent) => d.agentId));
 
-  const catalogueSummaries: AgentSummary[] = CATALOGUE_AGENTS.filter((a) =>
-    deployedIds.has(a.id)
-  ).map(({ id, name, description, icon, color }) => ({
-    id,
-    name,
-    description,
-    icon,
-    color,
-  }));
+  const catalogueSummaries: AgentSummary[] = agents.catalogue
+    .filter((a) => deployedIds.has(a.id))
+    .map(({ id, name, description, icon, color }) => ({
+      id,
+      name,
+      description,
+      icon,
+      color,
+    }));
 
-  return [...AGENT_SUMMARIES, ...catalogueSummaries];
+  return [...agents.base, ...catalogueSummaries];
 };
