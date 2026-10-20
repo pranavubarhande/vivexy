@@ -1,6 +1,6 @@
 import logging
 
-from agents_core.agents.config import AGENT_METADATA
+from agents_core.agents.config import get_agent_metadata
 from agents_core.business_logic.features import require_feature
 from agents_core.constants.features import FEATURE_DEPLOYED_AGENTS
 from agents_core.middlewares.auth import auth_middleware
@@ -41,7 +41,7 @@ def deploy_agent():
     if not agent_id:
         return jsonify({"error": "agentId is required"}), 400
 
-    if agent_id not in AGENT_METADATA:
+    if agent_id not in get_agent_metadata():
         return jsonify({"error": f"Unknown agent: {agent_id}"}), 404
 
     existing = DeployedAgent.query.filter_by(user_id=user_id, agent_id=agent_id).first()

@@ -57,28 +57,19 @@ def _setup_flask_context():
     (via agents_core.models.db), so a bare Flask app with just the DB
     settings initialized is sufficient.
 
-    The DB settings below (URI default, engine pool options) are copied from
-    apps/agents-service/configs/flask_config.py's Config class, not imported
-    from it. Nothing keeps the two in sync — if Config's SQLAlchemy settings
-    change, update this function and scheduler.py's copy by hand.
+    The DB settings come from agents_core.flask_config.BaseConfig, the same
+    class the web app's Config extends. It is imported here, after
+    load_worker_env() has run, because it reads the environment at import.
     """
     from flask import Flask
 
+    from agents_core.flask_config import BaseConfig
     from agents_core.models import db
 
     app = Flask(__name__)
-    app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
-        "DATABASE_URL",
-        "postgresql://postgres:pranav@localhost:5432/vivexy",
-    )
+    app.config["SQLALCHEMY_DATABASE_URI"] = BaseConfig.SQLALCHEMY_DATABASE_URI
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-        "pool_pre_ping": True,
-        "pool_size": int(os.environ.get("DB_POOL_SIZE", 5)),
-        "max_overflow": int(os.environ.get("DB_POOL_MAX_OVERFLOW", 5)),
-        "pool_timeout": int(os.environ.get("DB_POOL_TIMEOUT", 30)),
-        "pool_recycle": int(os.environ.get("DB_POOL_RECYCLE", 1800)),
-    }
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = BaseConfig.SQLALCHEMY_ENGINE_OPTIONS
     db.init_app(app)
     ctx = app.app_context()
     ctx.push()

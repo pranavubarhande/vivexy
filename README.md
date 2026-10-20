@@ -24,7 +24,7 @@ A scalable SaaS platform for AI agentic workflows, built as a polyglot monorepo:
 apps/
   frontend/        Next.js 16 (App Router) web app
   desktop/         Electron app wrapping the static frontend build
-  agents-service/  Flask API entrypoint (app factory, config, Alembic migrations)
+  agents-service/  Flask API entrypoint (config, Alembic config)
 packages/
   agents-core/     Python: agents, tools, routes, models, business logic, workers
   core/            TypeScript: shared app components, hooks, services (@vivexy/core)
@@ -129,7 +129,7 @@ uv run pytest                            # Tests for the core package
 
 ### Alembic Migrations
 
-The database schema is managed via Alembic in `apps/agents-service`, with models defined in `packages/agents-core`.
+The database schema is managed via Alembic. Models and migrations live in `packages/agents-core` (`agents_core/migrations`); commands run from `apps/agents-service`.
 
 ```bash
 cd apps/agents-service
@@ -150,6 +150,10 @@ npm run package:mac     # Or package:win / package:linux
 
 Installers are published by the [desktop-release](.github/workflows/desktop-release.yml) workflow when a `desktop-v*` tag is pushed. Builds are currently unsigned.
 
+## Extending Vivexy
+
+Downstream products add tools, agents, blueprints, skills and their own tables through the `vivexy.extensions` entry point instead of forking. See [docs/EXTENDING.md](docs/EXTENDING.md).
+
 ## Project Structure
 
 ```
@@ -164,9 +168,8 @@ vivexy/
 │   │   ├── main.ts, preload.ts   # Main process and context bridge
 │   │   └── tools/                # Local file-system / artifact tools exposed over IPC
 │   └── agents-service/           # Flask service entrypoint
-│       ├── app/                  # App factory; registers blueprints from agents-core
+│       ├── app/                  # Calls agents_core.app_factory.create_app
 │       ├── configs/              # Flask, worker, and Swagger config
-│       ├── alembic/versions/     # Database migrations
 │       └── scripts/              # seed_llm_models.py
 ├── packages/
 │   ├── agents-core/src/agents_core/
@@ -174,12 +177,15 @@ vivexy/
 │   │   ├── routes/               # API blueprints (chat, auth, teams, stripe, rag, ...)
 │   │   ├── business_logic/       # Business logic layer
 │   │   ├── models/               # SQLAlchemy models
+│   │   ├── migrations/           # Alembic environment and versions
 │   │   ├── schemas/              # Pydantic schemas
 │   │   ├── tools/                # LangChain tools (web, stocks, finance, legal,
 │   │   │                         #   compliance, rag, files, sandbox)
 │   │   ├── skills/               # Bundled skills (docx, pdf, pptx, xlsx, data-analysis)
 │   │   ├── services/             # S3, RAG, file processing
-│   │   └── worker/               # Queue consumer, dispatcher, scheduler
+│   │   ├── worker/               # Queue consumer, dispatcher, scheduler
+│   │   ├── app_factory.py        # Flask app factory shared with downstream products
+│   │   └── extensions.py         # Entry-point registry for downstream products
 │   ├── core/                     # @vivexy/core — shared TS components, hooks, services
 │   └── ui/                       # @vivexy/ui — shared UI primitives and theme
 ├── infra/
