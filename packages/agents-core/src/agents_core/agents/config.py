@@ -10,6 +10,12 @@ from operator import add
 from typing import Annotated, Any, Dict, List, Optional, TypedDict
 
 from agents_core.enum.agent_enums import AgentPhase, AgentType, TaskStatus
+from agents_core.extensions import (
+    core_agents_included,
+    get_extension_agents,
+    get_extension_default_agent_id,
+    get_extension_system_prompt,
+)
 from agents_core.types.agent_types import (
     AgentState,
     ApprovalRequest,
@@ -569,6 +575,26 @@ SYSTEM_PROMPTS: Dict[str, str] = {
     "board-reporting": _CROSS_FUNCTIONAL_PROMPT,
     "regulatory-intelligence": _CROSS_FUNCTIONAL_PROMPT,
 }
+
+
+def get_agent_metadata() -> Dict[str, Dict[str, Any]]:
+    core_agents = AGENT_METADATA if core_agents_included() else {}
+    return {**core_agents, **get_extension_agents()}
+
+
+def get_default_agent_id() -> str:
+    agent_metadata = get_agent_metadata()
+    for agent_id in (get_extension_default_agent_id(), DEFAULT_AGENT_ID):
+        if agent_id in agent_metadata:
+            return agent_id
+    return next(iter(agent_metadata), DEFAULT_AGENT_ID)
+
+
+def get_system_prompt(agent_id: str) -> str:
+    return get_extension_system_prompt(agent_id) or SYSTEM_PROMPTS.get(
+        agent_id, UNIFIED_SYSTEM_PROMPT
+    )
+
 
 TASK_PLANNING_PROMPT = """You are a task planner. Given a user request, output a JSON array of 2-6 short tasks that an AI assistant will perform.
 Each task must have: "id" (e.g. "t1", "t2"), "title" (short string), optional "description".

@@ -60,10 +60,11 @@ This document provides architectural context, codebase patterns, and constraints
 2. **Database & ORM**:
    - Always use SQLAlchemy models (defined in `app/models/`) and `db.session` for database interactions.
    - **MIGRATIONS**: All DB schema changes MUST be accompanied by an Alembic migration. Run:
-     `uv run alembic revision --autogenerate -m "description"` to create one.
+     `uv run alembic revision --autogenerate -m "description"` (from `apps/agents-service`) to create one. Migrations live in `packages/agents-core/src/agents_core/migrations/versions`.
+   - **Extensions**: Downstream products plug in via `agents_core/extensions.py` (`vivexy.extensions` entry point). Don't hardcode product-specific tools, agents or blueprints where an extension could register them; see `docs/EXTENDING.md`.
 
 3. **Config & Constants (agents-service)**:
-   - **Config**: All env-derived settings live under `configs/` (Flask config in `configs/flask_config.py`, worker/broker in `configs/worker_config.py`). Import via `from configs import Config, REDIS_URL, CHAT_QUEUE`, etc.
+   - **Config**: All env-derived settings live under `configs/` (Flask config in `configs/flask_config.py`, which extends `agents_core.flask_config.BaseConfig`; worker/broker in `configs/worker_config.py`). Import via `from configs import Config, REDIS_URL, CHAT_QUEUE`, etc.
    - **Constants**: Redis key/channel patterns and queue names live in `app/constants/` (`redis_keys.py`, `queues.py`, `stream_events.py`). Use these so keys and queue names stay consistent and scalable.
 
 4. **AI Agents & LangChain**:

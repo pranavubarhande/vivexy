@@ -6,8 +6,8 @@ description: >-
   RabbitMQ/MinIO. Deploys as one `helm upgrade --install` release per
   environment (see ../../values-*.yaml note in README.md).
 type: application
-version: 0.1.0
-appVersion: "1.0.0"
+version: 0.3.0
+appVersion: "0.3.0"
 
 # NOTE on dependency versions: Bitnami's chart distribution has moved around
 # a lot (classic charts.bitnami.com repo deprecated; charts now published to

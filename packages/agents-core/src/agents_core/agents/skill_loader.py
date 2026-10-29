@@ -9,14 +9,19 @@ import os
 import re
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, Optional, Set, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
 import yaml
+from agents_core.extensions import get_extension_skill_dirs
 
 logger = logging.getLogger(__name__)
 
 BUILTIN_SKILLS_DIR = Path(__file__).resolve().parent.parent / "skills"
 SANDBOX_SKILLS_DIR = "skills"
+
+
+def get_skill_dirs() -> List[Path]:
+    return [BUILTIN_SKILLS_DIR, *get_extension_skill_dirs()]
 
 
 def _parse_skill_md(text: str) -> Tuple[Dict, str]:
@@ -34,7 +39,12 @@ def _first_sentence(text: str) -> str:
 @lru_cache(maxsize=1)
 def load_builtin_skills() -> Dict[str, Dict[str, str]]:
     skills: Dict[str, Dict[str, str]] = {}
-    for skill_md in sorted(BUILTIN_SKILLS_DIR.glob("*/SKILL.md")):
+    skill_files = [
+        skill_md
+        for skills_dir in get_skill_dirs()
+        for skill_md in sorted(skills_dir.glob("*/SKILL.md"))
+    ]
+    for skill_md in skill_files:
         try:
             meta, body = _parse_skill_md(skill_md.read_text(encoding="utf-8"))
         except Exception as e:
@@ -107,17 +117,19 @@ def load_skill_deps() -> list[str]:
     ``pip install`` or ``npm install`` patterns and returns a deduplicated
     list of shell commands that the sandbox should run at startup.
     """
-    skills_dir = str(BUILTIN_SKILLS_DIR)
     commands: list[str] = []
     seen: set[str] = set()
-
-    if not os.path.exists(skills_dir):
-        return commands
 
     # Regex to pull install commands from inside backticks or bare lines
     cmd_re = re.compile(r"`((?:pip|npm)\s+install\S*\s+[^`]+)`")
 
-    for root, _, files in os.walk(skills_dir):
+    skill_roots = [
+        walked
+        for skills_dir in get_skill_dirs()
+        if os.path.exists(skills_dir)
+        for walked in os.walk(skills_dir)
+    ]
+    for root, _, files in skill_roots:
         if "SKILL.md" not in files:
             continue
         try:

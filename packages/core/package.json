@@ -1,8 +1,20 @@
 {
   "name": "@vivexy/core",
-  "version": "0.1.0",
-  "private": true,
+  "version": "0.3.0",
   "type": "module",
+  "license": "AGPL-3.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pranavubarhande/vivexy.git",
+    "directory": "packages/core"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "src",
+    "!src/**/__tests__"
+  ],
   "exports": {
     "./shared/*": "./src/components/shared/*.tsx",
     "./chat": "./src/components/chat/index.ts",
@@ -20,7 +32,8 @@
     "./lib/*": "./src/lib/*.ts",
     "./constants/*": "./src/constants/*.ts",
     "./configs/*": "./src/configs/*.ts",
-    "./agents/*": "./src/agents/*.ts"
+    "./agents/*": "./src/agents/*.ts",
+    "./screens/*": "./src/screens/*.tsx"
   },
   "scripts": {
     "test": "vitest run",
@@ -32,7 +45,7 @@
     "next": "^16.0.10"
   },
   "dependencies": {
-    "@vivexy/ui": "0.1.0",
+    "@vivexy/ui": "0.3.0",
     "react-hook-form": "^7.65.0",
     "lucide-react": "^0.546.0",
     "axios": "^1.12.2",

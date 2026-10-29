@@ -97,3 +97,5 @@ Thumbs.db
 
 /.next
 claude-reference
+# Redis snapshots
+dump.rdb

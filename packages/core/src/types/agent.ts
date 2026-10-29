@@ -2,11 +2,8 @@ import type { LucideIcon } from 'lucide-react';
 
 export type { LucideIcon };
 
-export type AgentCategory =
-  | 'Finance'
-  | 'Legal'
-  | 'Compliance'
-  | 'Cross-functional';
+// Categories are product-defined (see AppConfig.agents.categories)
+export type AgentCategory = string;
 
 export interface CatalogueAgent {
   id: string;

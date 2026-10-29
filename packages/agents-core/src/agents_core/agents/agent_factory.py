@@ -2,19 +2,18 @@ import base64
 import importlib
 import logging
 import os
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Callable, Dict, List, Optional, Set
 
 from agents_core.agents.config import (
-    AGENT_METADATA,
-    DEFAULT_AGENT_ID,
     DESKTOP_ENVIRONMENT_PROMPT,
-    SYSTEM_PROMPTS,
     TASK_TOOL_DESCRIPTION,
-    UNIFIED_SYSTEM_PROMPT,
     WEB_ENVIRONMENT_PROMPT,
     WRITE_TODOS_TOOL_DESCRIPTION,
     AgentConfig,
     FileContext,
+    get_agent_metadata,
+    get_default_agent_id,
+    get_system_prompt,
 )
 from agents_core.agents.skill_loader import SandboxSkillSync, load_builtin_skills
 from agents_core.constants.features import (
@@ -22,6 +21,7 @@ from agents_core.constants.features import (
     FEATURE_GITHUB,
     FEATURE_RAG,
 )
+from agents_core.extensions import ToolContext, get_extension_tool_groups
 from agents_core.models.chat import Artifact, ChatAttachment
 from agents_core.services.s3_service import S3Service
 from agents_core.tools.chat.skill_tool import (
@@ -185,6 +185,16 @@ def safe_import_tool(
         return [tool] if tool else []
     except (ImportError, AttributeError, Exception) as e:
         logger.warning(f"Failed to load tools from {module_path}.{function_name} — {e}")
+        return []
+
+
+def safe_load_extension_tools(
+    group: str, loader: Callable[[ToolContext], List[BaseTool]], context: ToolContext
+) -> List[BaseTool]:
+    try:
+        return list(loader(context) or [])
+    except Exception as e:
+        logger.warning(f"Failed to load extension tool group {group} — {e}")
         return []
 
 
@@ -520,7 +530,10 @@ def create_agent(
         github_context = None
 
     # 1. Assemble tools based on agent's declared tool groups
-    meta = AGENT_METADATA.get(agent_id, AGENT_METADATA[DEFAULT_AGENT_ID])
+    agent_metadata = get_agent_metadata()
+    if agent_id not in agent_metadata:
+        agent_id = get_default_agent_id()
+    meta = agent_metadata[agent_id]
     tool_groups = meta.get("tools", ["base"])
 
     _TOOL_LOADERS = {
@@ -541,13 +554,20 @@ def create_agent(
             )
         ],
     }
+    tool_context = ToolContext(chat_id=chat_id, include_rag=include_rag)
+    extension_tool_groups = get_extension_tool_groups()
 
     tools: List[BaseTool] = []
     seen_names: set = set()
 
     for group in tool_groups:
-        loader = _TOOL_LOADERS.get(group)
-        new_tools = loader() if loader else []
+        if group in extension_tool_groups:
+            new_tools = safe_load_extension_tools(
+                group, extension_tool_groups[group], tool_context
+            )
+        else:
+            loader = _TOOL_LOADERS.get(group)
+            new_tools = loader() if loader else []
         for t in new_tools:
             if t.name not in seen_names:
                 tools.append(t)
@@ -671,7 +691,7 @@ def create_agent(
     provider_str = f"{prefix}:{ag_config.model}"
 
     # Generate system prompt — use agent-specific prompt if defined
-    final_prompt = SYSTEM_PROMPTS.get(agent_id, UNIFIED_SYSTEM_PROMPT)
+    final_prompt = get_system_prompt(agent_id)
 
     final_prompt += "\n\n" + (
         DESKTOP_ENVIRONMENT_PROMPT if client_tools_enabled else WEB_ENVIRONMENT_PROMPT
@@ -826,4 +846,4 @@ create_langgraph_agent = create_agent
 
 
 def get_available_agents() -> List[Dict[str, Any]]:
-    return list(AGENT_METADATA.values())
+    return list(get_agent_metadata().values())

@@ -8,7 +8,8 @@ import { useWorkspace } from '@vivexy/core/desktop/workspace-provider';
 import { useAuth } from '@vivexy/core/shared/auth-provider';
 import { useAdministeredTeams } from '@vivexy/core/hooks/useAdmin';
 import { useFeatures } from '@vivexy/core/hooks/useFeatures';
-import { FEATURES, FeatureName } from '@vivexy/core/constants/features';
+import { useAppConfig } from '@vivexy/core/shared/app-config-provider';
+import type { NavItem } from '@vivexy/core/configs/app-config';
 import {
   Sidebar,
   SidebarHeader,
@@ -24,19 +25,12 @@ import {
   SidebarTrigger,
 } from '@vivexy/ui/sidebar';
 import {
-  Users,
-  MessageSquare,
-  Blocks,
   FolderOpen,
   ChevronRight,
-  CalendarClock,
-  Coins,
-  Settings,
   Plus,
   ShieldCheck,
   Crown,
   CreditCard,
-  type LucideIcon,
 } from 'lucide-react';
 import { NavUser } from './nav-user';
 import { TeamSwitcher } from './team-switcher';
@@ -47,48 +41,13 @@ import {
   TooltipTrigger,
 } from '@vivexy/ui/tooltip';
 
-interface NavItem {
-  label: string;
-  href: string;
-  icon: LucideIcon;
-  // Hidden when every listed feature is turned off for the user
-  features?: FeatureName[];
-}
-
-const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
-  {
-    label: 'Workspace',
-    items: [
-      { label: 'Chat', href: ROUTES.chat(), icon: MessageSquare },
-      {
-        label: 'Scheduled Tasks',
-        href: ROUTES.scheduledTasks,
-        icon: CalendarClock,
-        features: [FEATURES.scheduledTasks],
-      },
-      {
-        label: 'Integrations',
-        href: ROUTES.connectors,
-        icon: Blocks,
-        features: [FEATURES.connectors, FEATURES.github],
-      },
-    ],
-  },
-  {
-    label: 'Organization',
-    items: [
-      { label: 'Teams', href: ROUTES.teams, icon: Users },
-      { label: 'Cost Manager', href: ROUTES.costManager, icon: Coins },
-      { label: 'Settings', href: ROUTES.settings, icon: Settings },
-    ],
-  },
-];
-
 export function AppSidebar({
-  appName = 'App',
+  appName: appNameProp,
   ...props
 }: React.ComponentProps<typeof Sidebar> & { appName?: string }) {
   const pathname = usePathname();
+  const appConfig = useAppConfig();
+  const appName = appNameProp ?? appConfig.appName;
   const { workspacePath, workspaceInfo, isDesktop, changeWorkspace } =
     useWorkspace();
   const { user, isAuthenticated } = useAuth();
@@ -108,8 +67,8 @@ export function AppSidebar({
   ];
   const navGroups = (
     adminItems.length
-      ? [...NAV_GROUPS, { label: 'Administration', items: adminItems }]
-      : NAV_GROUPS
+      ? [...appConfig.navGroups, { label: 'Administration', items: adminItems }]
+      : appConfig.navGroups
   ).map((group) => ({
     ...group,
     items: group.items.filter(
@@ -125,12 +84,12 @@ export function AppSidebar({
       <SidebarHeader className="gap-3 px-3 pt-4">
         <div className="flex items-center justify-between group-data-[collapsible=icon]:justify-center">
           <Link
-            href={ROUTES.chat()}
+            href={appConfig.homePath}
             className="flex items-center gap-2.5 px-1 group-data-[collapsible=icon]:hidden"
           >
             <span className="flex size-8 items-center justify-center rounded-xl bg-night shadow-sm ring-1 ring-black/5">
               <Image
-                src="/logo.png"
+                src={appConfig.logoSrc}
                 alt={appName}
                 width={18}
                 height={18}

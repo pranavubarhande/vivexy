@@ -4,18 +4,14 @@ Usage:
     uv run python scripts/run_maintenance.py
 """
 
-import json
+import os
 import sys
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from agents_core.business_logic.maintenance import run_maintenance  # noqa: E402
+from agents_core.cli.run_maintenance import main  # noqa: E402
 
-from app import create_app  # noqa: E402
 from configs import Config  # noqa: E402
 
 if __name__ == "__main__":
-    app = create_app(Config)
-    with app.app_context():
-        print(json.dumps(run_maintenance(), indent=2))
+    main(Config)

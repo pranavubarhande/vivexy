@@ -22,8 +22,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 
-import { CATALOGUE_AGENTS } from '@vivexy/core/agents/catalogue';
-import { AGENT_SUMMARIES } from '@vivexy/core/agents/client-config';
+import { useAppConfig } from '@vivexy/core/shared/app-config-provider';
 import {
   useDeployedAgents,
   useDeployAgent,
@@ -35,32 +34,36 @@ import type {
   CatalogueAgent,
 } from '@vivexy/core/types/agent';
 
-const CATEGORIES: (AgentCategory | 'All')[] = [
-  'All',
-  'Finance',
-  'Legal',
-  'Compliance',
-  'Cross-functional',
-];
-
-const CATEGORY_COLOR: Record<string, string> = {
-  Finance: '#6366f1',
-  Legal: '#0891b2',
-  Compliance: '#dc2626',
-  'Cross-functional': '#059669',
-};
-
-const baseAgentsAsCatalogue: CatalogueAgent[] = AGENT_SUMMARIES.map((b) => ({
-  id: b.id,
-  name: b.name,
-  description: b.description,
-  icon: b.icon,
-  color: b.color,
-  category: 'Cross-functional',
+const toCatalogueAgent = (agent: AgentSummary): CatalogueAgent => ({
+  id: agent.id,
+  name: agent.name,
+  description: agent.description,
+  icon: agent.icon,
+  color: agent.color,
+  category: '',
   tools: [],
   useCases: [],
   tags: ['default', 'always-available'],
-}));
+});
+
+const useAgentCatalogue = () => {
+  const { agents } = useAppConfig();
+  return useMemo(
+    () => ({
+      catalogueAgents: agents.catalogue,
+      baseAgents: agents.base,
+      baseAgentsAsCatalogue: agents.base.map(toCatalogueAgent),
+      categories: [
+        'All',
+        ...agents.categories.map((category) => category.name),
+      ] as (AgentCategory | 'All')[],
+      categoryColor: Object.fromEntries(
+        agents.categories.map((category) => [category.name, category.color])
+      ) as Record<string, string>,
+    }),
+    [agents]
+  );
+};
 
 interface AgentSelectorProps {
   agents: AgentSummary[];
@@ -81,6 +84,8 @@ export function AgentSelector({
     'All'
   );
   const [detailAgent, setDetailAgent] = useState<CatalogueAgent | null>(null);
+  const { catalogueAgents, baseAgents, baseAgentsAsCatalogue, categories } =
+    useAgentCatalogue();
 
   const { data: deployed = [] } = useDeployedAgents();
   const deployMutation = useDeployAgent();
@@ -90,7 +95,10 @@ export function AgentSelector({
     () => new Set(deployed.map((d) => d.agentId)),
     [deployed]
   );
-  const baseIds = useMemo(() => new Set(AGENT_SUMMARIES.map((b) => b.id)), []);
+  const baseIds = useMemo(
+    () => new Set(baseAgents.map((b) => b.id)),
+    [baseAgents]
+  );
 
   const selectedAgent = agents.find((a) => a.id === selectedAgentId);
 
@@ -140,13 +148,13 @@ export function AgentSelector({
   };
 
   const deployedCatalogueAgents = useMemo(
-    () => CATALOGUE_AGENTS.filter((a) => deployedIds.has(a.id)),
-    [deployedIds]
+    () => catalogueAgents.filter((a) => deployedIds.has(a.id)),
+    [catalogueAgents, deployedIds]
   );
 
   const activeAgents = useMemo(
     () => [...baseAgentsAsCatalogue, ...deployedCatalogueAgents],
-    [deployedCatalogueAgents]
+    [baseAgentsAsCatalogue, deployedCatalogueAgents]
   );
 
   const activeAgentsFiltered = useMemo(
@@ -157,11 +165,9 @@ export function AgentSelector({
 
   const availableCatalogueAgents = useMemo(
     () =>
-      CATALOGUE_AGENTS.filter(
-        (a) => !deployedIds.has(a.id) && matchesFilter(a)
-      ),
+      catalogueAgents.filter((a) => !deployedIds.has(a.id) && matchesFilter(a)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [deployedIds, search, activeCategory]
+    [catalogueAgents, deployedIds, search, activeCategory]
   );
 
   return (
@@ -216,7 +222,7 @@ export function AgentSelector({
                 </h2>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
                   {activeAgents.length - 1} active &middot;{' '}
-                  {CATALOGUE_AGENTS.length} in catalogue
+                  {catalogueAgents.length} in catalogue
                 </p>
               </div>
             </div>
@@ -236,7 +242,7 @@ export function AgentSelector({
                 />
               </div>
               <div className="flex items-center gap-0.5 overflow-x-auto scrollbar-none">
-                {CATEGORIES.map((cat) => (
+                {categories.map((cat) => (
                   <button
                     key={cat}
                     onClick={() => setActiveCategory(cat)}
@@ -372,7 +378,7 @@ export function AgentSelector({
             {/* Footer */}
             <div className="px-5 py-2 border-t border-border/40 bg-muted/10">
               <p className="text-[10px] text-muted-foreground/50">
-                {deployed.length} of {CATALOGUE_AGENTS.length} catalogue agents
+                {deployed.length} of {catalogueAgents.length} catalogue agents
                 active in workspace
               </p>
             </div>
@@ -486,7 +492,8 @@ function AgentDetailPanel({
   onAdd: () => void;
   onSelect: () => void;
 }) {
-  const categoryColor = CATEGORY_COLOR[agent.category] ?? '#6366f1';
+  const { categoryColor: categoryColors } = useAgentCatalogue();
+  const categoryColor = categoryColors[agent.category] ?? '#6366f1';
 
   return (
     <div className="flex flex-col">

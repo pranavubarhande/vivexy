@@ -1,26 +1,25 @@
+'use client';
+
 import Image from 'next/image';
 import { Check } from 'lucide-react';
-
-const HIGHLIGHTS = [
-  'Agents that work across your documents and tools',
-  'Scheduled automations with full chat history',
-  'Bring your own model keys, track every token',
-];
+import { useAppConfig } from '@vivexy/core/shared/app-config-provider';
 
 export function AuthSplitLayout({
   children,
-  appName,
+  appName: appNameProp,
 }: {
   children: React.ReactNode;
-  appName: string;
+  appName?: string;
 }) {
+  const { appName: configAppName, logoSrc, auth } = useAppConfig();
+  const appName = appNameProp ?? configAppName;
   return (
     <div className="min-h-screen bg-background md:grid md:grid-cols-[1.05fr_1fr]">
       {/* Mobile only: slim top bar, logo + app name, no tagline -- keeps
           brand presence without pushing the form below the fold. */}
       <div className="flex items-center gap-2 px-4 py-3 md:hidden">
         <Image
-          src="/logo.png"
+          src={logoSrc}
           alt={appName}
           width={24}
           height={24}
@@ -39,7 +38,7 @@ export function AuthSplitLayout({
         <div className="relative flex items-center gap-2.5">
           <span className="flex size-9 items-center justify-center rounded-xl bg-white/10 ring-1 ring-white/15">
             <Image
-              src="/logo.png"
+              src={logoSrc}
               alt={appName}
               width={20}
               height={20}
@@ -54,13 +53,13 @@ export function AuthSplitLayout({
         <div className="relative max-w-md">
           <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-white/70 backdrop-blur">
             <span className="size-1.5 rounded-full bg-lime" />
-            Built for legal, finance & compliance
+            {auth.badge}
           </span>
           <h2 className="font-serif text-5xl leading-[1.05] tracking-tight lg:text-6xl">
-            AI Workspaces for Professional Teams
+            {auth.headline}
           </h2>
           <ul className="mt-8 space-y-3">
-            {HIGHLIGHTS.map((item) => (
+            {auth.highlights.map((item) => (
               <li
                 key={item}
                 className="flex items-center gap-3 text-sm text-white/70"

@@ -11,7 +11,7 @@ from agents_core.models import Team, TeamMember
 from agents_core.models.base import db
 from agents_core.models.scheduled_task import ScheduledTask, ScheduledTaskRun
 
-from agents_core.agents.config import DEFAULT_AGENT_ID
+from agents_core.agents.config import get_default_agent_id
 
 logger = logging.getLogger(__name__)
 
@@ -129,7 +129,7 @@ def create_task(user_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
         run_days=data.get("run_days"),
         cron_expression=data.get("cron_expression"),
         timezone=data.get("timezone", "UTC"),
-        agent_id=data.get("agent_id", DEFAULT_AGENT_ID),
+        agent_id=data.get("agent_id") or get_default_agent_id(),
         model_db_id=data.get("model_db_id"),
         model_api_id=data.get("model_api_id"),
         model_provider=data.get("model_provider", "google"),

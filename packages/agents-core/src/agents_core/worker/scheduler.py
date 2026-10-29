@@ -9,7 +9,6 @@ SELECT FOR UPDATE SKIP LOCKED means multiple scheduler instances can run safely.
 """
 
 import logging
-import os
 import time
 import warnings
 from datetime import datetime
@@ -37,26 +36,17 @@ def _setup_flask_context():
     apps/agents-service's `create_app()`: that factory wires up all HTTP
     blueprints, which aren't a dependency of packages/agents-core.
 
-    The DB settings below are copied from, not imported from,
-    apps/agents-service/configs/flask_config.py's Config class. Nothing
-    keeps the two in sync — update both copies by hand if Config changes.
+    The DB settings come from agents_core.flask_config.BaseConfig; see
+    consumer.py for why it is imported here rather than at module level.
     """
+    from agents_core.flask_config import BaseConfig
     from agents_core.models import db
     from flask import Flask
 
     app = Flask(__name__)
-    app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
-        "DATABASE_URL",
-        "postgresql://postgres:pranav@localhost:5432/vivexy",
-    )
+    app.config["SQLALCHEMY_DATABASE_URI"] = BaseConfig.SQLALCHEMY_DATABASE_URI
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-        "pool_pre_ping": True,
-        "pool_size": int(os.environ.get("DB_POOL_SIZE", 5)),
-        "max_overflow": int(os.environ.get("DB_POOL_MAX_OVERFLOW", 5)),
-        "pool_timeout": int(os.environ.get("DB_POOL_TIMEOUT", 30)),
-        "pool_recycle": int(os.environ.get("DB_POOL_RECYCLE", 1800)),
-    }
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = BaseConfig.SQLALCHEMY_ENGINE_OPTIONS
     db.init_app(app)
     app.app_context().push()
     return app
