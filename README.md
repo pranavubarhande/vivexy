@@ -4,7 +4,7 @@
 
 # Vivexy
 
-**An open source AI workspace for professional teams.**
+**An open source AI operating system for professional teams.**
 Agentic chat, domain tools, scheduled automations and team controls, as a web app, a desktop app and a Kubernetes-ready backend.
 
 [![Build and Push](https://github.com/pranavubarhande/vivexy/actions/workflows/build-and-push.yml/badge.svg)](https://github.com/pranavubarhande/vivexy/actions/workflows/build-and-push.yml)
