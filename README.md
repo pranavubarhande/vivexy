@@ -23,9 +23,13 @@ Agentic chat, domain tools, scheduled automations and team controls, as a web ap
 
 ## Why Vivexy
 
-Most AI chat apps stop at a text box. Vivexy gives your team agents that search the web, read your documents, query finance and legal sources, run code in a sandbox and work on a schedule, with the controls a company needs around them: approvals, teams, usage and cost tracking, SSO and an audit trail.
+A lot of enterprises are making progress towards AI adoption in their firms. But the platforms most of them build follow a certain template: an agent backend, a chat interface, auth, teams, billing, background workers and a deployment pipeline. Building that, and building it with scalability in mind, takes at least a few months before the first useful feature ships.
 
-It is also a platform. The same code ships as three packages and a Helm chart, so you can build a focused product (a legal edition, a finance edition) on top of it without forking.
+I built Vivexy to remove that initial friction, and I'm open sourcing it under the AGPL v3 so you can start from the same place. You get agents that search the web, read your documents, query finance and legal sources, run code in a sandbox and work on a schedule, with the controls a company needs around them: approvals, teams, usage and cost tracking, SSO and an audit trail. Then you spend your time on what makes your product different.
+
+It is also a platform. The same code is published as packages and a Helm chart, so you can build a focused edition, such as a legal or finance one, on top of it without forking.
+
+Questions, ideas and feedback are welcome. Open an issue and let's talk.
 
 ## Features
 
