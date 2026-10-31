@@ -251,12 +251,17 @@ For local co-development against a vivexy checkout, point the dependencies at it
 ## Releasing
 
 ```bash
-npm run release:version -- 0.2.0   # bumps ui, core, agents-core and lockfiles
-git commit -am "chore: release 0.2.0"
-git tag v0.2.0 && git push && git push --tags
+npm run release:version -- 0.4.0   # bumps ui, core, desktop, agents-core, the chart and lockfiles
+git commit -am "chore: release 0.4.0"
+# open a pull request and merge it to main
 ```
 
-The `release` workflow verifies the versions match the tag, then publishes to npm
-(`NPM_TOKEN` secret) and PyPI (trusted publishing, `pypi` environment). Follow semver:
-until 1.0, a minor bump may break extensions, so call out breaking changes in
-`CHANGELOG.md`.
+Then go to **Actions > release > Run workflow** and enter `0.4.0`. The workflow checks that
+every package, the chart and `constraints.txt` are at that version, creates the tag
+`v0.4.0` on `main` and publishes to npm (`NPM_TOKEN` secret), PyPI (trusted publishing,
+`pypi` environment) and `oci://ghcr.io/<owner>/charts/vivexy`. It refuses to run from
+another branch, for a version that doesn't match the code, or for a tag that already
+exists. Pushing a `v*` tag by hand still runs the same jobs.
+
+Follow semver: until 1.0, a minor bump may break extensions, so call out breaking changes
+in `CHANGELOG.md`.

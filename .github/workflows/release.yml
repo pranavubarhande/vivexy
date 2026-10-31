@@ -2,10 +2,15 @@ name: release
 
 # Publishes @vivexy/ui, @vivexy/core, @vivexy/desktop (npm), vivexy-agents-core
 # (PyPI) and the Helm chart (oci://ghcr.io/<owner>/charts/vivexy) at one shared
-# version. While the repository is private, a tag only runs `verify` (products
-# pin the tag via git); publishing starts once it's public.
-# Bump with `npm run release:version -- 0.2.0`, commit, then
-# `git tag v0.2.0 && git push --tags`.
+# version. While the repository is private, only `verify` runs (products pin the
+# tag via git); publishing starts once it's public.
+#
+# To release:
+#   1. `npm run release:version -- 0.4.0`, commit and merge it to the default
+#      branch through a pull request.
+#   2. Actions > release > Run workflow, version `0.4.0`. The workflow checks the
+#      versions, creates the tag `v0.4.0` on the default branch and publishes.
+# Pushing a `v*` tag yourself still works and runs the same jobs.
 #
 # One-time setup:
 #   - npm: create the `vivexy` org and add an automation token as NPM_TOKEN.
@@ -16,6 +21,12 @@ on:
   push:
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release, e.g. 0.4.0 (already bumped on the default branch)'
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -23,13 +34,44 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # creates the tag on a manual run
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
       - uses: astral-sh/setup-uv@v3
-      - run: node scripts/release-version.mjs --check "${GITHUB_REF_NAME}"
+      - id: tag
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            VERSION="${INPUT_VERSION#v}"
+            if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?$ ]]; then
+              echo "::error::'$INPUT_VERSION' is not a version like 0.4.0"; exit 1
+            fi
+            if [ "$GITHUB_REF_NAME" != "$DEFAULT_BRANCH" ]; then
+              echo "::error::Run this workflow from $DEFAULT_BRANCH, not $GITHUB_REF_NAME"; exit 1
+            fi
+            TAG="v$VERSION"
+            if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
+              echo "::error::Tag $TAG already exists"; exit 1
+            fi
+            node scripts/release-version.mjs --check "$VERSION"
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git tag -a "$TAG" -m "Release $TAG"
+            git push origin "refs/tags/$TAG"
+          else
+            TAG="$GITHUB_REF_NAME"
+            node scripts/release-version.mjs --check "$TAG"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
   npm:
     needs: verify
@@ -40,6 +82,8 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.verify.outputs.tag }}
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -66,6 +110,8 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.verify.outputs.tag }}
       - uses: astral-sh/setup-uv@v3
       - run: uv build --package vivexy-agents-core --out-dir dist
       - uses: pypa/gh-action-pypi-publish@release/v1
@@ -79,6 +125,8 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.verify.outputs.tag }}
       - uses: azure/setup-helm@v4
         with:
           version: v3.16.3
