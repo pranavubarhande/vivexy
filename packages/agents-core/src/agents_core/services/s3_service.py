@@ -112,6 +112,21 @@ class S3Service:
         except S3Service._ClientError as e:
             return {"success": False, "error": str(e)}
 
+    def upload_object(
+        self, file: BinaryIO, s3_key: str, content_type: Optional[str] = None
+    ) -> bool:
+        if not self.s3_client:
+            return False
+        extra_args = {"ContentType": content_type} if content_type else {}
+        try:
+            self.s3_client.upload_fileobj(
+                file, self.bucket_name, s3_key, ExtraArgs=extra_args
+            )
+            return True
+        except S3Service._ClientError as e:
+            print(f"Error uploading {s3_key}: {e}")
+            return False
+
     def upload_generated_file(
         self,
         file_path: str,

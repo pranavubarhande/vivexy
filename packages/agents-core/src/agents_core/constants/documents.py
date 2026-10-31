@@ -1,0 +1,41 @@
+import os
+
+DOCUMENT_STATUS_QUEUED = "queued"
+DOCUMENT_STATUS_PROCESSING = "processing"
+DOCUMENT_STATUS_READY = "ready"
+DOCUMENT_STATUS_FAILED = "failed"
+
+DOCUMENT_STAGE_PARSING = "parsing"
+DOCUMENT_STAGE_OCR = "ocr"
+DOCUMENT_STAGE_EMBEDDING = "embedding"
+
+DOCUMENT_MAX_FILES_PER_UPLOAD = int(
+    os.environ.get("DOCUMENT_MAX_FILES_PER_UPLOAD", "200")
+)
+DOCUMENT_MAX_FILE_BYTES = (
+    int(os.environ.get("DOCUMENT_MAX_FILE_MB", "100")) * 1024 * 1024
+)
+DOCUMENT_MAX_ZIP_ENTRIES = 1000
+DOCUMENT_MAX_ZIP_UNCOMPRESSED_BYTES = 2 * 1024 * 1024 * 1024
+
+DOCUMENT_MIME_TYPES = {
+    "pdf": "application/pdf",
+    "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "txt": "text/plain",
+    "md": "text/markdown",
+    "eml": "message/rfc822",
+}
+DOCUMENT_ARCHIVE_EXTENSIONS = {"zip"}
+
+DOCUMENT_CHUNK_SIZE = 1200
+DOCUMENT_CHUNK_OVERLAP = 200
+DOCUMENT_OCR_MIN_TEXT_CHARS = 25
+DOCUMENT_OCR_DPI = 300
+DOCUMENT_OCR_LANGUAGES = os.environ.get("DOCUMENT_OCR_LANGUAGES", "eng")
+
+DOCUMENT_EMBEDDING_MODEL = os.environ.get(
+    "DOCUMENT_EMBEDDING_MODEL", "BAAI/bge-small-en-v1.5"
+)
+DOCUMENT_EMBEDDING_BATCH_SIZE = 32
+DOCUMENT_PINECONE_INDEX = os.environ.get("DOCUMENT_PINECONE_INDEX", "rag-index")
+DOCUMENT_PINECONE_BATCH_SIZE = 100

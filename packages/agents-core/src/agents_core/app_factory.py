@@ -14,6 +14,7 @@ from agents_core.routes.approval import bp as approval_bp
 from agents_core.routes.auth import bp as auth_bp
 from agents_core.routes.chat import bp as chat_bp
 from agents_core.routes.connectors import bp as connectors_bp
+from agents_core.routes.documents import bp as documents_bp
 from agents_core.routes.github import bp as github_bp
 from agents_core.routes.projects import bp as projects_bp
 from agents_core.routes.rag import bp as rag_bp
@@ -38,6 +39,7 @@ CORE_BLUEPRINTS = [
     stripe_bp,
     approval_bp,
     rag_bp,
+    documents_bp,
     chat_bp,
     connectors_bp,
     agents_bp,

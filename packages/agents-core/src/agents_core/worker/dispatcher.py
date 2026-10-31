@@ -13,7 +13,12 @@ from typing import Any, Dict, List, Optional
 
 import pika
 
-from agents_core.constants.queues import CHAT_QUEUE, RAG_QUEUE, SCHEDULED_TASK_QUEUE
+from agents_core.constants.queues import (
+    CHAT_QUEUE,
+    DOCUMENT_QUEUE,
+    RAG_QUEUE,
+    SCHEDULED_TASK_QUEUE,
+)
 from agents_core.worker.broker import get_channel
 
 logger = logging.getLogger(__name__)
@@ -129,4 +134,20 @@ def dispatch_rag_job(
         properties=pika.BasicProperties(delivery_mode=2),
     )
     logger.info("Dispatched RAG job for %s in chat %s", filename, chat_id)
+    return True
+
+
+def dispatch_document_job(*, document_id: str) -> bool:
+    """Publish a document ingestion job. Returns False if it should run in-process."""
+    channel = get_channel()
+    if channel is None:
+        return False
+
+    channel.basic_publish(
+        exchange="",
+        routing_key=DOCUMENT_QUEUE,
+        body=json.dumps({"document_id": document_id}),
+        properties=pika.BasicProperties(delivery_mode=2),
+    )
+    logger.info("Dispatched document job %s", document_id)
     return True

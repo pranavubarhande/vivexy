@@ -32,6 +32,9 @@ class ToolContext:
 
 ToolLoader = Callable[[ToolContext], List[BaseTool]]
 
+# (user, team_id, scope_id) -> may the user read and write documents in this scope?
+DocumentScopeAuthorizer = Callable[[Any, Optional[str], str], bool]
+
 
 @dataclass
 class VivexyExtension:
@@ -42,6 +45,9 @@ class VivexyExtension:
     include_core_agents: False hides Vivexy's example agents, so the product
         offers only its own.
     default_agent_id: agent used when a request names none (e.g. chat).
+    document_scope_authorizers: scope type -> authorizer for documents stored
+        with that scope_type (e.g. "matter"). Documents with a scope type no
+        extension registers are refused.
     """
 
     name: str
@@ -51,6 +57,9 @@ class VivexyExtension:
     skill_dirs: List[Path] = field(default_factory=list)
     include_core_agents: bool = True
     default_agent_id: Optional[str] = None
+    document_scope_authorizers: Dict[str, DocumentScopeAuthorizer] = field(
+        default_factory=dict
+    )
 
 
 @lru_cache(maxsize=1)
@@ -120,3 +129,10 @@ def get_extension_system_prompt(agent_id: str) -> Optional[str]:
     for extension in load_extensions():
         prompt = extension.agents.get(agent_id, {}).get("system_prompt", prompt)
     return prompt
+
+
+def get_document_scope_authorizer(scope_type: str) -> Optional[DocumentScopeAuthorizer]:
+    authorizer = None
+    for extension in load_extensions():
+        authorizer = extension.document_scope_authorizers.get(scope_type, authorizer)
+    return authorizer

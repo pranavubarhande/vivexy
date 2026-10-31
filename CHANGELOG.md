@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Document store: `/api/documents` uploads PDF, DOCX, TXT, MD and EML files (ZIPs are
+  unpacked) for a team or a user, up to 200 files and 100 MB per file by default.
+  A background job on the new `document_jobs` queue extracts text page by page,
+  runs Tesseract OCR on scanned PDF pages, splits pages into chunks with
+  character offsets, embeds them locally with `BAAI/bge-small-en-v1.5` and stores
+  the vectors in a per-team Pinecone namespace. Each document reports its status
+  (`queued`, `processing`, `ready`, `failed`) and stage. Uploads, deletions and
+  reprocessing are recorded in the audit log.
+- `VivexyExtension.document_scope_authorizers`: products group documents under
+  their own records (e.g. a legal matter) and decide who can access them.
+- `WORKER_QUEUES` lets a worker consume only some queues, so document workers can
+  run separately from chat workers.
+- New dependencies `pypdfium2` and `pytesseract`. The agents-service image
+  installs `tesseract-ocr` and bakes in the embedding model.
+
 ## [0.3.0] - 2026-10-20
 
 ### Added
