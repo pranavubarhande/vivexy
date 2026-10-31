@@ -263,5 +263,8 @@ every package, the chart and `constraints.txt` are at that version, creates the 
 another branch, for a version that doesn't match the code, or for a tag that already
 exists. Pushing a `v*` tag by hand still runs the same jobs.
 
+The full checklist, with verification and what to do when a job fails, is in
+[DAY_TO_DAY.md](DAY_TO_DAY.md#releasing).
+
 Follow semver: until 1.0, a minor bump may break extensions, so call out breaking changes
 in `CHANGELOG.md`.
