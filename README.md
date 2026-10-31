@@ -242,7 +242,7 @@ vivexy/
 │   ├── argocd/                   # GitOps application manifests
 │   ├── terraform/                # GKE cluster and Workload Identity
 │   └── load-tests/               # Chat and registration load tests
-├── docs/                         # EXTENDING.md, DAY_TO_DAY.md and README images
+├── docs/                         # EXTENDING.md and README images
 ├── scripts/                      # release-version.mjs, smoke-test.py
 ├── package.json                  # Root monorepo config
 ├── pyproject.toml                # uv workspace (agents-service, agents-core)
@@ -307,8 +307,6 @@ The chart is not cloud-specific. It also installs on any Kubernetes cluster (kin
 ## Contributing
 
 Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for community guidelines. First-time contributors sign the [CLA](CLA.md) on their pull request, and the bot walks you through it. Coding patterns and architectural rules for AI coding agents are in [AGENTS.md](AGENTS.md), and release notes are in [CHANGELOG.md](CHANGELOG.md).
-
-The everyday workflow, including how to cut a release, is in [docs/DAY_TO_DAY.md](docs/DAY_TO_DAY.md).
 
 Formatting is enforced by Husky pre-commit hooks (Prettier for JS, TS, JSON, CSS and Markdown, Black and isort for Python). Run `npm run format` and `npm run lint` before you push.
 
