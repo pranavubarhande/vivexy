@@ -50,12 +50,35 @@ extension = VivexyExtension(
 | `skill_dirs`          | Directories of `<skill>/SKILL.md`, indexed alongside the built-in skills.                            |
 | `include_core_agents` | `False` hides Vivexy's example agents, so the product offers only its own.                           |
 | `default_agent_id`    | Agent used when a request names none (chat, scheduled tasks).                                        |
+| `document_scope_authorizers` | Scope type → `authorizer(user, team_id, scope_id) -> bool` for the document store (below). |
 
 A failing extension or tool loader is logged and skipped; it never takes core down.
 
 Operational commands ship in the package and run from any product image:
 `python -m agents_core.cli.seed_llm_models`, `python -m agents_core.cli.promote_superadmin
 <email>` and `python -m agents_core.cli.run_maintenance`.
+
+### Document store scopes
+
+`/api/documents` stores files for a team (or a user without a team), parses them
+(Tesseract OCR for scanned PDF pages), splits them into page-bounded chunks and
+indexes them in the team's Pinecone namespace. A document can also carry a
+`scopeType` and `scopeId` so a product can group documents under its own records,
+such as a legal matter. Core doesn't know what a scope means, so it refuses any
+scope type that no extension authorizes:
+
+```python
+def can_access_matter(user, team_id, matter_id) -> bool:
+    return MatterMember.query.filter_by(matter_id=matter_id, user_id=user.id).count() > 0
+
+extension = VivexyExtension(
+    name="legal",
+    document_scope_authorizers={"matter": can_access_matter},
+)
+```
+
+The authorizer runs on every upload, list, read, delete and reprocess, after core
+has checked team membership.
 
 The extension's Flask entrypoint is just:
 

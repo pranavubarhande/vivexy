@@ -27,12 +27,21 @@ from agents_core.worker.env import load_worker_env
 load_worker_env()
 
 import redis as redis_lib
-from agents_core.constants.queues import CHAT_QUEUE, RAG_QUEUE, SCHEDULED_TASK_QUEUE
-from agents_core.constants.redis_keys import REDIS_STREAM_CHAT
 
 from agents_core.agents.config import FileContext
 from agents_core.business_logic.attachments import _try_index_attachment
-from agents_core.business_logic.streaming import NoopAppContext, run_agent_stream_to_redis
+from agents_core.business_logic.documents import process_document
+from agents_core.business_logic.streaming import (
+    NoopAppContext,
+    run_agent_stream_to_redis,
+)
+from agents_core.constants.queues import (
+    CHAT_QUEUE,
+    DOCUMENT_QUEUE,
+    RAG_QUEUE,
+    SCHEDULED_TASK_QUEUE,
+)
+from agents_core.constants.redis_keys import REDIS_STREAM_CHAT
 from agents_core.worker.broker import get_connection
 
 logger = logging.getLogger(__name__)
@@ -41,6 +50,13 @@ logger = logging.getLogger(__name__)
 # `configs` package (see worker/broker.py's docstring note for why).
 PREFETCH_COUNT = 1
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379")
+# Comma-separated queues this worker consumes; empty means all. Lets a
+# deployment run dedicated document workers so long OCR jobs never hold up chat.
+WORKER_QUEUES = [
+    queue.strip()
+    for queue in os.environ.get("WORKER_QUEUES", "").split(",")
+    if queue.strip()
+]
 
 _redis_client = None
 _shutting_down = False
@@ -152,6 +168,21 @@ def _handle_rag_job(ch, method, properties, body):
         ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
 
 
+# ── Document ingestion ──────────────────────────────────────────────────────
+
+
+def _handle_document_job(ch, method, properties, body):
+    """process_document records its own failures on the Document row, so
+    only unexpected errors reach the dead-letter queue."""
+    job = json.loads(body)
+    try:
+        process_document(job["document_id"])
+        ch.basic_ack(delivery_tag=method.delivery_tag)
+    except Exception:
+        logger.exception("Document job failed for %s", job.get("document_id"))
+        ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
+
+
 # ── Scheduled tasks ─────────────────────────────────────────────────────────
 
 
@@ -187,7 +218,7 @@ def _handle_scheduled_task_job(ch, method, properties, body):
 
 
 def start_worker():
-    """Connect to RabbitMQ and start consuming all three queues."""
+    """Connect to RabbitMQ and consume WORKER_QUEUES (all queues by default)."""
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
@@ -211,18 +242,21 @@ def start_worker():
     # prefetch_count=1: each worker handles one job at a time, ensuring fair dispatch.
     channel.basic_qos(prefetch_count=PREFETCH_COUNT)
 
-    channel.basic_consume(queue=CHAT_QUEUE, on_message_callback=_handle_chat_job)
-    channel.basic_consume(queue=RAG_QUEUE, on_message_callback=_handle_rag_job)
-    channel.basic_consume(
-        queue=SCHEDULED_TASK_QUEUE, on_message_callback=_handle_scheduled_task_job
-    )
+    handlers = {
+        CHAT_QUEUE: _handle_chat_job,
+        RAG_QUEUE: _handle_rag_job,
+        SCHEDULED_TASK_QUEUE: _handle_scheduled_task_job,
+        DOCUMENT_QUEUE: _handle_document_job,
+    }
+    queues = WORKER_QUEUES or list(handlers)
+    unknown_queues = [queue for queue in queues if queue not in handlers]
+    if unknown_queues:
+        logger.error("Unknown WORKER_QUEUES: %s", ", ".join(unknown_queues))
+        return
+    for queue in queues:
+        channel.basic_consume(queue=queue, on_message_callback=handlers[queue])
 
-    logger.info(
-        "Worker started — listening on queues: %s, %s, %s",
-        CHAT_QUEUE,
-        RAG_QUEUE,
-        SCHEDULED_TASK_QUEUE,
-    )
+    logger.info("Worker started — listening on queues: %s", ", ".join(queues))
 
     def _handle_sigterm(signum, frame):
         # Graceful drain: stop consuming NEW messages but let pika return

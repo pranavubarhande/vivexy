@@ -24,3 +24,8 @@ AUDIT_RETENTION_PURGED = "system.retention_purged"
 AUDIT_TEAM_OWNERSHIP_TRANSFERRED = "team.ownership_transferred"
 AUDIT_TEAM_DOMAIN_VERIFIED = "team.domain_verified"
 AUDIT_SUBSCRIPTION_SYNCED = "system.subscription_synced"
+AUDIT_DOCUMENT_UPLOADED = "document.uploaded"
+AUDIT_DOCUMENT_DELETED = "document.deleted"
+AUDIT_DOCUMENT_REPROCESSED = "document.reprocessed"
+
+AUDIT_TARGET_DOCUMENT = "document"

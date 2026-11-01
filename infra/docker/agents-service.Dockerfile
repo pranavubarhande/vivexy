@@ -35,13 +35,15 @@ WORKDIR /repo
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PATH="/repo/.venv/bin:${PATH}" \
-    PLAYWRIGHT_BROWSERS_PATH=/opt/playwright-browsers
+    PLAYWRIGHT_BROWSERS_PATH=/opt/playwright-browsers \
+    HF_HOME=/opt/hf-cache
 
 # System libs:
 #  - libpango/cairo/fontconfig — WeasyPrint
 #  - libnss3/libatk-bridge/libx*/libgbm — Playwright chromium
 #  - pandoc — pypandoc
 #  - libpq5 — psycopg2 runtime
+#  - tesseract-ocr — OCR for scanned pages in the document store
 RUN apt-get update && apt-get install -y --no-install-recommends \
       libpango-1.0-0 libpangoft2-1.0-0 libcairo2 libfontconfig1 \
       libharfbuzz0b libffi8 \
@@ -50,6 +52,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       fonts-liberation fonts-noto-color-emoji \
       pandoc \
       libpq5 \
+      tesseract-ocr tesseract-ocr-eng \
       ca-certificates curl \
     && rm -rf /var/lib/apt/lists/*
 
@@ -66,13 +69,17 @@ RUN pip install --no-cache-dir uv
 # editable-install path references in /repo/.venv pointing nowhere.
 COPY apps/agents-service ./apps/agents-service
 COPY packages/agents-core ./packages/agents-core
-RUN chown -R app:app /repo /opt && mkdir -p "$PLAYWRIGHT_BROWSERS_PATH" && chown -R app:app "$PLAYWRIGHT_BROWSERS_PATH"
+RUN chown -R app:app /repo /opt && mkdir -p "$PLAYWRIGHT_BROWSERS_PATH" "$HF_HOME" && chown -R app:app "$PLAYWRIGHT_BROWSERS_PATH" "$HF_HOME"
 
 USER app
 WORKDIR /repo/apps/agents-service
 
 # Install Chromium into PLAYWRIGHT_BROWSERS_PATH (best-effort; skip in offline builds)
 RUN python -m playwright install chromium || true
+
+# Bake the document embedding model into the image so pods never need to reach
+# Hugging Face at runtime (best-effort; skip in offline builds)
+RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('BAAI/bge-small-en-v1.5')" || true
 
 EXPOSE 5000
 
