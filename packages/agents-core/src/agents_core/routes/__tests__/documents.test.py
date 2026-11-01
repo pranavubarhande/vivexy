@@ -443,3 +443,25 @@ def test_file_link_is_short_lived(client, org):
     )
     assert link.status_code == 200
     assert link.get_json()["url"].endswith("expires=900")
+
+
+def test_storage_failure_returns_502_and_cleans_up(client, org, monkeypatch):
+    real_upload = FakeS3.upload_object
+    calls = []
+
+    def fail_second(self, file, s3_key, content_type=None):
+        calls.append(s3_key)
+        if len(calls) == 2:
+            return False
+        return real_upload(self, file, s3_key, content_type)
+
+    monkeypatch.setattr(FakeS3, "upload_object", fail_second)
+    response = _upload(
+        client, org["member"], [_file("a.txt", "one"), _file("b.txt", "two")]
+    )
+
+    assert response.status_code == 502
+    assert response.get_json()["error"] == "Could not store b.txt. Try again."
+    assert FakeS3.objects == {}
+    assert Document.query.count() == 0
+    assert AuditLog.query.count() == 0

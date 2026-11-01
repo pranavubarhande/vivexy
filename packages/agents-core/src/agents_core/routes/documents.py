@@ -3,6 +3,7 @@ from pydantic import ValidationError
 
 from agents_core.business_logic.documents import (
     DocumentAccessError,
+    DocumentStorageError,
     DocumentValidationError,
     delete_document,
     get_document,
@@ -59,6 +60,8 @@ def upload():
         description: Invalid upload
       403:
         description: No access to the team or scope
+      502:
+        description: File storage is unavailable
     """
     try:
         scope = DocumentScope(**request.form.to_dict())
@@ -76,6 +79,8 @@ def upload():
         return _error(str(e), 400)
     except DocumentAccessError as e:
         return _error(str(e), 403)
+    except DocumentStorageError as e:
+        return _error(str(e), 502)
 
 
 @bp.route("", methods=["GET"])
@@ -197,6 +202,8 @@ def file_url(document_id):
         return jsonify({"url": get_document_file_url(document_id, request.user)})
     except LookupError as e:
         return _error(str(e), 404)
+    except DocumentStorageError as e:
+        return _error(str(e), 502)
 
 
 @bp.route("/<document_id>", methods=["DELETE"])

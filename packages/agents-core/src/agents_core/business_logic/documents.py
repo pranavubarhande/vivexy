@@ -68,6 +68,10 @@ class DocumentValidationError(Exception):
     pass
 
 
+class DocumentStorageError(Exception):
+    pass
+
+
 @dataclass
 class _StagedFile:
     filename: str
@@ -282,7 +286,9 @@ def upload_documents(
             document.s3_key = _s3_key(document)
             with open(staged.path, "rb") as handle:
                 if not s3.upload_object(handle, document.s3_key, document.mime_type):
-                    raise RuntimeError(f"Could not store {staged.filename}")
+                    raise DocumentStorageError(
+                        f"Could not store {staged.filename}. Try again."
+                    )
             stored_keys.append(document.s3_key)
             db.session.add(document)
             record_audit_log(
@@ -503,7 +509,7 @@ def get_document_file_url(document_id: str, user: User) -> str:
     document = _get_accessible_document(document_id, user)
     url = S3Service().get_presigned_url(document.s3_key, expiration=900)
     if not url:
-        raise RuntimeError("Could not create a download link")
+        raise DocumentStorageError("Could not create a download link")
     return url
 
 
