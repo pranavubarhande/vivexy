@@ -28,6 +28,7 @@ from agents_core.tools.chat.skill_tool import (
     get_load_skill_tool,
     get_save_user_skill_tool,
 )
+from agents_core.tools.documents.search_tools import get_document_store_tools
 from agents_core.tools.sandbox.daytona_tools import (
     get_execute_code_tool,
     get_list_sandbox_files_tool,
@@ -542,6 +543,9 @@ def create_agent(
         "legal": get_legal_tools,
         "compliance": get_compliance_tools,
         "document": lambda: get_document_tools(chat_id, include_rag),
+        "document_store": lambda: (
+            get_document_store_tools(chat_id) if include_rag else []
+        ),
         "market_data": get_market_data_tools,
         "sec_edgar": get_sec_edgar_tools,
         "legal_db": get_legal_db_tools,

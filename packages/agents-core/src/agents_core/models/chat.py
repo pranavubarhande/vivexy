@@ -21,6 +21,9 @@ class Chat(db.Model):
     compact_summary = db.Column(db.Text, nullable=True)
     compact_message_count = db.Column(db.Integer, nullable=True)
     github_context = db.Column(db.JSON, nullable=True)
+    # Documents the chat's search tool may cite; see business_logic/documents.py
+    document_scope_type = db.Column(db.String, nullable=True)
+    document_scope_id = db.Column(db.String, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
@@ -45,6 +48,8 @@ class Message(db.Model):
     content = db.Column(db.Text, nullable=False)
     model_id = db.Column(db.String, db.ForeignKey("llm_models.id"))
     reasoning = db.Column(db.JSON)
+    citations = db.Column(db.JSON, nullable=True)
+    citation_check = db.Column(db.JSON, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Relations
@@ -64,6 +69,8 @@ class Message(db.Model):
             "content": self.content,
             "modelId": self.model_id,
             "reasoning": self.reasoning,
+            "citations": self.citations or [],
+            "citationCheck": self.citation_check,
             "createdAt": self.created_at.isoformat(),
             "attachments": [a.to_dict() for a in self.attachments],
             "artifacts": [

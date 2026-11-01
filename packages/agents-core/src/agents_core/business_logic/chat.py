@@ -10,7 +10,7 @@ from agents_core.constants.stream_events import (
     STREAM_EVENT_DONE,
     STREAM_EVENT_REASONING,
 )
-from agents_core.models import Chat, ChatAttachment, LLMModel, Message, db
+from agents_core.models import Chat, ChatAttachment, LLMModel, Message, User, db
 from agents_core.models.token_usage import TokenUsage
 from agents_core.schemas import ChatCreate, ChatResponse, LLMModelResponse, MessageRole
 from sqlalchemy.orm import joinedload
@@ -18,6 +18,7 @@ from sqlalchemy.orm import joinedload
 from agents_core.agents.agent_factory import create_langgraph_agent
 from agents_core.agents.config import FileContext, get_default_agent_id
 from agents_core.business_logic.artifacts import resolve_artifact_content
+from agents_core.business_logic.documents import authorize_scope
 from agents_core.services.file_processor import FileProcessor
 from agents_core.services.s3_service import S3Service
 from agents_core.tools.chat.chat_tools import generate_chat_title_func
@@ -202,11 +203,20 @@ def get_user_chat(chat_id: str, user_id: str) -> Dict[str, Any]:
 
 def create_chat(data: ChatCreate, user_id: str) -> ChatResponse:
     """Create a new chat."""
+    if data.document_scope_type or data.document_scope_id:
+        authorize_scope(
+            db.session.get(User, user_id),
+            data.team_id,
+            data.document_scope_type,
+            data.document_scope_id,
+        )
     chat = Chat(
         user_id=user_id,
         team_id=data.team_id,
         title=data.title or "New Chat",
         agent_id=data.agent_id,
+        document_scope_type=data.document_scope_type,
+        document_scope_id=data.document_scope_id,
     )
     db.session.add(chat)
     db.session.commit()
@@ -365,6 +375,11 @@ def create_message(
         content=data["content"],
         model_id=data.get("model_id"),
         reasoning=data.get("reasoning", []),
+        citations=(
+            data.get("citations") or None
+            if data["role"].upper() == MessageRole.ASSISTANT.value
+            else None
+        ),
     )
     db.session.add(user_message)
     db.session.commit()
