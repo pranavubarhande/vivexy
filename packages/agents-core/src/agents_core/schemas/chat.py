@@ -11,6 +11,8 @@ class ChatBase(BaseModel):
     title: Optional[str] = None
     agent_id: Optional[str] = None
     team_id: Optional[str] = None
+    document_scope_type: Optional[str] = None
+    document_scope_id: Optional[str] = None
 
 
 class ChatCreate(ChatBase):

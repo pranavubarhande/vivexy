@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request
 from pydantic import ValidationError
 
+from agents_core.business_logic.document_search import search_documents
 from agents_core.business_logic.documents import (
     DocumentAccessError,
     DocumentStorageError,
@@ -16,7 +17,11 @@ from agents_core.business_logic.documents import (
 from agents_core.business_logic.features import require_feature
 from agents_core.constants.features import FEATURE_RAG
 from agents_core.middlewares.auth import auth_middleware
-from agents_core.schemas.document import DocumentListQuery, DocumentScope
+from agents_core.schemas.document import (
+    DocumentListQuery,
+    DocumentScope,
+    DocumentSearchRequest,
+)
 
 bp = Blueprint("documents", __name__, url_prefix="/api/documents")
 
@@ -253,3 +258,63 @@ def reprocess(document_id):
         return _error(str(e), 404)
     except DocumentValidationError as e:
         return _error(str(e), 400)
+
+
+@bp.route("/search", methods=["POST"])
+@auth_middleware
+@require_feature(FEATURE_RAG)
+def search():
+    """Search ready documents and return passages with page and span.
+    ---
+    tags:
+      - Documents
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required: [query]
+          properties:
+            query:
+              type: string
+            teamId:
+              type: string
+            scopeType:
+              type: string
+            scopeId:
+              type: string
+            documentIds:
+              type: array
+              items:
+                type: string
+            limit:
+              type: integer
+    responses:
+      200:
+        description: Passages ranked by relevance
+      400:
+        description: Invalid query
+      403:
+        description: No access to the team or scope
+    """
+    try:
+        body = DocumentSearchRequest(**(request.get_json() or {}))
+        results = search_documents(
+            request.user,
+            body.query,
+            team_id=body.team_id,
+            scope_type=body.scope_type,
+            scope_id=body.scope_id,
+            document_ids=body.document_ids,
+            limit=body.limit,
+        )
+        return jsonify({"results": results})
+    except ValidationError as e:
+        return _error(e.errors()[0]["msg"], 400)
+    except DocumentValidationError as e:
+        return _error(str(e), 400)
+    except DocumentAccessError as e:
+        return _error(str(e), 403)

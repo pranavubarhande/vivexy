@@ -26,12 +26,18 @@ from agents_core.business_logic.compact import (
     get_compacted_messages,
     should_auto_compact,
 )
+from agents_core.business_logic.citation_check import (
+    check_citations,
+    cited_ids_in_order,
+)
 from agents_core.business_logic.features import disabled_features_for_user
 from agents_core.business_logic.team_policy import maybe_send_budget_alerts
 from agents_core.constants.stream_events import (
     STREAM_EVENT_APPROVAL_REQUEST,
     STREAM_EVENT_ARTIFACT,
     STREAM_EVENT_CHART,
+    STREAM_EVENT_CITATION_CHECK,
+    STREAM_EVENT_CITATIONS,
     STREAM_EVENT_CLIENT_TOOL_REQUEST,
     STREAM_EVENT_COMPACT,
     STREAM_EVENT_CONTENT,
@@ -42,6 +48,7 @@ from agents_core.constants.stream_events import (
     STREAM_EVENT_TOOL_CALL,
     STREAM_EVENT_USAGE,
 )
+from agents_core.models.base import db
 from agents_core.models.chat import Chat
 from agents_core.models.chat import Message as DBMessage
 from agents_core.models.llm import LLMModel
@@ -111,6 +118,7 @@ def run_agent_stream(
 
         full_content = ""
         reasoning_steps: List[Dict] = []
+        citations: Dict[str, Dict[str, Any]] = {}
         tool_call_count = 0
         CHECKPOINT_INTERVAL = 5
         total_usage: Dict[str, int] = {
@@ -236,7 +244,7 @@ def run_agent_stream(
 
                             elif message_type == "tool":
                                 yield from _handle_tool_outcome(
-                                    message, reasoning_steps
+                                    message, reasoning_steps, citations
                                 )
 
                             # Reasoning / Tool Calls
@@ -366,6 +374,11 @@ def run_agent_stream(
                     "content": full_content,
                     "model_id": model_db_id,
                     "reasoning": reasoning_steps,
+                    "citations": [
+                        citations[citation_id]
+                        for citation_id in cited_ids_in_order(full_content)
+                        if citation_id in citations
+                    ],
                 },
                 user_id,
             )
@@ -382,6 +395,16 @@ def run_agent_stream(
                 model_db_id=model_db_id,
                 model_provider=model_provider,
                 usage=total_usage,
+            )
+
+        if citations or cited_ids_in_order(full_content):
+            yield from _emit_citation_check(
+                assistant_message["id"],
+                full_content,
+                citations,
+                model_provider,
+                model_id,
+                user_api_keys,
             )
 
         if title_request:
@@ -648,8 +671,33 @@ def _extract_text(content: Any) -> str:
     return ""
 
 
+def _emit_citation_check(
+    message_id: str,
+    answer: str,
+    citations: Dict[str, Dict[str, Any]],
+    provider: str,
+    model_id: Optional[str],
+    user_api_keys: Dict[str, str],
+) -> Generator[str, None, None]:
+    result = check_citations(answer, citations, provider, model_id, user_api_keys)
+    if result is None:
+        return
+    message = DBMessage.query.filter_by(id=message_id).first()
+    if message is not None:
+        message.citation_check = result
+        db.session.commit()
+    yield _sse(
+        {
+            "type": STREAM_EVENT_CITATION_CHECK,
+            "data": {"messageId": message_id, **result},
+        }
+    )
+
+
 def _handle_tool_outcome(
-    message: Any, reasoning_steps: List[Dict]
+    message: Any,
+    reasoning_steps: List[Dict],
+    citations: Optional[Dict[str, Dict[str, Any]]] = None,
 ) -> Generator[str, None, None]:
     """Process artifact creations and broadcast statuses from tool messages."""
     content = getattr(message, "content", "")
@@ -698,6 +746,24 @@ def _handle_tool_outcome(
                     },
                 }
             )
+
+        if isinstance(data, dict) and isinstance(data.get("citations"), list):
+            new_citations = [
+                citation
+                for citation in data["citations"]
+                if isinstance(citation, dict) and citation.get("id")
+            ]
+            if citations is not None:
+                citations.update(
+                    {citation["id"]: citation for citation in new_citations}
+                )
+            if new_citations:
+                yield _sse(
+                    {
+                        "type": STREAM_EVENT_CITATIONS,
+                        "data": {"citations": new_citations},
+                    }
+                )
 
         # 2. Broadcast generic status for any tool call
         tool_name = getattr(message, "name", "tool")

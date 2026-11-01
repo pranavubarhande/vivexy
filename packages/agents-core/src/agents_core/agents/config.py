@@ -83,6 +83,7 @@ AGENT_METADATA = {
         "tools": [
             "base",
             "rag",
+            "document_store",
             "todos",
             "artifacts",
             "files",
