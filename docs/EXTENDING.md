@@ -77,8 +77,23 @@ extension = VivexyExtension(
 )
 ```
 
-The authorizer runs on every upload, list, read, delete and reprocess, after core
-has checked team membership.
+The authorizer runs on every upload, list, read, delete, reprocess and search,
+after core has checked team membership.
+
+To let an agent search and cite documents, list the `document_store` tool group
+in its `tools`. Its `search_documents` tool searches the chat's team, or the
+scope the chat was created with, so create a matter's chats with that scope:
+
+```http
+POST /chat
+{"teamId": "...", "documentScopeType": "matter", "documentScopeId": "..."}
+```
+
+Answers cite passages with markers like `[^1a2b3c4d]`. The stream sends
+`citations` events (document, page, character span and quote for each marker)
+and, after the answer, a `citation_check` event saying which cited sentences the
+passages support. Both are saved on the message as `citations` and
+`citationCheck`.
 
 The extension's Flask entrypoint is just:
 

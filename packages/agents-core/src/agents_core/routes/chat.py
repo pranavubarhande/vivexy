@@ -146,6 +146,8 @@ def create_new_chat():
         return jsonify({"error": "Invalid input data", "details": e.errors()}), 400
     except PermissionError as e:
         return jsonify({"error": str(e)}), 403
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

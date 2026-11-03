@@ -23,6 +23,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   run separately from chat workers.
 - New dependencies `pypdfium2` and `pytesseract`. The agents-service image
   installs `tesseract-ocr` and bakes in the embedding model.
+- Document search: `POST /api/documents/search` fuses Pinecone vector search
+  with Postgres full-text search and re-checks every hit against the
+  documents the user can read. The `document_store` tool group gives agents a
+  `search_documents` tool (on for the default assistant); it searches the
+  chat's team, or the scope a chat was created with (`documentScopeType` /
+  `documentScopeId` on `POST /chat`).
+- Cited answers: passages carry markers such as `[^1a2b3c4d]`. The stream emits
+  a `citations` event with each passage's document, page and character span,
+  saves the citations the answer used on the message (`citations`), then asks
+  the chat's model whether each cited sentence is supported and emits and
+  saves the result (`citation_check`).
+- `python -m agents_core.cli.eval_document_search` reports hit rate and mean
+  reciprocal rank for a JSONL file of queries with known answers.
 
 ## [0.3.0] - 2026-10-20
 

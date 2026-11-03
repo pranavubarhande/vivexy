@@ -33,6 +33,10 @@ STREAM_EVENT_FILE_VERSION = "file_version"
 # Inline chart (rendered directly in the chat message timeline)
 STREAM_EVENT_CHART = "chart_render"
 
+# Document citations: passages an answer may cite, then the check of the answer
+STREAM_EVENT_CITATIONS = "citations"
+STREAM_EVENT_CITATION_CHECK = "citation_check"
+
 # Compaction
 STREAM_EVENT_COMPACT = "compact"
 

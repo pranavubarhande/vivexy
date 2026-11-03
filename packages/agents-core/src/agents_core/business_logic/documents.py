@@ -60,11 +60,11 @@ from agents_core.worker.dispatcher import dispatch_document_job
 logger = logging.getLogger(__name__)
 
 
-class DocumentAccessError(Exception):
+class DocumentAccessError(PermissionError):
     pass
 
 
-class DocumentValidationError(Exception):
+class DocumentValidationError(ValueError):
     pass
 
 
