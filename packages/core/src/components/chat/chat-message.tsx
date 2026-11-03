@@ -2,6 +2,7 @@
 
 import { cn } from '@vivexy/ui/utils';
 import { MessageStream } from './message-stream';
+import { CitationMessageStream, CitationFootnotes } from './citation-footnotes';
 import { StepItem } from './reasoning-display';
 import { InlineArtifactCard } from './inline-artifact-card';
 import { InlineTodoList } from './inline-todo-list';
@@ -484,6 +485,16 @@ export function AssistantMessage({
                   />
                 );
               }
+              if (message.citations && message.citations.length > 0) {
+                return (
+                  <CitationMessageStream
+                    key={i}
+                    content={item.text}
+                    citations={message.citations}
+                    isStreaming={item.isLastStreaming}
+                  />
+                );
+              }
               return (
                 <MessageStream
                   key={i}
@@ -494,11 +505,24 @@ export function AssistantMessage({
               );
             })}
           </>
+        ) : message.citations && message.citations.length > 0 ? (
+          <CitationMessageStream
+            content={message.content}
+            citations={message.citations}
+            isStreaming={message.isStreaming}
+          />
         ) : (
           <MessageStream
             content={message.content}
             role={message.role}
             isStreaming={message.isStreaming}
+          />
+        )}
+        {message.citations && message.citations.length > 0 && (
+          <CitationFootnotes
+            citations={message.citations}
+            citationCheck={message.citationCheck}
+            content={message.content}
           />
         )}
         {message.artifacts && message.artifacts.length > 0 && (

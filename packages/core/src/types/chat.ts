@@ -8,6 +8,8 @@ import {
   STREAM_EVENT_ARTIFACT,
   STREAM_EVENT_ARTIFACT_STREAM,
   STREAM_EVENT_CHART,
+  STREAM_EVENT_CITATION_CHECK,
+  STREAM_EVENT_CITATIONS,
   STREAM_EVENT_CLIENT_TOOL_REQUEST,
   STREAM_EVENT_COMPACT,
   STREAM_EVENT_CONTENT,
@@ -81,6 +83,31 @@ export interface TokenUsageData {
   provider: string | null;
 }
 
+export interface Citation {
+  id: string;
+  chunkId: string;
+  documentId: string;
+  filename: string;
+  paginated: boolean;
+  pageNumber: number;
+  charStart: number;
+  charEnd: number;
+  quote: string;
+}
+
+export interface CitationStatement {
+  text: string;
+  citationIds: string[];
+  supported: boolean;
+  reason: string;
+}
+
+export interface CitationCheck {
+  statements: CitationStatement[];
+  unsupportedCount: number;
+  unknownCitationIds: string[];
+}
+
 export interface Message {
   id: string;
   role: 'user' | 'assistant';
@@ -90,6 +117,8 @@ export interface Message {
   artifacts?: Artifact[];
   todos?: InlineTodo[];
   attachments?: MessageAttachment[];
+  citations?: Citation[];
+  citationCheck?: CitationCheck | null;
   createdAt: string;
   isStreaming?: boolean;
   tokenUsage?: TokenUsageData;
@@ -266,6 +295,14 @@ export type SSEEvent =
   | {
       type: typeof STREAM_EVENT_USAGE;
       data: TokenUsageData;
+    }
+  | {
+      type: typeof STREAM_EVENT_CITATIONS;
+      data: Citation[];
+    }
+  | {
+      type: typeof STREAM_EVENT_CITATION_CHECK;
+      data: CitationCheck;
     }
   | {
       type: typeof STREAM_EVENT_DONE;

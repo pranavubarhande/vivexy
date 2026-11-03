@@ -20,3 +20,4 @@ export {
 export { ArtifactsPanel, ArtifactNotification } from './artifacts-panel';
 export { InlineTodoList } from './inline-todo-list';
 export { ArtifactContent } from './artifact-content';
+export { CitationMessageStream, CitationFootnotes } from './citation-footnotes';
