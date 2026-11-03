@@ -17,6 +17,8 @@ import {
   STREAM_EVENT_ARTIFACT,
   STREAM_EVENT_ARTIFACT_STREAM,
   STREAM_EVENT_CHART,
+  STREAM_EVENT_CITATION_CHECK,
+  STREAM_EVENT_CITATIONS,
   STREAM_EVENT_CLIENT_TOOL_REQUEST,
   STREAM_EVENT_COMPACT,
   STREAM_EVENT_CONTENT,
@@ -441,6 +443,18 @@ export const handleStreamEvent = (
 
     case STREAM_EVENT_USAGE: {
       updateStreaming({ tokenUsage: event.data });
+      break;
+    }
+
+    case STREAM_EVENT_CITATIONS: {
+      assistantMsg.citations = event.data;
+      updateStreaming({ citations: event.data });
+      break;
+    }
+
+    case STREAM_EVENT_CITATION_CHECK: {
+      assistantMsg.citationCheck = event.data;
+      updateStreaming({ citationCheck: event.data });
       break;
     }
 

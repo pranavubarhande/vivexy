@@ -13,6 +13,10 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      '@vivexy/core': path.resolve(__dirname, './src'),
+      '@vivexy/ui': path.resolve(__dirname, '../ui/src'),
     },
+    // Follow package.json exports for workspace packages
+    conditions: ['development', 'browser', 'module', 'require', 'default'],
   },
 });

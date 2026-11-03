@@ -7,6 +7,9 @@
 
 export type {
   Chat,
+  Citation,
+  CitationCheck,
+  CitationStatement,
   Message,
   Artifact,
   InlineTodo,
