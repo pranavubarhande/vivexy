@@ -6,6 +6,8 @@ import { StepItem } from './reasoning-display';
 import { InlineArtifactCard } from './inline-artifact-card';
 import { InlineTodoList } from './inline-todo-list';
 import { CHARTJS_IFRAME } from './artifact-content';
+import { MessageCitations } from './message-citations';
+import { formatCitationsForCopy, numberCitations } from '../../lib/citations';
 import React, { useMemo, useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
@@ -436,7 +438,12 @@ export function AssistantMessage({
   const [copied, setCopied] = React.useState(false);
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(message.content);
+    navigator.clipboard.writeText(
+      formatCitationsForCopy(
+        message.content,
+        numberCitations(message.content, message.citations)
+      )
+    );
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -458,65 +465,70 @@ export function AssistantMessage({
 
   return (
     <div className="w-full space-y-2 group">
-      <div className="w-full">
-        {message.todos && message.todos.length > 0 && (
-          <InlineTodoList todos={message.todos} />
-        )}
-        {showReasoning && groupedItems ? (
-          <>
-            {groupedItems.map((item, i) => {
-              if (item.kind === 'step') {
+      <MessageCitations message={message}>
+        <div className="w-full">
+          {message.todos && message.todos.length > 0 && (
+            <InlineTodoList todos={message.todos} />
+          )}
+          {showReasoning && groupedItems ? (
+            <>
+              {groupedItems.map((item, i) => {
+                if (item.kind === 'step') {
+                  return (
+                    <div key={i} className="my-1">
+                      <StepItem
+                        step={item.step}
+                        isStreaming={item.isStreaming}
+                      />
+                    </div>
+                  );
+                }
+                if (item.kind === 'chart') {
+                  return (
+                    <iframe
+                      key={i}
+                      srcDoc={CHARTJS_IFRAME(JSON.stringify(item.spec))}
+                      sandbox="allow-scripts"
+                      className="w-full rounded-xl border border-border my-2"
+                      style={{ height: '380px' }}
+                      title={item.title}
+                    />
+                  );
+                }
                 return (
-                  <div key={i} className="my-1">
-                    <StepItem step={item.step} isStreaming={item.isStreaming} />
-                  </div>
-                );
-              }
-              if (item.kind === 'chart') {
-                return (
-                  <iframe
+                  <MessageStream
                     key={i}
-                    srcDoc={CHARTJS_IFRAME(JSON.stringify(item.spec))}
-                    sandbox="allow-scripts"
-                    className="w-full rounded-xl border border-border my-2"
-                    style={{ height: '380px' }}
-                    title={item.title}
+                    content={item.text}
+                    role={message.role}
+                    isStreaming={item.isLastStreaming}
                   />
                 );
-              }
-              return (
-                <MessageStream
-                  key={i}
-                  content={item.text}
-                  role={message.role}
-                  isStreaming={item.isLastStreaming}
-                />
-              );
-            })}
-          </>
-        ) : (
-          <MessageStream
-            content={message.content}
-            role={message.role}
-            isStreaming={message.isStreaming}
-          />
-        )}
-        {message.artifacts && message.artifacts.length > 0 && (
-          <div className="mt-3 space-y-3">
-            {message.artifacts.map((art: Artifact) => (
-              <InlineArtifactCard key={art.id} artifact={art} />
-            ))}
-          </div>
-        )}
-        {message.errorAction && (
-          <Button asChild variant="outline" size="sm" className="mt-2">
-            <Link href={message.errorAction.href}>
-              <KeyRound className="size-3.5" />
-              {message.errorAction.label}
-            </Link>
-          </Button>
-        )}
-      </div>
+              })}
+            </>
+          ) : (
+            <MessageStream
+              content={message.content}
+              role={message.role}
+              isStreaming={message.isStreaming}
+            />
+          )}
+          {message.artifacts && message.artifacts.length > 0 && (
+            <div className="mt-3 space-y-3">
+              {message.artifacts.map((art: Artifact) => (
+                <InlineArtifactCard key={art.id} artifact={art} />
+              ))}
+            </div>
+          )}
+          {message.errorAction && (
+            <Button asChild variant="outline" size="sm" className="mt-2">
+              <Link href={message.errorAction.href}>
+                <KeyRound className="size-3.5" />
+                {message.errorAction.label}
+              </Link>
+            </Button>
+          )}
+        </div>
+      </MessageCitations>
       <div className="flex items-center gap-2 px-2">
         <span className="text-[10px] text-muted-foreground">
           {formatTime(message.createdAt)}
