@@ -40,6 +40,10 @@ export const STREAM_EVENT_COMPACT = 'compact' as const;
 // Token usage (emitted before done)
 export const STREAM_EVENT_USAGE = 'usage' as const;
 
+// Document citations: passages an answer may cite, then the check of the answer
+export const STREAM_EVENT_CITATIONS = 'citations' as const;
+export const STREAM_EVENT_CITATION_CHECK = 'citation_check' as const;
+
 // Error
 export const STREAM_EVENT_ERROR = 'error' as const;
 
@@ -65,4 +69,6 @@ export type StreamEventType =
   | typeof STREAM_EVENT_CHART
   | typeof STREAM_EVENT_COMPACT
   | typeof STREAM_EVENT_USAGE
+  | typeof STREAM_EVENT_CITATIONS
+  | typeof STREAM_EVENT_CITATION_CHECK
   | typeof STREAM_EVENT_ERROR;
