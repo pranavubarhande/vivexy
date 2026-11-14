@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   documents and the account stay; token usage is kept for billing. The
   deletion is audit-logged (`user.history_deleted`). `@vivexy/core` adds
   `userService.deleteHistory` and `useDeleteMyHistory`.
+- `queuePromptForChat(text, chatId)` can queue a prompt for an existing chat;
+  the chat screen sends it if that chat has no messages yet. Products use it
+  to open a new scoped chat with the user's question already sent.
 
 ### Fixed
 

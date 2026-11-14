@@ -61,6 +61,14 @@ describe('queued prompts', () => {
     expect(takeQueuedPrompt()).toBeNull();
   });
 
+  it('wait for the chat they were queued for', () => {
+    queuePromptForChat('Summarize the lease', 'chat-1');
+    expect(takeQueuedPrompt()).toBeNull();
+    expect(takeQueuedPrompt('chat-2')).toBeNull();
+    expect(takeQueuedPrompt('chat-1')).toBe('Summarize the lease');
+    expect(takeQueuedPrompt('chat-1')).toBeNull();
+  });
+
   it('expire after a minute', () => {
     vi.useFakeTimers();
     queuePromptForChat('Old prompt');

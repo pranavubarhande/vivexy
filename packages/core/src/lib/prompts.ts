@@ -59,30 +59,37 @@ export const fieldValuesSchema = (fields: PromptField[]) =>
 export const emptyFieldValues = (fields: PromptField[]) =>
   Object.fromEntries(fields.map((field) => [field.key, '']));
 
-/** Hands a prompt to the chat screen, which sends it once it has loaded. */
-export const queuePromptForChat = (text: string) => {
+/** Hands a prompt to the chat screen, which sends it once it has loaded:
+ * in a new chat, or in the given chat if it has no messages yet. */
+export const queuePromptForChat = (text: string, chatId?: string) => {
   try {
     sessionStorage.setItem(
       PENDING_PROMPT_KEY,
-      JSON.stringify({ text, queuedAt: Date.now() })
+      JSON.stringify({ text, chatId: chatId ?? null, queuedAt: Date.now() })
     );
   } catch {
     // Private mode or storage disabled: the chat simply starts empty.
   }
 };
 
-/** The prompt queued for the chat in the last minute, if any. Taking it
- * clears it, so it is sent once. */
-export const takeQueuedPrompt = (): string | null => {
+/** The prompt queued in the last minute for this chat (null for a new
+ * chat), if any. Taking it clears it, so it is sent once. */
+export const takeQueuedPrompt = (
+  chatId: string | null = null
+): string | null => {
   try {
     const stored = sessionStorage.getItem(PENDING_PROMPT_KEY);
-    sessionStorage.removeItem(PENDING_PROMPT_KEY);
     if (!stored) return null;
-    const { text, queuedAt } = JSON.parse(stored) as {
+    const queued = JSON.parse(stored) as {
       text: string;
+      chatId?: string | null;
       queuedAt: number;
     };
-    return Date.now() - queuedAt <= PENDING_PROMPT_MAX_AGE_MS ? text : null;
+    if ((queued.chatId ?? null) !== chatId) return null;
+    sessionStorage.removeItem(PENDING_PROMPT_KEY);
+    return Date.now() - queued.queuedAt <= PENDING_PROMPT_MAX_AGE_MS
+      ? queued.text
+      : null;
   } catch {
     return null;
   }

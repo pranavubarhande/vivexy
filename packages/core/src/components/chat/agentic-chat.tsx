@@ -687,13 +687,13 @@ export const AgenticChat = ({
   const isEmpty = displayMessages.length === 0 && !isLoadingMessages;
   const [fillValue, setFillValue] = useState<string | undefined>();
 
-  // ---- A prompt handed over by the prompt library is sent once ready ----
+  // ---- A prompt queued for this chat (or a new one) is sent once ready ----
   useEffect(() => {
-    if (chatId || isLoadingModels) return;
-    const queuedPrompt = takeQueuedPrompt();
+    if (isLoadingModels || isLoadingMessages || !isEmpty) return;
+    const queuedPrompt = takeQueuedPrompt(chatId);
     if (queuedPrompt) void handleSend(queuedPrompt);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chatId, isLoadingModels]);
+  }, [chatId, isLoadingModels, isLoadingMessages, isEmpty]);
 
   const handleSaveArtifact = async (
     artifact: Artifact & { language?: string },
