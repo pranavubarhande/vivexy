@@ -17,6 +17,8 @@ import {
   STREAM_EVENT_ARTIFACT,
   STREAM_EVENT_ARTIFACT_STREAM,
   STREAM_EVENT_CHART,
+  STREAM_EVENT_CITATION_CHECK,
+  STREAM_EVENT_CITATIONS,
   STREAM_EVENT_CLIENT_TOOL_REQUEST,
   STREAM_EVENT_COMPACT,
   STREAM_EVENT_CONTENT,
@@ -37,6 +39,7 @@ import {
 import { chatKeys } from './useChat';
 import { syncAgentSavedSkill } from './useInstalledSkills';
 import { platform } from '@vivexy/core/lib/platform';
+import { mergeCitations } from '@vivexy/core/lib/citations';
 import type { useQueryCacheUpdater } from './use-query-cache-updater';
 
 const normalizeKey = (key: string | null | undefined): string => {
@@ -436,6 +439,21 @@ export const handleStreamEvent = (
     case STREAM_EVENT_TODO: {
       const todoData = event.data as unknown as InlineTodo;
       upsertTodoOnMessage(todoData);
+      break;
+    }
+
+    case STREAM_EVENT_CITATIONS: {
+      assistantMsg.citations = mergeCitations(
+        assistantMsg.citations,
+        event.data?.citations ?? []
+      );
+      updateStreaming({ citations: assistantMsg.citations });
+      break;
+    }
+
+    case STREAM_EVENT_CITATION_CHECK: {
+      assistantMsg.citationCheck = event.data;
+      updateStreaming({ citationCheck: event.data });
       break;
     }
 

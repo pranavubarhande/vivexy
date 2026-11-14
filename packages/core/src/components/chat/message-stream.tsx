@@ -1,10 +1,13 @@
 'use client';
 
-import { memo, useState, useEffect } from 'react';
+import { memo, useState, useEffect, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { cn } from '@vivexy/ui/utils';
 import { MERMAID_IFRAME } from '@vivexy/core/chat/artifact-content';
+import { linkCitationMarkers, parseCitationHref } from '../../lib/citations';
+import { useCitationContext } from './citation-context';
+import { CitationMarker } from './citation-marker';
 
 const THINKING_WORDS = [
   'Thinking...',
@@ -56,6 +59,16 @@ export const MessageStream = memo(function MessageStream({
   role,
   className,
 }: MessageStreamProps) {
+  const citationContext = useCitationContext();
+  const statements = citationContext?.statements;
+  const renderedContent = useMemo(
+    () =>
+      citationContext
+        ? linkCitationMarkers(content, statements, isStreaming)
+        : content,
+    [citationContext, content, statements, isStreaming]
+  );
+
   return (
     <div
       className={cn(
@@ -141,16 +154,29 @@ export const MessageStream = memo(function MessageStream({
               {children}
             </td>
           ),
-          a: ({ href, children }) => (
-            <a
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-ink hover:underline"
-            >
-              {children}
-            </a>
-          ),
+          a: ({ href, children }) => {
+            const citationLink = citationContext
+              ? parseCitationHref(href)
+              : null;
+            if (citationLink) {
+              return (
+                <CitationMarker
+                  citationId={citationLink.citationId}
+                  statementIndex={citationLink.statementIndex}
+                />
+              );
+            }
+            return (
+              <a
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-ink hover:underline"
+              >
+                {children}
+              </a>
+            );
+          },
           blockquote: ({ children }) => (
             <blockquote className="border-l-4 border-primary/50 pl-4 italic text-muted-foreground my-2">
               {children}
@@ -158,7 +184,7 @@ export const MessageStream = memo(function MessageStream({
           ),
         }}
       >
-        {content}
+        {renderedContent}
       </ReactMarkdown>
       {isStreaming && <ThinkingIndicator />}
     </div>

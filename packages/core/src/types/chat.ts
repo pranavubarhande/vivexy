@@ -8,6 +8,8 @@ import {
   STREAM_EVENT_ARTIFACT,
   STREAM_EVENT_ARTIFACT_STREAM,
   STREAM_EVENT_CHART,
+  STREAM_EVENT_CITATION_CHECK,
+  STREAM_EVENT_CITATIONS,
   STREAM_EVENT_CLIENT_TOOL_REQUEST,
   STREAM_EVENT_COMPACT,
   STREAM_EVENT_CONTENT,
@@ -81,6 +83,35 @@ export interface TokenUsageData {
   provider: string | null;
 }
 
+/** A document passage an answer can cite with its [^id] marker. Character
+ * offsets are relative to the text of `pageNumber`. */
+export interface Citation {
+  id: string;
+  chunkId: string;
+  documentId: string;
+  filename: string;
+  paginated: boolean;
+  pageNumber: number;
+  charStart: number;
+  charEnd: number;
+  quote: string;
+  marker?: string;
+}
+
+export interface CitationStatementCheck {
+  text: string;
+  citationIds: string[];
+  supported: boolean;
+  reason: string;
+}
+
+export interface CitationCheck {
+  messageId?: string;
+  statements: CitationStatementCheck[];
+  unsupportedCount: number;
+  unknownCitationIds: string[];
+}
+
 export interface Message {
   id: string;
   role: 'user' | 'assistant';
@@ -94,6 +125,8 @@ export interface Message {
   isStreaming?: boolean;
   tokenUsage?: TokenUsageData;
   errorAction?: { label: string; href: string };
+  citations?: Citation[];
+  citationCheck?: CitationCheck | null;
 }
 
 export interface Artifact {
@@ -266,6 +299,14 @@ export type SSEEvent =
   | {
       type: typeof STREAM_EVENT_USAGE;
       data: TokenUsageData;
+    }
+  | {
+      type: typeof STREAM_EVENT_CITATIONS;
+      data: { citations: Citation[] };
+    }
+  | {
+      type: typeof STREAM_EVENT_CITATION_CHECK;
+      data: CitationCheck;
     }
   | {
       type: typeof STREAM_EVENT_DONE;
