@@ -166,6 +166,7 @@ export const DocumentAnalysesScreen = ({
         scope={effectiveScope}
         documents={documents}
         initialKind={kind}
+        lockKind={!!kind}
         questionPresets={questionPresets}
         onCreated={(analysis) => openAnalysis(analysis.id)}
       />
