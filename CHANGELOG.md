@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-14
+
 ### Added
 
 - Prompt library at `/api/prompts` and the Prompt Library page (`/prompts`):
@@ -59,6 +61,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the citation check, saved citations and the chat UI.
 - The citation check sees the opening of each cited document, so a defined
   term ("the Customer") and the party it names count as the same.
+
+### Upgrading
+
+- Run the two new migrations (`alembic upgrade head`): document analyses, then
+  prompts and workflow runs.
+- Analyses and workflow runs share the `document_jobs` queue with document
+  processing, so the document worker must run 0.5.0 as well. Without RabbitMQ
+  they run inside the API process.
+- The default navigation gains Document Analyses and Workflows (shown when the
+  `rag` feature is on) and Prompt Library. Products with their own navigation
+  add `ROUTES.analyses`, `ROUTES.workflows` and `ROUTES.prompts`, or embed
+  `DocumentAnalysesScreen`, `WorkflowsScreen` and `PromptLibraryScreen` with a
+  scope.
+- Products can add built-in prompts and workflows with
+  `VivexyExtension.prompts` and `VivexyExtension.workflows` (types in
+  `agents_core.library`), and hide Vivexy's own with
+  `include_core_library=False`.
 
 ## [0.4.0] - 2026-11-14
 
