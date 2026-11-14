@@ -209,8 +209,16 @@ def run_agent_stream(
                 interrupt_data = None
 
                 # 2. Main agent execution loop
-                for chunk in agent.stream(inputs, config=config, stream_mode="updates"):
-                    for node, delta in chunk.items():
+                for chunk in agent.stream(
+                    inputs, config=config, stream_mode="updates", subgraphs=True
+                ):
+                    namespace, updates = _split_stream_chunk(chunk)
+                    if namespace:
+                        yield from _subagent_citation_events(
+                            updates, citations, seen_message_ids
+                        )
+                        continue
+                    for node, delta in updates.items():
                         if node == "__interrupt__":
                             interrupt_data = delta[0].value
                             break
@@ -638,6 +646,62 @@ def _get_history_context(
     )
 
 
+def _split_stream_chunk(chunk: Any) -> Tuple[Tuple[str, ...], Dict[str, Any]]:
+    """With subgraphs=True LangGraph yields (namespace, updates); the root graph
+    has an empty namespace."""
+    if isinstance(chunk, tuple) and len(chunk) == 2:
+        return tuple(chunk[0]), chunk[1]
+    return (), chunk
+
+
+def _citation_events(
+    data: Any, citations: Optional[Dict[str, Dict[str, Any]]]
+) -> Generator[str, None, None]:
+    if not isinstance(data, dict) or not isinstance(data.get("citations"), list):
+        return
+    new_citations = [
+        citation
+        for citation in data["citations"]
+        if isinstance(citation, dict) and citation.get("id")
+    ]
+    if citations is not None:
+        citations.update({citation["id"]: citation for citation in new_citations})
+    if new_citations:
+        yield _sse(
+            {
+                "type": STREAM_EVENT_CITATIONS,
+                "data": {"citations": new_citations},
+            }
+        )
+
+
+def _subagent_citation_events(
+    updates: Any,
+    citations: Dict[str, Dict[str, Any]],
+    seen_message_ids: Set[str],
+) -> Generator[str, None, None]:
+    """A subagent's text reaches the user through the main agent, but the
+    passages its searches return must be known here so the main agent's
+    citation markers resolve, are saved and can be checked."""
+    if not isinstance(updates, dict):
+        return
+    for delta in updates.values():
+        for message in _iter_messages(delta):
+            if getattr(message, "type", "") != "tool":
+                continue
+            message_id = getattr(message, "id", None)
+            if message_id:
+                if message_id in seen_message_ids:
+                    continue
+                seen_message_ids.add(message_id)
+            content = getattr(message, "content", "")
+            try:
+                data = json.loads(content) if isinstance(content, str) else None
+            except (json.JSONDecodeError, ValueError):
+                continue
+            yield from _citation_events(data, citations)
+
+
 def _iter_messages(delta: Any) -> Generator[Any, None, None]:
     """Gracefully extracts messages from LangGraph updates (list or Overwrite)."""
     if not isinstance(delta, dict):
@@ -747,23 +811,7 @@ def _handle_tool_outcome(
                 }
             )
 
-        if isinstance(data, dict) and isinstance(data.get("citations"), list):
-            new_citations = [
-                citation
-                for citation in data["citations"]
-                if isinstance(citation, dict) and citation.get("id")
-            ]
-            if citations is not None:
-                citations.update(
-                    {citation["id"]: citation for citation in new_citations}
-                )
-            if new_citations:
-                yield _sse(
-                    {
-                        "type": STREAM_EVENT_CITATIONS,
-                        "data": {"citations": new_citations},
-                    }
-                )
+        yield from _citation_events(data, citations)
 
         # 2. Broadcast generic status for any tool call
         tool_name = getattr(message, "name", "tool")

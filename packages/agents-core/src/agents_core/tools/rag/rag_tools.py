@@ -280,8 +280,8 @@ def get_search_documents_tool(chat_id: str) -> StructuredTool:
     """Get document search tool"""
     return StructuredTool.from_function(
         func=lambda **kwargs: search_documents_func(chat_id, **kwargs),
-        name="search_documents",
-        description="Search through uploaded documents and files using semantic search. Returns relevant text passages with source information.",
+        name="search_chat_files",
+        description="Search the files attached to this chat using semantic search. For the user's workspace documents, use search_documents instead.",
         args_schema=SearchDocumentsInput,
     )
 
@@ -290,8 +290,8 @@ def get_hybrid_search_tool(chat_id: str) -> StructuredTool:
     """Get hybrid search tool"""
     return StructuredTool.from_function(
         func=lambda **kwargs: hybrid_search_func(chat_id, **kwargs),
-        name="hybrid_search",
-        description="Search documents using both semantic similarity and keyword matching for more accurate results.",
+        name="hybrid_search_chat_files",
+        description="Search the files attached to this chat using both semantic similarity and keyword matching.",
         args_schema=HybridSearchInput,
     )
 

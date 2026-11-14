@@ -6,6 +6,8 @@ from typing import Any, Callable, Dict, List, Optional, Set
 
 from agents_core.agents.config import (
     DESKTOP_ENVIRONMENT_PROMPT,
+    RESEARCHER_DESCRIPTION,
+    RESEARCHER_SYSTEM_PROMPT,
     TASK_TOOL_DESCRIPTION,
     WEB_ENVIRONMENT_PROMPT,
     WRITE_TODOS_TOOL_DESCRIPTION,
@@ -249,6 +251,18 @@ def get_finance_tools() -> List[BaseTool]:
     for module_path, func_name, args in import_list:
         tools.extend(safe_import_tool(module_path, func_name, *args))
     return tools
+
+
+def get_research_tools(chat_id: str, include_rag: bool = True) -> List[BaseTool]:
+    """Tools for the researcher subagent: the workspace document store first, so
+    delegated document questions still get cited passages."""
+    tools = get_document_store_tools(chat_id) if include_rag else []
+    names = {tool.name for tool in tools}
+    return tools + [
+        tool
+        for tool in get_document_tools(chat_id, include_rag)
+        if tool.name not in names
+    ]
 
 
 def get_document_tools(chat_id: str, include_rag: bool = True) -> List[BaseTool]:
@@ -613,9 +627,9 @@ def create_agent(
 
     research_subagent = {
         "name": "researcher",
-        "description": "Reads and analyzes documents, and searches files using RAG.",
-        "system_prompt": "You are a thorough researcher. Look into the documents and files context using the RAG and data analysis tools to answer questions.",
-        "tools": get_document_tools(chat_id, include_rag),
+        "description": RESEARCHER_DESCRIPTION,
+        "system_prompt": RESEARCHER_SYSTEM_PROMPT,
+        "tools": get_research_tools(chat_id, include_rag),
     }
 
     # 3. Sandbox backend
