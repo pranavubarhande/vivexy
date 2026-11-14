@@ -4,7 +4,12 @@ import pytest
 from flask import Flask
 
 import agents_core.business_logic.document_search as search_logic
-from agents_core.business_logic.streaming import _handle_tool_outcome
+from agents_core.agents.agent_factory import get_research_tools
+from agents_core.business_logic.streaming import (
+    _handle_tool_outcome,
+    _split_stream_chunk,
+    _subagent_citation_events,
+)
 from agents_core.cli.eval_document_search import evaluate
 from agents_core.models import (
     Chat,
@@ -323,6 +328,60 @@ def test_tool_outcome_collects_citations_and_streams_them():
         "data": {"citations": [{"id": "1a2b3c4d", "quote": "text", "pageNumber": 2}]},
     }
     assert events[1]["type"] == "tool_call"
+
+
+class _StreamMessage:
+    def __init__(self, message_type, content, message_id):
+        self.type = message_type
+        self.content = content
+        self.id = message_id
+
+
+def test_stream_chunks_are_split_by_namespace():
+    updates = {"model": {"messages": []}}
+    assert _split_stream_chunk(updates) == ((), updates)
+    assert _split_stream_chunk(((), updates)) == ((), updates)
+    assert _split_stream_chunk((("tools:abc",), updates)) == (("tools:abc",), updates)
+
+
+def test_subagent_search_results_register_citations():
+    citation = {"id": "1a2b3c4d", "quote": "Ninety days notice.", "pageNumber": 1}
+    search_result = _StreamMessage(
+        "tool", json.dumps({"success": True, "citations": [citation]}), "tool-1"
+    )
+    updates = {
+        "model": {
+            "messages": [_StreamMessage("ai", "Notice is 90 days [^1a2b3c4d].", "ai-1")]
+        },
+        "tools": {
+            "messages": [
+                search_result,
+                _StreamMessage("tool", "plain text output", "tool-2"),
+            ]
+        },
+    }
+    citations, seen = {}, set()
+
+    events = [
+        json.loads(event[len("data: ") :])
+        for event in _subagent_citation_events(updates, citations, seen)
+    ]
+
+    assert citations == {"1a2b3c4d": citation}
+    assert events == [{"type": "citations", "data": {"citations": [citation]}}]
+    assert list(_subagent_citation_events(updates, citations, seen)) == []
+
+
+def test_researcher_gets_the_document_store_search():
+    names = [tool.name for tool in get_research_tools("chat-1")]
+
+    assert names[0] == "search_documents"
+    assert "search_chat_files" in names
+    assert "hybrid_search_chat_files" in names
+    assert len(names) == len(set(names))
+    assert "search_documents" not in [
+        tool.name for tool in get_research_tools("chat-1", include_rag=False)
+    ]
 
 
 def test_chat_with_unauthorized_document_scope_is_refused(client, library):

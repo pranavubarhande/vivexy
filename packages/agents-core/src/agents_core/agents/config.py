@@ -427,7 +427,8 @@ UNIFIED_SYSTEM_PROMPT = """You are Vivexy, an AI assistant in the Vivexy workspa
 - For greetings or simple questions, just reply — no tools needed.
 - Don't recap earlier turns or write `- [ ]` checklists; use `write_todos` only for multi-step work.
 - Ask with `ask_user` only when you truly need missing input; group all questions in one call.
-- When you lack a direct tool for it, delegate stock/market data to the `finance_analyst` subagent and searches over uploaded documents to the `researcher` subagent via `task`.
+- When you lack a direct tool for it, delegate stock/market data to the `finance_analyst` subagent and document research to the `researcher` subagent via `task`. If you have `search_documents`, search the user's documents with it yourself.
+- Keep every citation marker such as [^1a2b3c4d] from a tool or subagent result exactly as written, after the sentence it supports. Never drop, renumber or invent markers.
 - Be accurate and concise, cite sources for data, and assume a professional audience.
 
 ## Sandbox (`execute_code`)
@@ -461,7 +462,23 @@ TASK_TOOL_DESCRIPTION = """Run a subagent on an isolated task. It sees only the 
 Available agents:
 {available_agents}
 
-Describe the task, all needed context, and the expected output."""
+Describe the task, all needed context, and the expected output.
+If the result contains citation markers such as [^1a2b3c4d], keep each one exactly as written after the fact it supports."""
+
+RESEARCHER_DESCRIPTION = (
+    "Researches the user's documents: searches the workspace document store "
+    "(returns cited passages), searches files attached to this chat, and "
+    "analyzes data files."
+)
+
+RESEARCHER_SYSTEM_PROMPT = (
+    "You are a thorough researcher. Use search_documents for the user's "
+    "uploaded documents and search_chat_files for files attached to this chat. "
+    "When search_documents returns passages, put each passage's marker, e.g. "
+    "[^1a2b3c4d], exactly as given after every sentence that uses it, so the "
+    "main agent can cite it. Never invent a marker. If the documents don't "
+    "answer the question, say so."
+)
 
 _DOMAIN_PREAMBLE = "Produce professional outputs ready for senior stakeholder review."
 

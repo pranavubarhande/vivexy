@@ -47,6 +47,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `message.citationCheck`, and copying an answer turns markers into `[1]`.
 - `@vivexy/ui/popover`.
 
+### Changed
+
+- The `researcher` subagent searches the document store too, and citations
+  from its searches reach the stream, so delegated document questions are
+  cited and checked like direct ones. The assistant searches documents itself
+  when it has `search_documents` and keeps citation markers from tool and
+  subagent results.
+- The legacy chat-attachment RAG tools are renamed `search_chat_files` and
+  `hybrid_search_chat_files`, so they no longer share the `search_documents`
+  name with the document store tool.
+
 ### Upgrading
 
 - Run the two new migrations (`alembic upgrade head`): document tables, the
