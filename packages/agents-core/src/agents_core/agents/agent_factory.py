@@ -30,7 +30,10 @@ from agents_core.tools.chat.skill_tool import (
     get_load_skill_tool,
     get_save_user_skill_tool,
 )
-from agents_core.tools.documents.search_tools import get_document_store_tools
+from agents_core.tools.documents.search_tools import (
+    document_scope_context,
+    get_document_store_tools,
+)
 from agents_core.tools.sandbox.daytona_tools import (
     get_execute_code_tool,
     get_list_sandbox_files_tool,
@@ -710,6 +713,11 @@ def create_agent(
 
     # Generate system prompt — use agent-specific prompt if defined
     final_prompt = get_system_prompt(agent_id)
+
+    if any(t.name == "search_documents" for t in tools):
+        scope_context = document_scope_context(chat_id)
+        if scope_context:
+            final_prompt += "\n\n" + scope_context
 
     final_prompt += "\n\n" + (
         DESKTOP_ENVIRONMENT_PROMPT if client_tools_enabled else WEB_ENVIRONMENT_PROMPT

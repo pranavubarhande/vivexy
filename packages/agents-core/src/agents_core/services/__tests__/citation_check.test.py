@@ -83,3 +83,62 @@ def test_missing_verdicts_count_as_unsupported(monkeypatch):
     result = check_citations(ANSWER, CITATIONS, "openai", "gpt-test")
     assert result["statements"][1] | {"supported": False} == result["statements"][1]
     assert result["unsupportedCount"] == 1
+
+
+def test_grouped_markers_count_as_separate_citations():
+    answer = (
+        "Notice was given [^aaaa1111, ^bbbb2222]. Cap applies [^cccc3333; dddd4444]."
+    )
+    assert cited_ids_in_order(answer) == [
+        "aaaa1111",
+        "bbbb2222",
+        "cccc3333",
+        "dddd4444",
+    ]
+    assert extract_cited_statements(answer)[0] == {
+        "text": "Notice was given.",
+        "citationIds": ["aaaa1111", "bbbb2222"],
+    }
+
+
+def test_verifier_sees_document_openings_for_defined_terms(monkeypatch):
+    llm = FakeLLM('[{"index": 0, "supported": true, "reason": "defined term"}]')
+    monkeypatch.setattr(citation_check, "create_llm", lambda config: llm)
+    monkeypatch.setattr(
+        citation_check,
+        "_first_pages",
+        lambda ids: {
+            "doc-msa": "MASTER SERVICES AGREEMENT between Brightline Industries "
+            "Inc. (the Customer) and Okafor Logistics Ltd."
+        },
+    )
+    citations = {
+        "aaaa1111": {
+            "id": "aaaa1111",
+            "documentId": "doc-msa",
+            "filename": "msa.pdf",
+            "quote": "Service credits are the Customer's sole remedy.",
+        }
+    }
+
+    result = check_citations(
+        "Brightline's only remedy is service credits [^aaaa1111].",
+        citations,
+        "google",
+        "gemini-test",
+    )
+
+    assert result["statements"][0]["supported"] is True
+    prompt = llm.prompts[0]
+    assert (
+        'Document openings:\n- msa.pdf: "MASTER SERVICES AGREEMENT between Brightline'
+        in prompt
+    )
+    assert "defined term" in prompt.lower()
+
+
+def test_no_openings_without_document_ids(monkeypatch):
+    llm = FakeLLM('[{"index": 0, "supported": true, "reason": "ok"}]')
+    monkeypatch.setattr(citation_check, "create_llm", lambda config: llm)
+    check_citations(ANSWER, CITATIONS, "openai", "gpt-test")
+    assert "Document openings" not in llm.prompts[0]

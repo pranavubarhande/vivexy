@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Chats scoped to a set of documents tell the agent which documents they
+  hold and to search them before answering, instead of asking for uploads.
+- `search_documents` accepts filenames as well as ids in `document_ids`.
+- Grouped citation markers such as `[^a, ^b]` count as separate citations in
+  the citation check, saved citations and the chat UI.
+- The citation check sees the opening of each cited document, so a defined
+  term ("the Customer") and the party it names count as the same.
+
 ## [0.4.0] - 2026-11-14
 
 ### Added

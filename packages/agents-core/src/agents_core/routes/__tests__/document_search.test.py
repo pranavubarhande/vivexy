@@ -1,4 +1,6 @@
 import json
+import subprocess
+import sys
 
 import pytest
 from flask import Flask
@@ -23,7 +25,11 @@ from agents_core.models import (
 )
 from agents_core.routes.chat import bp as chat_bp
 from agents_core.routes.documents import bp as documents_bp
-from agents_core.tools.documents.search_tools import _search_documents_func
+from agents_core.tools.documents.search_tools import (
+    _resolve_document_refs,
+    _search_documents_func,
+    document_scope_context,
+)
 from agents_core.utils.auth import generate_token
 
 
@@ -432,3 +438,57 @@ def test_eval_reports_hit_rate_and_reciprocal_rank(app, library, vector_calls):
         team_id=library["team"].id,
     )
     assert summary == {"cases": 3, "hitRate": 2 / 3, "meanReciprocalRank": 2 / 3}
+
+
+def test_scoped_chats_tell_the_agent_which_documents_to_search(library):
+    scoped = Chat(
+        user_id=library["member"].id,
+        team_id=library["team"].id,
+        document_scope_type="matter",
+        document_scope_id="m-1",
+    )
+    unscoped = Chat(user_id=library["member"].id, team_id=library["team"].id)
+    db.session.add_all([scoped, unscoped])
+    db.session.commit()
+
+    context = document_scope_context(scoped.id)
+
+    assert context.startswith("## Documents in this chat")
+    assert "(a matter)" in context
+    assert "call it first" in context
+    assert "Documents ready to search (1): settlement.pdf" in context
+    assert document_scope_context(unscoped.id) == ""
+    assert document_scope_context("missing") == ""
+
+
+def test_search_tools_import_on_their_own():
+    result = subprocess.run(
+        [sys.executable, "-c", "import agents_core.tools.documents.search_tools"],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+
+
+def test_search_tool_accepts_filenames_as_document_ids(library):
+    member = library["member"]
+    firm_chat = Chat(user_id=member.id, team_id=library["team"].id)
+    matter_chat = Chat(
+        user_id=member.id,
+        team_id=library["team"].id,
+        document_scope_type="matter",
+        document_scope_id="m-1",
+    )
+    db.session.add_all([firm_chat, matter_chat])
+    db.session.commit()
+    settlement_id = library["matter_chunks"][0].document_id
+
+    assert _resolve_document_refs(
+        firm_chat, member, ["MSA.PDF", library["msa"].id, "missing.pdf"]
+    ) == [library["msa"].id]
+    assert _resolve_document_refs(firm_chat, member, ["missing.pdf"]) is None
+    assert _resolve_document_refs(firm_chat, member, None) is None
+    assert _resolve_document_refs(matter_chat, member, ["msa.pdf"]) is None
+    assert _resolve_document_refs(matter_chat, member, ["settlement.pdf"]) == [
+        settlement_id
+    ]
