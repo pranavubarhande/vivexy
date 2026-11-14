@@ -1,13 +1,12 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect } from 'react';
 import { useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
-import { Plus, Search, Trash2 } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import { Button } from '@vivexy/ui/button';
-import { Checkbox } from '@vivexy/ui/checkbox';
 import { Input } from '@vivexy/ui/input';
 import { Textarea } from '@vivexy/ui/textarea';
 import {
@@ -50,6 +49,7 @@ import type {
   AnalysisScope,
 } from '../../types/analysis';
 import type { StoredDocument } from '../../types/document';
+import { DocumentPicker } from './document-picker';
 import { questionSchema } from './question-dialog';
 
 const DEFAULT_MODEL_NAME = 'Gemini 2.5 Flash';
@@ -113,11 +113,6 @@ export const NewAnalysisDialog = ({
 }: NewAnalysisDialogProps) => {
   const { models } = useModels();
   const createAnalysis = useCreateAnalysis();
-  const [documentFilter, setDocumentFilter] = useState('');
-  const readyDocuments = useMemo(
-    () => documents.filter((document) => document.status === 'ready'),
-    [documents]
-  );
   const defaultModelId =
     models.find((model) => model.name === DEFAULT_MODEL_NAME)?.id ??
     models[0]?.id ??
@@ -150,43 +145,13 @@ export const NewAnalysisDialog = ({
     });
   }, [open, initialKind, form]);
 
-  const handleOpenChange = (next: boolean) => {
-    if (!next) setDocumentFilter('');
-    onOpenChange(next);
-  };
+  const handleOpenChange = (next: boolean) => onOpenChange(next);
 
   useEffect(() => {
     if (open && !form.getValues('modelId') && defaultModelId) {
       form.setValue('modelId', defaultModelId);
     }
   }, [open, defaultModelId, form]);
-
-  const shownDocuments = readyDocuments.filter((document) =>
-    document.filename.toLowerCase().includes(documentFilter.toLowerCase())
-  );
-  const allShownSelected =
-    shownDocuments.length > 0 &&
-    shownDocuments.every((document) => selectedIds.includes(document.id));
-
-  const toggleDocument = (documentId: string, checked: boolean) =>
-    form.setValue(
-      'documentIds',
-      checked
-        ? [...selectedIds, documentId]
-        : selectedIds.filter((id) => id !== documentId),
-      { shouldValidate: form.formState.isSubmitted }
-    );
-
-  const toggleAllShown = () => {
-    const shownIds = shownDocuments.map((document) => document.id);
-    form.setValue(
-      'documentIds',
-      allShownSelected
-        ? selectedIds.filter((id) => !shownIds.includes(id))
-        : [...new Set([...selectedIds, ...shownIds])],
-      { shouldValidate: form.formState.isSubmitted }
-    );
-  };
 
   const addPreset = (preset: AnalysisQuestionInput) => {
     const current = form.getValues('questions');
@@ -279,49 +244,15 @@ export const NewAnalysisDialog = ({
                       {ANALYSIS_MAX_DOCUMENTS[kind]}
                     </span>
                   </div>
-                  {readyDocuments.length === 0 ? (
-                    <p className="rounded-md border border-dashed border-border p-4 text-center text-sm text-muted-foreground">
-                      No documents are ready yet. Upload some first.
-                    </p>
-                  ) : (
-                    <div className="rounded-md border border-border">
-                      <div className="flex items-center gap-2 border-b border-border p-2">
-                        <Checkbox
-                          checked={allShownSelected}
-                          onCheckedChange={toggleAllShown}
-                          aria-label="Select all shown documents"
-                        />
-                        <div className="relative flex-1">
-                          <Search className="absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-                          <Input
-                            value={documentFilter}
-                            onChange={(event) =>
-                              setDocumentFilter(event.target.value)
-                            }
-                            placeholder="Find a document"
-                            className="h-7 pl-7 text-sm"
-                          />
-                        </div>
-                      </div>
-                      <ul className="max-h-48 overflow-y-auto p-1">
-                        {shownDocuments.map((document) => (
-                          <li key={document.id}>
-                            <label className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted">
-                              <Checkbox
-                                checked={selectedIds.includes(document.id)}
-                                onCheckedChange={(checked) =>
-                                  toggleDocument(document.id, checked === true)
-                                }
-                              />
-                              <span className="truncate">
-                                {document.filename}
-                              </span>
-                            </label>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
+                  <DocumentPicker
+                    documents={documents}
+                    selectedIds={selectedIds}
+                    onChange={(documentIds) =>
+                      form.setValue('documentIds', documentIds, {
+                        shouldValidate: form.formState.isSubmitted,
+                      })
+                    }
+                  />
                   <FormMessage />
                 </FormItem>
               )}

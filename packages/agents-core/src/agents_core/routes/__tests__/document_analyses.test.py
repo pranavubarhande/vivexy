@@ -25,7 +25,7 @@ from agents_core.models import (
 from agents_core.routes.document_analyses import bp as analyses_bp
 from agents_core.utils.auth import generate_token
 
-PASSAGE_LINE = re.compile(r"\[(P\d+)\] \(page \d+\) (.*)")
+PASSAGE_LINE = re.compile(r"\[(P\d+)\] \([^)]*page \d+\) (.*)")
 
 
 class FakeResponse:

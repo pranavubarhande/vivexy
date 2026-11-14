@@ -168,3 +168,20 @@ def dispatch_analysis_job(*, analysis_id: str) -> bool:
     )
     logger.info("Dispatched analysis job %s", analysis_id)
     return True
+
+
+def dispatch_workflow_job(*, run_id: str) -> bool:
+    """Publish a workflow run on the document queue. Returns False if it
+    should run in-process."""
+    channel = get_channel()
+    if channel is None:
+        return False
+
+    channel.basic_publish(
+        exchange="",
+        routing_key=DOCUMENT_QUEUE,
+        body=json.dumps({"workflow_run_id": run_id}),
+        properties=pika.BasicProperties(delivery_mode=2),
+    )
+    logger.info("Dispatched workflow run %s", run_id)
+    return True

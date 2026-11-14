@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { cn } from '@vivexy/ui/utils';
 import { toast } from 'sonner';
+import { takeQueuedPrompt } from '../../lib/prompts';
 
 import { AgentSelector } from '@vivexy/core/chat/agent-selector';
 import { ModelSelector } from '@vivexy/core/chat/model-selector';
@@ -685,6 +686,14 @@ export const AgenticChat = ({
   // ---- Derived ----
   const isEmpty = displayMessages.length === 0 && !isLoadingMessages;
   const [fillValue, setFillValue] = useState<string | undefined>();
+
+  // ---- A prompt handed over by the prompt library is sent once ready ----
+  useEffect(() => {
+    if (chatId || isLoadingModels) return;
+    const queuedPrompt = takeQueuedPrompt();
+    if (queuedPrompt) void handleSend(queuedPrompt);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chatId, isLoadingModels]);
 
   const handleSaveArtifact = async (
     artifact: Artifact & { language?: string },

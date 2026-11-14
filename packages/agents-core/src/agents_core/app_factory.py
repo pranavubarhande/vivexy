@@ -18,6 +18,7 @@ from agents_core.routes.document_analyses import bp as document_analyses_bp
 from agents_core.routes.documents import bp as documents_bp
 from agents_core.routes.github import bp as github_bp
 from agents_core.routes.projects import bp as projects_bp
+from agents_core.routes.prompts import bp as prompts_bp
 from agents_core.routes.rag import bp as rag_bp
 from agents_core.routes.scheduled_tasks import bp as scheduled_tasks_bp
 from agents_core.routes.skills import bp as skills_bp
@@ -26,6 +27,7 @@ from agents_core.routes.superadmin import bp as superadmin_bp
 from agents_core.routes.teams import bp as teams_bp
 from agents_core.routes.usage import bp as usage_bp
 from agents_core.routes.users import bp as users_bp
+from agents_core.routes.workflows import bp as workflows_bp
 from agents_core.utils.casing import camel_to_snake, snake_to_camel
 from agents_core.utils.oauth import init_oauth
 from flasgger import Swagger
@@ -42,6 +44,8 @@ CORE_BLUEPRINTS = [
     rag_bp,
     documents_bp,
     document_analyses_bp,
+    prompts_bp,
+    workflows_bp,
     chat_bp,
     connectors_bp,
     agents_bp,

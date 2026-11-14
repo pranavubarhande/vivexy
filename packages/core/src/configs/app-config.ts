@@ -1,4 +1,5 @@
 import {
+  BookMarked,
   Blocks,
   CalendarClock,
   Coins,
@@ -6,6 +7,7 @@ import {
   Settings,
   Table2,
   Users,
+  Workflow,
   type LucideIcon,
 } from 'lucide-react';
 import { CATALOGUE_AGENTS } from '@vivexy/core/agents/catalogue';
@@ -72,6 +74,13 @@ export const DEFAULT_NAV_GROUPS: NavGroup[] = [
         icon: Table2,
         features: [FEATURES.rag],
       },
+      {
+        label: 'Workflows',
+        href: ROUTES.workflows,
+        icon: Workflow,
+        features: [FEATURES.rag],
+      },
+      { label: 'Prompt Library', href: ROUTES.prompts, icon: BookMarked },
       {
         label: 'Scheduled Tasks',
         href: ROUTES.scheduledTasks,

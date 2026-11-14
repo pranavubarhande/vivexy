@@ -32,6 +32,7 @@ from agents_core.agents.config import FileContext
 from agents_core.business_logic.attachments import _try_index_attachment
 from agents_core.business_logic.document_analyses import run_analysis
 from agents_core.business_logic.documents import process_document
+from agents_core.business_logic.workflows import run_workflow
 from agents_core.business_logic.streaming import (
     NoopAppContext,
     run_agent_stream_to_redis,
@@ -173,20 +174,24 @@ def _handle_rag_job(ch, method, properties, body):
 
 
 def _handle_document_job(ch, method, properties, body):
-    """Document ingestion and document analyses share this queue. Both record
+    """Document ingestion, document analyses and workflow runs share this queue. Both record
     their own failures on their rows, so only unexpected errors reach the
     dead-letter queue."""
     job = json.loads(body)
     try:
         if "analysis_id" in job:
             run_analysis(job["analysis_id"])
+        elif "workflow_run_id" in job:
+            run_workflow(job["workflow_run_id"])
         else:
             process_document(job["document_id"])
         ch.basic_ack(delivery_tag=method.delivery_tag)
     except Exception:
         logger.exception(
             "Document job failed for %s",
-            job.get("analysis_id") or job.get("document_id"),
+            job.get("analysis_id")
+            or job.get("workflow_run_id")
+            or job.get("document_id"),
         )
         ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
 

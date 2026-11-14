@@ -48,6 +48,10 @@ class VivexyExtension:
     document_scope_authorizers: scope type -> authorizer for documents stored
         with that scope_type (e.g. "matter"). Documents with a scope type no
         extension registers are refused.
+    prompts: built-in prompts for the prompt library.
+    workflows: guided workflows users can run.
+    include_core_library: False hides Vivexy's own built-in prompts and
+        workflows.
     """
 
     name: str
@@ -60,6 +64,9 @@ class VivexyExtension:
     document_scope_authorizers: Dict[str, DocumentScopeAuthorizer] = field(
         default_factory=dict
     )
+    prompts: List[Any] = field(default_factory=list)
+    workflows: List[Any] = field(default_factory=list)
+    include_core_library: bool = True
 
 
 @lru_cache(maxsize=1)
@@ -136,3 +143,17 @@ def get_document_scope_authorizer(scope_type: str) -> Optional[DocumentScopeAuth
     for extension in load_extensions():
         authorizer = extension.document_scope_authorizers.get(scope_type, authorizer)
     return authorizer
+
+
+def core_library_included() -> bool:
+    return all(extension.include_core_library for extension in load_extensions())
+
+
+def get_extension_prompts() -> List[Any]:
+    return [prompt for extension in load_extensions() for prompt in extension.prompts]
+
+
+def get_extension_workflows() -> List[Any]:
+    return [
+        workflow for extension in load_extensions() for workflow in extension.workflows
+    ]

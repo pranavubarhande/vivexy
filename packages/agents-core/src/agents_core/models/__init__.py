@@ -28,6 +28,7 @@ from agents_core.models.enums import (
 from agents_core.models.github import GithubConnection, GithubRepo
 from agents_core.models.job import Job, JobStock
 from agents_core.models.llm import LLMModel
+from agents_core.models.prompt import Prompt
 from agents_core.models.project import Project, ProjectChat, ProjectTeam
 from agents_core.models.scheduled_task import ScheduledTask, ScheduledTaskRun
 from agents_core.models.skill import UserSkill
@@ -36,4 +37,5 @@ from agents_core.models.subscription import Invoice, StripeEventLog, Subscriptio
 from agents_core.models.team import Team, TeamInvite, TeamMember
 from agents_core.models.token_usage import TokenUsage
 from agents_core.models.user import User
+from agents_core.models.workflow import WorkflowRun, WorkflowRunStep
 from agents_core.models.user_api_key import UserApiKey

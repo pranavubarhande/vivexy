@@ -8,8 +8,7 @@ import type {
   AnalysisSummary,
   CreateAnalysisPayload,
 } from '../types/analysis';
-
-const FILENAME_PATTERN = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i;
+import { downloadBlob } from '../lib/download';
 
 export const analysesService = {
   list: async (
@@ -100,21 +99,6 @@ export const analysesService = {
   },
 
   /** Downloads the Excel or Word export through the browser. */
-  download: async (analysisId: string): Promise<string> => {
-    const response = await axiosInstance.get<Blob>(
-      `/api/analyses/${analysisId}/export`,
-      { responseType: 'blob' }
-    );
-    const disposition = String(response.headers['content-disposition'] ?? '');
-    const filename = decodeURIComponent(
-      disposition.match(FILENAME_PATTERN)?.[1] ?? 'analysis'
-    );
-    const url = URL.createObjectURL(response.data);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    link.click();
-    URL.revokeObjectURL(url);
-    return filename;
-  },
+  download: async (analysisId: string): Promise<string> =>
+    downloadBlob(`/api/analyses/${analysisId}/export`, 'analysis'),
 };
