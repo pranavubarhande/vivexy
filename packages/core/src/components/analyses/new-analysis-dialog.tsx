@@ -66,7 +66,9 @@ const analysisSchema = z
     kind: z.enum(['review', 'summary', 'timeline']),
     title: z.string().max(255),
     documentIds: z.array(z.string()).min(1, 'Choose at least one document'),
-    questions: z.array(questionSchema).max(ANALYSIS_MAX_QUESTIONS),
+    questions: z
+      .array(z.object({ label: z.string(), prompt: z.string() }))
+      .max(ANALYSIS_MAX_QUESTIONS),
     length: z.enum(['short', 'detailed']),
     modelId: z.string().min(1, 'Choose a model'),
   })
@@ -77,6 +79,19 @@ const analysisSchema = z
         code: 'custom',
         path: ['documentIds'],
         message: `A ${ANALYSIS_KIND_LABELS[data.kind].toLowerCase()} can cover at most ${limit} documents`,
+      });
+    }
+    // Questions only matter for a review; the hidden blank question a
+    // summary or timeline form still holds must not block it.
+    if (data.kind === 'review') {
+      data.questions.forEach((question, index) => {
+        questionSchema.safeParse(question).error?.issues.forEach((issue) =>
+          context.addIssue({
+            code: 'custom',
+            path: ['questions', index, ...issue.path],
+            message: issue.message,
+          })
+        );
       });
     }
     if (data.kind === 'review' && data.questions.length === 0) {

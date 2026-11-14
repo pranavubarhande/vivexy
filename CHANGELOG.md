@@ -29,6 +29,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   counts each.
 - Erasing a user also deletes their document analyses, workflow runs and
   personal prompts. Team prompts they wrote stay with the team.
+- Starting a summary or timeline from the new-analysis dialog did nothing:
+  the form's hidden, blank review question failed validation. Questions are
+  now checked only for review grids.
 
 ## [0.5.0] - 2026-11-14
 
