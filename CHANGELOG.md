@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-14
+
 ### Added
 
 - Document store: `/api/documents` uploads PDF, DOCX, TXT, MD and EML files (ZIPs are
@@ -36,6 +38,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   saves the result (`citation_check`).
 - `python -m agents_core.cli.eval_document_search` reports hit rate and mean
   reciprocal rank for a JSONL file of queries with known answers.
+- Citation UI in `@vivexy/core` chat: `[^id]` markers render as numbered
+  footnotes in order of first use. A footnote opens a popover with the quote,
+  file and page, and a source viewer that loads the page text and highlights
+  the cited span. Sentences the citation check found unsupported are flagged,
+  with a summary under the answer; markers that match no passage show as `?`.
+  Answers list their sources, history reloads use `message.citations` and
+  `message.citationCheck`, and copying an answer turns markers into `[1]`.
+- `@vivexy/ui/popover`.
+
+### Upgrading
+
+- Run the two new migrations (`alembic upgrade head`): document tables, the
+  chat document scope and message citations.
+- Document search needs a Pinecone index (`DOCUMENT_PINECONE_INDEX`, default
+  `rag-index`) with 384 dimensions, and `tesseract-ocr` wherever the document
+  worker runs. The agents-service image includes both the OCR engine and the
+  embedding model. S3-compatible storage such as Backblaze B2 or R2 needs
+  `AWS_S3_ENDPOINT_URL`.
+- Products that register document scopes add
+  `VivexyExtension.document_scope_authorizers`; documents with an unregistered
+  scope type are refused.
 
 ## [0.3.0] - 2026-10-20
 
