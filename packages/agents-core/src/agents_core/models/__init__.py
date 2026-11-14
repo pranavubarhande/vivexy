@@ -11,6 +11,10 @@ from agents_core.models.chat import (
 )
 from agents_core.models.deployed_agent import DeployedAgent
 from agents_core.models.document import Document, DocumentChunk, DocumentPage
+from agents_core.models.document_analysis import (
+    DocumentAnalysis,
+    DocumentAnalysisResult,
+)
 from agents_core.models.enums import (
     ArtifactType,
     MessageRole,

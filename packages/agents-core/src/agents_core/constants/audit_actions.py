@@ -29,3 +29,9 @@ AUDIT_DOCUMENT_DELETED = "document.deleted"
 AUDIT_DOCUMENT_REPROCESSED = "document.reprocessed"
 
 AUDIT_TARGET_DOCUMENT = "document"
+
+AUDIT_ANALYSIS_CREATED = "analysis.created"
+AUDIT_ANALYSIS_UPDATED = "analysis.updated"
+AUDIT_ANALYSIS_DELETED = "analysis.deleted"
+AUDIT_ANALYSIS_EXPORTED = "analysis.exported"
+AUDIT_TARGET_ANALYSIS = "document_analysis"
