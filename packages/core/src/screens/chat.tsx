@@ -10,7 +10,7 @@ function ChatPageInner() {
   const searchParams = useSearchParams();
   const id = searchParams.get('id') ?? undefined;
   const agents = useDeployedAgentSummaries();
-  const { agents: agentConfig } = useAppConfig();
+  const { agents: agentConfig, chat: chatConfig } = useAppConfig();
 
   return (
     <div className="h-full">
@@ -22,6 +22,7 @@ function ChatPageInner() {
           showArtifacts: true,
           showReasoning: true,
           basePath: '/chat',
+          showGithub: chatConfig.showGithub,
           className: 'h-full',
         }}
         initialChatId={id}

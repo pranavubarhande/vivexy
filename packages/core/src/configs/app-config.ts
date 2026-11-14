@@ -53,6 +53,10 @@ export interface AppConfig {
     highlights: string[];
   };
   navGroups: NavGroup[];
+  chat: {
+    /** The GitHub repositories button and panel in chat. */
+    showGithub: boolean;
+  };
   agents: {
     base: AgentSummary[];
     catalogue: CatalogueAgent[];
@@ -126,6 +130,7 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
     ],
   },
   navGroups: DEFAULT_NAV_GROUPS,
+  chat: { showGithub: true },
   agents: {
     base: AGENT_SUMMARIES,
     catalogue: CATALOGUE_AGENTS,
@@ -136,8 +141,11 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
   authRoutes: AUTH_ROUTES,
 };
 
-export type AppConfigOverrides = Partial<Omit<AppConfig, 'auth' | 'agents'>> & {
+export type AppConfigOverrides = Partial<
+  Omit<AppConfig, 'auth' | 'agents' | 'chat'>
+> & {
   auth?: Partial<AppConfig['auth']>;
+  chat?: Partial<AppConfig['chat']>;
   agents?: Partial<AppConfig['agents']>;
 };
 
@@ -147,5 +155,6 @@ export const resolveAppConfig = (
   ...DEFAULT_APP_CONFIG,
   ...overrides,
   auth: { ...DEFAULT_APP_CONFIG.auth, ...overrides.auth },
+  chat: { ...DEFAULT_APP_CONFIG.chat, ...overrides.chat },
   agents: { ...DEFAULT_APP_CONFIG.agents, ...overrides.agents },
 });

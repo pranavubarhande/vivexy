@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `queuePromptForChat(text, chatId)` can queue a prompt for an existing chat;
   the chat screen sends it if that chat has no messages yet. Products use it
   to open a new scoped chat with the user's question already sent.
+- App config `chat.showGithub` (default `true`) lets a product hide the
+  GitHub button and panel in chat.
 - `NewAnalysisDialog` takes `lockKind`. `DocumentAnalysesScreen` sets it when
   given a `kind`, so a screen for one kind only starts that kind.
 
@@ -29,6 +31,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   counts each.
 - Erasing a user also deletes their document analyses, workflow runs and
   personal prompts. Team prompts they wrote stay with the team.
+- The "Usage billed to" picker showed the default team for new chats even
+  inside a chat that bills to another team (for example a firm's chat while
+  Personal was selected). Inside a saved chat it now shows that chat's team,
+  locked, as "This chat is billed to".
 - Starting a summary or timeline from the new-analysis dialog did nothing:
   the form's hidden, blank review question failed validation. Questions are
   now checked only for review grids.

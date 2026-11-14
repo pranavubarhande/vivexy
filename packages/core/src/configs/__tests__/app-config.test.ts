@@ -46,4 +46,11 @@ describe('resolveAppConfig', () => {
     expect(config.navGroups.at(-1)?.label).toBe('Legal');
     expect(config.logoSrc).toBe(DEFAULT_APP_CONFIG.logoSrc);
   });
+
+  it('lets a product hide the GitHub button in chat', () => {
+    expect(resolveAppConfig().chat.showGithub).toBe(true);
+    expect(resolveAppConfig({ chat: { showGithub: false } }).chat).toEqual({
+      showGithub: false,
+    });
+  });
 });
