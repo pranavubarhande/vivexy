@@ -4,6 +4,7 @@ import {
   Coins,
   MessageSquare,
   Settings,
+  Table2,
   Users,
   type LucideIcon,
 } from 'lucide-react';
@@ -65,6 +66,12 @@ export const DEFAULT_NAV_GROUPS: NavGroup[] = [
     label: 'Workspace',
     items: [
       { label: 'Chat', href: ROUTES.chat(), icon: MessageSquare },
+      {
+        label: 'Document Analyses',
+        href: ROUTES.analyses,
+        icon: Table2,
+        features: [FEATURES.rag],
+      },
       {
         label: 'Scheduled Tasks',
         href: ROUTES.scheduledTasks,

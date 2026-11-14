@@ -102,14 +102,16 @@ REVIEW_PROMPT = (
     "Question: {question}\n\n"
     "Passages:\n{passages}\n\n"
     "Reply with only a JSON object: "
-    '{{"found": true, "answer": "a short, precise answer; quote exact '
-    'figures, dates and names", "citations": ["P1"]}}, citing the labels of '
-    "the passages that support the answer. When the passages show the answer "
-    "is no (for example the only right to terminate is for cause), that is an "
-    "answer: say so and cite them. If the passages do not answer the question, reply "
+    '{{"found": true, "answer": "the answer in as few words as a lawyer '
+    'would write in a review table; quote exact figures, dates and names", '
+    '"citations": ["P1"]}}, citing the labels of the passages that support '
+    "the answer. When the passages show the answer is no (for example the "
+    "only right to terminate is for cause), that is an answer: say so and "
+    "cite them. If the passages do not answer the question, reply "
     '{{"found": false, "answer": "' + NOT_FOUND_ANSWER + '", "citations": []}}. '
-    "Never guess."
+    "Never guess, and never mention the passages in the answer."
 )
+
 
 SUMMARY_LENGTH_RULES = {
     "short": "Write 3 to 5 sentences: what the document is, who the parties "

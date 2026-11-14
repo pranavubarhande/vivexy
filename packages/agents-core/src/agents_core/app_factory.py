@@ -76,7 +76,12 @@ def create_app(
     app = Flask(__name__)
     app.config.from_object(config_object)
     init_oauth(app)
-    CORS(app, supports_credentials=True, origins=app.config.get("CORS_ORIGINS", ["*"]))
+    CORS(
+        app,
+        supports_credentials=True,
+        origins=app.config.get("CORS_ORIGINS", ["*"]),
+        expose_headers=["Content-Disposition"],
+    )
 
     db.init_app(app)
 
