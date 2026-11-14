@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-11-14
+
+### Added
+
+- `DELETE /users/me/history` deletes all of the caller's chats, document
+  analyses and workflow runs ("delete my AI history"). Saved prompts,
+  documents and the account stay; token usage is kept for billing. The
+  deletion is audit-logged (`user.history_deleted`). `@vivexy/core` adds
+  `userService.deleteHistory` and `useDeleteMyHistory`.
+
+### Fixed
+
+- Team retention now also deletes document analyses and workflow runs older
+  than the retention period, not only chats. The maintenance audit entry
+  counts each.
+- Erasing a user also deletes their document analyses, workflow runs and
+  personal prompts. Team prompts they wrote stay with the team.
+
 ## [0.5.0] - 2026-11-14
 
 ### Added

@@ -39,6 +39,17 @@ export const useDeleteAccount = () => {
   });
 };
 
+/** Deletes the caller's chats, analyses and workflow runs, then drops every
+ * cached query that could still show them. */
+export const useDeleteMyHistory = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: userService.deleteHistory,
+    onSuccess: () => queryClient.invalidateQueries(),
+  });
+};
+
 export const useApiKeys = () =>
   useQuery({
     queryKey: ['api-keys'],

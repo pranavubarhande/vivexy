@@ -3,7 +3,11 @@ from agents_core.business_logic.api_keys import (
     get_user_api_keys,
     upsert_user_api_key,
 )
-from agents_core.business_logic.data_lifecycle import erase_user, export_user_data
+from agents_core.business_logic.data_lifecycle import (
+    delete_user_history,
+    erase_user,
+    export_user_data,
+)
 from agents_core.business_logic.features import require_feature, user_features
 from agents_core.business_logic.users import (
     get_user_profile,
@@ -187,6 +191,23 @@ def delete_account():
         return jsonify({"error": str(e)}), 400
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@bp.route("/me/history", methods=["DELETE"])
+@auth_middleware
+def delete_history():
+    """Delete all of your chats, document analyses and workflow runs.
+    Saved prompts, documents and your account stay.
+    ---
+    tags:
+      - Users
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Counts of what was deleted
+    """
+    return jsonify({"deleted": delete_user_history(request.user)})
 
 
 @bp.route("/me/features", methods=["GET"])
