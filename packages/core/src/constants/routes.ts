@@ -10,6 +10,8 @@ export const ROUTES = {
   chat: (chatId?: string) => (chatId ? `/chat/${chatId}` : '/chat'),
   scheduledTasks: '/scheduled-tasks',
   analyses: '/analyses',
+  prompts: '/prompts',
+  workflows: '/workflows',
   costManager: '/cost-manager',
   admin: '/admin',
   superadmin: '/superadmin',

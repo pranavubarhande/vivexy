@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Prompt library at `/api/prompts` and the Prompt Library page (`/prompts`):
+  personal prompts, team prompts (shared with every member, managed by team
+  admins) and built-in prompts. Prompts have fill-in fields written as
+  `{{name}}` (short text, long text or a choice). Use one to fill in its
+  fields, preview it and send it to a new chat in one click; copy any prompt
+  to your own or, as an admin, to the team. Changes are audit-logged.
+- Workflow runner at `/api/workflows` and the Workflows page (`/workflows`):
+  guided multi-step runs over chosen documents. Steps either write from
+  instructions, searching the documents and citing what they use, or run a
+  review grid, summaries or a timeline. Steps marked to pause wait for the user
+  to check them; any finished step can be edited or re-run, and the run
+  continues from there. Runs execute on the `document_jobs` queue, record token
+  usage, and export to Word with numbered sources.
+- Extensions can add built-in prompts and workflows (`VivexyExtension.prompts`,
+  `VivexyExtension.workflows`, using `agents_core.library` types) and hide
+  Vivexy's own with `include_core_library=False`. Vivexy ships four general
+  prompts and a "Document brief" workflow.
+
 - Document analyses at `/api/analyses`, run in the background on the
   `document_jobs` queue (or in-process without RabbitMQ):
   - **Review grid**: ask up to 15 questions of up to 100 ready documents. Each

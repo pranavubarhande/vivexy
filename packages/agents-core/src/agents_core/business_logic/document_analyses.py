@@ -1,37 +1,44 @@
 import io
-import json
 import logging
 import re
 import secrets
 import threading
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import replace
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
 from docx import Document as WordDocument
 from flask import current_app
-from langchain_core.messages import HumanMessage
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font
 from sqlalchemy import func
 
-from agents_core.agents.config import AgentConfig
-from agents_core.agents.llm_factory import create_llm
-from agents_core.business_logic.api_keys import get_decrypted_api_keys
 from agents_core.business_logic.audit import record_audit_log
 from agents_core.business_logic.citation_check import (
     CITATION_MARKER_PATTERN,
     cited_ids_in_order,
 )
-from agents_core.business_logic.document_search import (
-    chunk_citation,
-    search_documents,
-)
+from agents_core.business_logic.document_search import search_documents
 from agents_core.business_logic.documents import (
     DocumentAccessError,
     DocumentValidationError,
     authorize_scope,
+)
+from agents_core.business_logic.llm_batch import (
+    JSON_ARRAY,
+    JSON_OBJECT,
+    Usage,
+    ask,
+    build_batch_llm,
+    parse_json,
+    record_token_usage,
+)
+from agents_core.business_logic.passages import (
+    cited_passages,
+    document_passages,
+    labels_to_markers,
+    passage_batches,
+    passage_lines,
 )
 from agents_core.business_logic.team_policy import check_team_policy
 from agents_core.constants.analyses import (
@@ -68,9 +75,7 @@ from agents_core.models import (
     Document,
     DocumentAnalysis,
     DocumentAnalysisResult,
-    DocumentChunk,
     LLMModel,
-    TokenUsage,
     User,
     db,
 )
@@ -82,11 +87,6 @@ from agents_core.worker.dispatcher import dispatch_analysis_job
 
 logger = logging.getLogger(__name__)
 
-JSON_OBJECT = re.compile(r"\{.*\}", re.DOTALL)
-JSON_ARRAY = re.compile(r"\[.*\]", re.DOTALL)
-PASSAGE_NUMBER = re.compile(r"\d+")
-PASSAGE_MARKERS = re.compile(r"\[(P\d+(?:\s*[,;]\s*P?\d+)*)\]")
-SPACE_BEFORE_PUNCTUATION = re.compile(r"[ \t]+([.,;:!?])")
 NOT_FOUND_ANSWER = "Not found in this document"
 ANSWER_LIMIT = ANALYSIS_ANSWER_MAX_CHARS
 WORKERS = ANALYSIS_WORKERS
@@ -172,7 +172,7 @@ def _load(analysis_id: str, user: User) -> DocumentAnalysis:
     return analysis
 
 
-def _scope_documents(
+def scope_documents(
     user: User,
     team_id: Optional[str],
     scope_type: Optional[str],
@@ -231,7 +231,7 @@ def create_analysis(
     if model is None or not model.is_active:
         raise AnalysisValidationError("Choose an available model")
     check_team_policy(data.team_id, model.id)
-    documents = _scope_documents(
+    documents = scope_documents(
         user, data.team_id, data.scope_type, data.scope_id, document_ids
     )
     questions = (
@@ -559,101 +559,9 @@ def enqueue_analysis(analysis_id: str) -> None:
     threading.Thread(target=run, name=f"analysis-{analysis_id}", daemon=True).start()
 
 
-class _Usage:
-    def __init__(self):
-        self.lock = threading.Lock()
-        self.input_tokens = 0
-        self.output_tokens = 0
-
-    def add(self, response: Any) -> None:
-        meta = getattr(response, "usage_metadata", None) or {}
-        with self.lock:
-            self.input_tokens += meta.get("input_tokens", 0) or 0
-            self.output_tokens += meta.get("output_tokens", 0) or 0
-
-
-def _text(response: Any) -> str:
-    content = response.content
-    if isinstance(content, list):
-        content = "".join(
-            part.get("text", "") if isinstance(part, dict) else str(part)
-            for part in content
-        )
-    return content or ""
-
-
-def _ask(llm: Any, usage: _Usage, prompt: str) -> str:
-    response = llm.invoke([HumanMessage(content=prompt)])
-    usage.add(response)
-    return _text(response)
-
-
-def _parse_json(raw: str, pattern: re.Pattern) -> Any:
-    match = pattern.search(raw)
-    if not match:
-        raise ValueError("The model did not return JSON")
-    return json.loads(match.group(0))
-
-
-def _cited(values: Any, passages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """Passages the model cited by label (P1, P2...). Models copy short
-    labels reliably; long hex ids come back garbled."""
-    found: List[Dict[str, Any]] = []
-    for value in values if isinstance(values, list) else []:
-        for number in PASSAGE_NUMBER.findall(str(value)):
-            index = int(number) - 1
-            if 0 <= index < len(passages) and passages[index] not in found:
-                found.append(passages[index])
-    return found
-
-
-def _passage_lines(passages: List[Dict[str, Any]], start: int = 1) -> str:
-    return "\n".join(
-        f"[P{start + index}] (page {passage['pageNumber']}) "
-        f"{' '.join(passage['quote'].split())}"
-        for index, passage in enumerate(passages)
-    )
-
-
-def _labels_to_markers(text: str, passages: List[Dict[str, Any]]) -> str:
-    """Turns [P3] or [P3, P7] labels into [^id] citation markers and drops
-    labels that match no passage."""
-
-    def markers(match: re.Match) -> str:
-        return "".join(
-            f"[^{passages[int(number) - 1]['id']}]"
-            for number in PASSAGE_NUMBER.findall(match.group(1))
-            if 0 < int(number) <= len(passages)
-        )
-
-    return PASSAGE_MARKERS.sub(markers, text)
-
-
-def _document_passages(document: Document) -> List[Dict[str, Any]]:
-    chunks = (
-        DocumentChunk.query.filter_by(document_id=document.id)
-        .order_by(DocumentChunk.page_number, DocumentChunk.chunk_index)
-        .all()
-    )
-    return [chunk_citation(chunk, document) for chunk in chunks]
-
-
-def _batches(passages: List[Dict[str, Any]]) -> List[List[Dict[str, Any]]]:
-    batches: List[List[Dict[str, Any]]] = [[]]
-    size = 0
-    for passage in passages:
-        length = len(passage["quote"])
-        if batches[-1] and size + length > ANALYSIS_BATCH_CHARS:
-            batches.append([])
-            size = 0
-        batches[-1].append(passage)
-        size += length
-    return [batch for batch in batches if batch]
-
-
 def _review_cell(
     llm: Any,
-    usage: _Usage,
+    usage: Usage,
     user: User,
     analysis: DocumentAnalysis,
     document: Document,
@@ -670,14 +578,14 @@ def _review_cell(
     )
     if not passages:
         return NOT_FOUND_ANSWER, False, []
-    reply = _parse_json(
-        _ask(
+    reply = parse_json(
+        ask(
             llm,
             usage,
             REVIEW_PROMPT.format(
                 filename=document.filename,
                 question=question["prompt"],
-                passages=_passage_lines(passages),
+                passages=passage_lines(passages),
             ),
         ),
         JSON_OBJECT,
@@ -686,24 +594,24 @@ def _review_cell(
     answer = str(reply.get("answer") or "").strip()[:ANSWER_LIMIT]
     if not found or not answer:
         return NOT_FOUND_ANSWER, False, []
-    return answer, True, _cited(reply.get("citations"), passages)
+    return answer, True, cited_passages(reply.get("citations"), passages)
 
 
 def _summary(
-    llm: Any, usage: _Usage, document: Document, length: str
+    llm: Any, usage: Usage, document: Document, length: str
 ) -> Tuple[str, List[Dict[str, Any]]]:
-    passages = _document_passages(document)
+    passages = document_passages(document)
     if not passages:
         return "This document has no text to summarize.", []
     by_id = {passage["id"]: passage for passage in passages}
     length_rule = SUMMARY_LENGTH_RULES.get(length, SUMMARY_LENGTH_RULES["short"])
-    batches = _batches(passages)
+    batches = passage_batches(passages, ANALYSIS_BATCH_CHARS)
     starts = [
         sum(len(batch) for batch in batches[:index]) + 1
         for index in range(len(batches))
     ]
     parts = [
-        _ask(
+        ask(
             llm,
             usage,
             SUMMARY_PROMPT.format(
@@ -714,14 +622,14 @@ def _summary(
                 ),
                 filename=document.filename,
                 length_rule=length_rule,
-                passages=_passage_lines(batch, starts[index]),
+                passages=passage_lines(batch, starts[index]),
             ),
         )
         for index, batch in enumerate(batches)
     ]
     text = parts[0]
     if len(parts) > 1:
-        text = _ask(
+        text = ask(
             llm,
             usage,
             COMBINE_PROMPT.format(
@@ -730,23 +638,22 @@ def _summary(
                 parts="\n\n---\n\n".join(parts),
             ),
         )
-    text = _labels_to_markers(CITATION_MARKER_PATTERN.sub("", text.strip()), passages)
-    text = SPACE_BEFORE_PUNCTUATION.sub(r"\1", text)
+    text = labels_to_markers(text.strip(), passages)
     return text, [by_id[marker] for marker in cited_ids_in_order(text)]
 
 
 def _timeline(
-    llm: Any, usage: _Usage, document: Document
+    llm: Any, usage: Usage, document: Document
 ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
-    passages = _document_passages(document)
+    passages = document_passages(document)
     events: List[Dict[str, Any]] = []
-    for batch in _batches(passages):
-        reply = _parse_json(
-            _ask(
+    for batch in passage_batches(passages, ANALYSIS_BATCH_CHARS):
+        reply = parse_json(
+            ask(
                 llm,
                 usage,
                 TIMELINE_PROMPT.format(
-                    filename=document.filename, passages=_passage_lines(batch)
+                    filename=document.filename, passages=passage_lines(batch)
                 ),
             ),
             JSON_ARRAY,
@@ -772,7 +679,7 @@ def _timeline(
                     ][:10],
                     "citationIds": [
                         passage["id"]
-                        for passage in _cited(item.get("citations"), batch)
+                        for passage in cited_passages(item.get("citations"), batch)
                     ],
                 }
             )
@@ -781,7 +688,7 @@ def _timeline(
     return events, [by_id[marker] for marker in used]
 
 
-def _process_result(result_id: str, llm: Any, usage: _Usage) -> None:
+def _process_result(result_id: str, llm: Any, usage: Usage) -> None:
     result = db.session.get(DocumentAnalysisResult, result_id)
     if result is None or result.status != RESULT_STATUS_PENDING:
         return
@@ -830,46 +737,18 @@ def _process_result(result_id: str, llm: Any, usage: _Usage) -> None:
 
 
 def _build_llm(analysis: DocumentAnalysis) -> Any:
-    model = db.session.get(LLMModel, analysis.model_id) if analysis.model_id else None
-    if model is None:
-        raise ValueError("The analysis model is no longer available")
-    config = replace(
-        AgentConfig.from_env(
-            provider=model.provider,
-            model=model.model_id,
-            user_api_keys=get_decrypted_api_keys(analysis.owner_id),
-        ),
-        temperature=0,
-        max_tokens=ANALYSIS_MAX_OUTPUT_TOKENS,
+    return build_batch_llm(
+        analysis.model_id,
+        analysis.owner_id,
+        ANALYSIS_MAX_OUTPUT_TOKENS,
+        ANALYSIS_REQUESTS_PER_SECOND,
     )
-    return create_llm(config, requests_per_second=ANALYSIS_REQUESTS_PER_SECOND)
 
 
-def _record_usage(analysis: DocumentAnalysis, usage: _Usage) -> None:
-    if not usage.input_tokens and not usage.output_tokens:
-        return
-    model = db.session.get(LLMModel, analysis.model_id) if analysis.model_id else None
-    input_cost = (usage.input_tokens / 1_000_000) * ((model and model.input_cost) or 0)
-    output_cost = (usage.output_tokens / 1_000_000) * (
-        (model and model.output_cost) or 0
-    )
+def _record_usage(analysis: DocumentAnalysis, usage: Usage) -> None:
     analysis.input_tokens += usage.input_tokens
     analysis.output_tokens += usage.output_tokens
-    db.session.add(
-        TokenUsage(
-            user_id=analysis.owner_id,
-            team_id=analysis.team_id,
-            model_id=analysis.model_id,
-            model_name=model.name if model else None,
-            provider=model.provider if model else None,
-            input_tokens=usage.input_tokens,
-            output_tokens=usage.output_tokens,
-            total_tokens=usage.input_tokens + usage.output_tokens,
-            input_cost_usd=input_cost,
-            output_cost_usd=output_cost,
-            total_cost_usd=input_cost + output_cost,
-        )
-    )
+    record_token_usage(analysis.owner_id, analysis.team_id, analysis.model_id, usage)
 
 
 def _pending_ids(analysis_id: str) -> List[str]:
@@ -889,7 +768,7 @@ def run_analysis(analysis_id: str) -> None:
         return
     analysis.status = ANALYSIS_STATUS_RUNNING
     db.session.commit()
-    usage = _Usage()
+    usage = Usage()
     try:
         llm = _build_llm(analysis)
     except Exception as error:
