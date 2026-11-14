@@ -4,7 +4,7 @@ import React from 'react';
 import { usePathname } from 'next/navigation';
 import { useAppConfig } from '@vivexy/core/shared/app-config-provider';
 import { AppSidebar } from '@vivexy/core/dashboard/sidebar';
-import { SidebarProvider, useSidebar } from '@vivexy/ui/sidebar';
+import { SidebarProvider, useOptionalSidebar } from '@vivexy/ui/sidebar';
 import { DashboardHeader } from '@vivexy/core/dashboard/header';
 import { WorkspaceProvider } from '@vivexy/core/desktop/workspace-provider';
 import { VerifyEmailBanner } from '@vivexy/core/shared/verify-email-banner';
@@ -26,8 +26,9 @@ function titleFromPath(pathname: string) {
 
 /** Floating sidebar trigger shown only on mobile when sidebar is closed */
 export function MobileSidebarTrigger() {
-  const { isMobile, openMobile, toggleSidebar } = useSidebar();
-  if (!isMobile || openMobile) return null;
+  const sidebar = useOptionalSidebar();
+  if (!sidebar || !sidebar.isMobile || sidebar.openMobile) return null;
+  const { toggleSidebar } = sidebar;
 
   return (
     <button

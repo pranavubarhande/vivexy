@@ -19,6 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `queuePromptForChat(text, chatId)` can queue a prompt for an existing chat;
   the chat screen sends it if that chat has no messages yet. Products use it
   to open a new scoped chat with the user's question already sent.
+- Chat list and chat detail responses include `teamId`, `documentScopeType`
+  and `documentScopeId`, so a product can show what a chat searches.
+- `@vivexy/ui/sidebar` exports `useOptionalSidebar`. The chat header's mobile
+  sidebar button uses it and renders nothing outside a `SidebarProvider`, so
+  products can embed the chat screen in their own layout.
 - App config `chat.showGithub` (default `true`) lets a product hide the
   GitHub button and panel in chat.
 - `NewAnalysisDialog` takes `lockKind`. `DocumentAnalysesScreen` sets it when

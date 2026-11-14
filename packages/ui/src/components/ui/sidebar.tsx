@@ -53,6 +53,12 @@ function useSidebar() {
   return context;
 }
 
+/** The sidebar, or null when rendered outside a SidebarProvider (for
+ * example a chat embedded in another product's layout). */
+function useOptionalSidebar() {
+  return React.useContext(SidebarContext);
+}
+
 function SidebarProvider({
   defaultOpen = true,
   open: openProp,
@@ -728,4 +734,5 @@ export {
   SidebarSeparator,
   SidebarTrigger,
   useSidebar,
+  useOptionalSidebar,
 };

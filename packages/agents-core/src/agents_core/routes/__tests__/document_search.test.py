@@ -424,6 +424,18 @@ def test_chat_keeps_an_authorized_document_scope(client, library, monkeypatch):
     chat = Chat.query.one()
     assert (chat.document_scope_type, chat.document_scope_id) == ("matter", "m-1")
 
+    headers = _headers(library["member"])
+    detail = client.get(f"/chat/{chat.id}", headers=headers).get_json()
+    assert detail["documentScopeType"] == "matter"
+    assert detail["documentScopeId"] == "m-1"
+    assert detail["teamId"] == library["team"].id
+    listed = client.get("/chat", headers=headers).get_json()
+    listed = listed if isinstance(listed, list) else listed["chats"]
+    assert (listed[0]["documentScopeType"], listed[0]["documentScopeId"]) == (
+        "matter",
+        "m-1",
+    )
+
 
 def test_eval_reports_hit_rate_and_reciprocal_rank(app, library, vector_calls):
     vector_calls["ranked"] = []
