@@ -7,7 +7,10 @@ const SPACE_BEFORE_PUNCTUATION = /\s+([.,;:!?])/g;
 const STATEMENT_EDGE_CHARACTERS = /^[ \-*#>\t]+|[ \-*#>\t]+$/g;
 const FENCED_CODE = /(```[\s\S]*?(?:```|$)|~~~[\s\S]*?(?:~~~|$))/;
 const INLINE_CODE = /(`[^`\n]*`)/;
-const PARTIAL_MARKER_AT_END = /\[\^[0-9a-f]{0,8}$/;
+const PARTIAL_MARKER_AT_END =
+  /\[\^[0-9a-f]{0,8}(?:\s*[,;]\s*\^?[0-9a-f]{0,8})*$/;
+const GROUPED_MARKER = /\[\^[0-9a-f]{8}(?:\s*[,;]\s*\^?[0-9a-f]{8})+\]/g;
+const MARKER_ID = /[0-9a-f]{8}/g;
 const CITATION_HREF = /^#cite-([0-9a-f]{8})(?:-s(\d+))?$/;
 const WORD_JOINER = '⁠';
 
@@ -15,9 +18,18 @@ export const CITATION_HREF_PREFIX = '#cite-';
 
 const markerPattern = () => new RegExp(CITATION_MARKER_SOURCE, 'g');
 
+/** Models sometimes group markers as [^a, ^b]; split them into [^a][^b].
+ * Mirrors normalize_citation_markers in citation_check.py. */
+export const normalizeCitationMarkers = (text: string): string =>
+  text.replace(GROUPED_MARKER, (group) =>
+    (group.match(MARKER_ID) ?? []).map((id) => `[^${id}]`).join('')
+  );
+
 export const citedIdsInOrder = (content: string): string[] => {
   const seen: string[] = [];
-  for (const match of content.matchAll(markerPattern())) {
+  for (const match of normalizeCitationMarkers(content).matchAll(
+    markerPattern()
+  )) {
     if (!seen.includes(match[1])) seen.push(match[1]);
   }
   return seen;
@@ -51,7 +63,7 @@ export const citedSources = (
 /** Same normalisation the backend applies before checking a statement, so a
  * rendered sentence can be matched back to its check result. */
 export const normalizeStatement = (sentence: string): string =>
-  sentence
+  normalizeCitationMarkers(sentence)
     .replace(markerPattern(), '')
     .replace(STATEMENT_EDGE_CHARACTERS, '')
     .replace(SPACE_BEFORE_PUNCTUATION, '$1');
@@ -93,9 +105,9 @@ export const linkCitationMarkers = (
   statements: CitationStatementCheck[] = [],
   isStreaming = false
 ): string => {
-  const text = isStreaming
-    ? markdown.replace(PARTIAL_MARKER_AT_END, '')
-    : markdown;
+  const text = normalizeCitationMarkers(
+    isStreaming ? markdown.replace(PARTIAL_MARKER_AT_END, '') : markdown
+  );
   const unsupported = new Map<string, number>();
   statements.forEach((statement, index) => {
     if (!statement.supported) unsupported.set(statement.text, index);
@@ -133,10 +145,13 @@ export const formatCitationsForCopy = (
   content: string,
   numbers: Map<string, number>
 ): string =>
-  content.replace(markerPattern(), (_marker, citationId) => {
-    const number = numbers.get(citationId);
-    return number ? `[${number}]` : '';
-  });
+  normalizeCitationMarkers(content).replace(
+    markerPattern(),
+    (_marker, citationId) => {
+      const number = numbers.get(citationId);
+      return number ? `[${number}]` : '';
+    }
+  );
 
 export const mergeCitations = (
   existing: Citation[] | undefined,

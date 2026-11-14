@@ -5,6 +5,7 @@ import {
   formatCitationsForCopy,
   linkCitationMarkers,
   mergeCitations,
+  normalizeCitationMarkers,
   normalizeStatement,
   numberCitations,
   parseCitationHref,
@@ -187,5 +188,34 @@ describe('mergeCitations', () => {
       [B, 'new'],
       [C, 'quote'],
     ]);
+  });
+});
+
+describe('grouped markers', () => {
+  it('splits [^a, ^b] and [^a; b] into separate markers', () => {
+    expect(
+      normalizeCitationMarkers(`One [^${A}, ^${B}]. Two [^${A}; ${C}].`)
+    ).toBe(`One [^${A}][^${B}]. Two [^${A}][^${C}].`);
+  });
+
+  it('numbers, links and copies grouped markers like separate ones', () => {
+    const content = `Fact [^${B}, ^${A}]. More [^${A}].`;
+    expect(citedIdsInOrder(content)).toEqual([B, A]);
+    expect(linkCitationMarkers(content)).toBe(
+      `Fact [${B}](#cite-${B})[${A}](#cite-${A}). More [${A}](#cite-${A}).`
+    );
+    expect(
+      formatCitationsForCopy(
+        content,
+        new Map([
+          [B, 1],
+          [A, 2],
+        ])
+      )
+    ).toBe('Fact [1][2]. More [2].');
+  });
+
+  it('hides a half-streamed group', () => {
+    expect(linkCitationMarkers(`Notice [^${A}, ^1b`, [], true)).toBe('Notice ');
   });
 });
