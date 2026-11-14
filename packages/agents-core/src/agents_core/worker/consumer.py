@@ -30,6 +30,7 @@ import redis as redis_lib
 
 from agents_core.agents.config import FileContext
 from agents_core.business_logic.attachments import _try_index_attachment
+from agents_core.business_logic.document_analyses import run_analysis
 from agents_core.business_logic.documents import process_document
 from agents_core.business_logic.streaming import (
     NoopAppContext,
@@ -172,14 +173,21 @@ def _handle_rag_job(ch, method, properties, body):
 
 
 def _handle_document_job(ch, method, properties, body):
-    """process_document records its own failures on the Document row, so
-    only unexpected errors reach the dead-letter queue."""
+    """Document ingestion and document analyses share this queue. Both record
+    their own failures on their rows, so only unexpected errors reach the
+    dead-letter queue."""
     job = json.loads(body)
     try:
-        process_document(job["document_id"])
+        if "analysis_id" in job:
+            run_analysis(job["analysis_id"])
+        else:
+            process_document(job["document_id"])
         ch.basic_ack(delivery_tag=method.delivery_tag)
     except Exception:
-        logger.exception("Document job failed for %s", job.get("document_id"))
+        logger.exception(
+            "Document job failed for %s",
+            job.get("analysis_id") or job.get("document_id"),
+        )
         ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
 
 

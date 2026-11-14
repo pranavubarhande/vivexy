@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Document analyses at `/api/analyses`, run in the background on the
+  `document_jobs` queue (or in-process without RabbitMQ):
+  - **Review grid**: ask up to 15 questions of up to 100 ready documents. Each
+    cell is answered from that document's best passages and cites them, or
+    says "Not found in this document". Questions can be added, reworded and
+    re-run, or removed; failed cells can be retried.
+  - **Summary**: a short or detailed summary of each of up to 20 documents,
+    with every sentence cited.
+  - **Timeline**: dated events, people and sources from up to 50 documents,
+    merged and sorted.
+  - Exports: review and timeline to Excel (with a Sources sheet), summary to
+    Word with numbered sources. Creating, changing, exporting and deleting an
+    analysis is audit-logged, and token usage is recorded against the team.
+- Document Analyses page (`/analyses`, `@vivexy/core/screens/document-analyses`):
+  upload documents, start a review, summary or timeline, watch cells fill in,
+  sort and filter the grid, add, edit, re-run or remove columns, open any cited
+  passage in the source viewer, and export. `DocumentAnalysesScreen` takes a
+  scope and suggested questions so products can embed it.
+- The API exposes `Content-Disposition` to browsers so downloads keep their names.
+- `python -m agents_core.cli.make_review_test_set` writes 20 synthetic services
+  agreements with known answers, and `python -m agents_core.cli.eval_document_analyses`
+  scores a review grid against them.
+
 ### Fixed
 
 - Chats scoped to a set of documents tell the agent which documents they

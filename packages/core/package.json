@@ -25,6 +25,7 @@
     "./desktop/*": "./src/components/desktop/*.tsx",
     "./scheduled-tasks/*": "./src/components/scheduled-tasks/*.tsx",
     "./admin/*": "./src/components/admin/*.tsx",
+    "./analyses/*": "./src/components/analyses/*.tsx",
     "./hooks/*": "./src/hooks/*.ts",
     "./services/*": "./src/services/*.ts",
     "./types/electron": "./src/types/electron.d.ts",

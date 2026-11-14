@@ -23,10 +23,11 @@ from agents_core.agents.config import AgentConfig
 logger = logging.getLogger(__name__)
 
 
-def create_llm(config: AgentConfig):
-    """Create a LangChain chat model from the given AgentConfig."""
+def create_llm(config: AgentConfig, requests_per_second: float = 0.1):
+    """Create a LangChain chat model from the given AgentConfig. Batch work
+    such as document analyses passes a higher requests_per_second."""
     rate_limiter = InMemoryRateLimiter(
-        requests_per_second=0.1,
+        requests_per_second=requests_per_second,
         check_every_n_seconds=0.1,
         max_bucket_size=10,
     )

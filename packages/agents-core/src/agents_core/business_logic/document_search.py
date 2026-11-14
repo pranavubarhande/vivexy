@@ -29,6 +29,21 @@ def citation_marker_id(chunk_id: str) -> str:
     return chunk_id.replace("-", "")[:MARKER_ID_LENGTH]
 
 
+def chunk_citation(chunk: DocumentChunk, document: Document) -> Dict[str, Any]:
+    """A passage as answers cite it: marker id, document, page and span."""
+    return {
+        "id": citation_marker_id(chunk.id),
+        "chunkId": chunk.id,
+        "documentId": document.id,
+        "filename": document.filename,
+        "paginated": document.paginated,
+        "pageNumber": chunk.page_number,
+        "charStart": chunk.char_start,
+        "charEnd": chunk.char_end,
+        "quote": chunk.text,
+    }
+
+
 def _documents_query(
     user: User,
     team_id: Optional[str],
@@ -166,19 +181,7 @@ def search_documents(
         if chunk_id not in by_id:
             continue
         chunk, document = by_id[chunk_id]
-        results.append(
-            {
-                "id": citation_marker_id(chunk.id),
-                "chunkId": chunk.id,
-                "documentId": document.id,
-                "filename": document.filename,
-                "paginated": document.paginated,
-                "pageNumber": chunk.page_number,
-                "charStart": chunk.char_start,
-                "charEnd": chunk.char_end,
-                "quote": chunk.text,
-            }
-        )
+        results.append(chunk_citation(chunk, document))
         if len(results) == limit:
             break
     return results
