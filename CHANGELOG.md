@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-11-15
+
+### Fixed
+
+- A chat's agent reverted to the product's default agent as soon as the
+  first message was sent, no matter which agent it was created with. Every
+  reply after that used the default agent's system prompt and tools, so a
+  product with more than one agent (e.g. a drafting-specific agent) could
+  never actually hold a conversation as anything but its default. Chat
+  generation and the post-send `agent_id` write now both keep the chat's own
+  agent, falling back to the default only when the chat has none.
+
 ## [0.5.1] - 2026-11-14
 
 ### Added

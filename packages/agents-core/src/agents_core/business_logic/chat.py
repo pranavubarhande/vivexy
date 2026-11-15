@@ -5,6 +5,12 @@ import os
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+from sqlalchemy.orm import joinedload
+
+from agents_core.agents.agent_factory import create_langgraph_agent
+from agents_core.agents.config import FileContext, get_default_agent_id
+from agents_core.business_logic.artifacts import resolve_artifact_content
+from agents_core.business_logic.documents import authorize_scope
 from agents_core.constants.stream_events import (
     STREAM_EVENT_CONTENT,
     STREAM_EVENT_DONE,
@@ -13,12 +19,6 @@ from agents_core.constants.stream_events import (
 from agents_core.models import Chat, ChatAttachment, LLMModel, Message, User, db
 from agents_core.models.token_usage import TokenUsage
 from agents_core.schemas import ChatCreate, ChatResponse, LLMModelResponse, MessageRole
-from sqlalchemy.orm import joinedload
-
-from agents_core.agents.agent_factory import create_langgraph_agent
-from agents_core.agents.config import FileContext, get_default_agent_id
-from agents_core.business_logic.artifacts import resolve_artifact_content
-from agents_core.business_logic.documents import authorize_scope
 from agents_core.services.file_processor import FileProcessor
 from agents_core.services.s3_service import S3Service
 from agents_core.tools.chat.chat_tools import generate_chat_title_func
@@ -651,8 +651,13 @@ def create_agent_response(
 ) -> Dict[str, Any]:
     """Create an AI response using the unified agent."""
     try:
+        chat_record = db.session.get(Chat, chat_id)
         agent = create_langgraph_agent(
-            get_default_agent_id(), provider, model_id, chat_id, user_id=user_id
+            (chat_record and chat_record.agent_id) or get_default_agent_id(),
+            provider,
+            model_id,
+            chat_id,
+            user_id=user_id,
         )
         simple_messages = [
             {"role": msg["role"], "content": msg["content"]} for msg in messages

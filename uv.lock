@@ -5998,7 +5998,7 @@ wheels = [
 
 [[package]]
 name = "vivexy-agents-core"
-version = "0.5.1"
+version = "0.5.2"
 source = { editable = "packages/agents-core" }
 dependencies = [
     { name = "alembic" },

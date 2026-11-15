@@ -1,6 +1,6 @@
 {
   "name": "@vivexy/desktop",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Electron main-process and preload runtime for Vivexy desktop apps",
   "license": "AGPL-3.0-or-later",
   "repository": {
