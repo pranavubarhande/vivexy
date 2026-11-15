@@ -35,6 +35,9 @@ export interface Chat {
   updatedAt: string;
   agentId: string | null;
   teamId?: string | null;
+  /** Set when the chat searches only one scope's documents, e.g. a matter. */
+  documentScopeType?: string | null;
+  documentScopeId?: string | null;
   lastModelId: string | null;
   githubContext?: GitContext | null;
   _count?: {

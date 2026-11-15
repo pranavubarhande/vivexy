@@ -8,7 +8,21 @@ export interface UserApiKey {
   updatedAt: string;
 }
 
+export interface DeletedHistory {
+  chats: number;
+  analyses: number;
+  workflowRuns: number;
+}
+
 export const userService = {
+  // Delete the caller's chats, document analyses and workflow runs
+  deleteHistory: async (): Promise<DeletedHistory> => {
+    const response = await axiosInstance.delete<{ deleted: DeletedHistory }>(
+      '/users/me/history'
+    );
+    return response.data.deleted;
+  },
+
   // Features left on after the user's teams' feature flags
   getFeatures: async (): Promise<Record<string, boolean>> => {
     const response = await axiosInstance.get<{

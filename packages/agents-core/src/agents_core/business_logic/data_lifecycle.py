@@ -1,4 +1,4 @@
-"""Chat deletion, retention purges and GDPR export / erasure."""
+"""Chat and AI work deletion, retention purges and GDPR export / erasure."""
 
 import logging
 from datetime import datetime, timedelta
@@ -9,14 +9,19 @@ from agents_core.constants.audit_actions import (
     AUDIT_TARGET_USER,
     AUDIT_USER_DATA_EXPORTED,
     AUDIT_USER_ERASED,
+    AUDIT_USER_HISTORY_DELETED,
 )
+from agents_core.constants.prompts import PROMPT_VISIBILITY_PERSONAL
 from agents_core.models import (
     Artifact,
     Chat,
     ChatAttachment,
     ChatCheckpoint,
+    DocumentAnalysis,
+    DocumentAnalysisResult,
     Message,
     ProjectChat,
+    Prompt,
     ScheduledTask,
     ScheduledTaskRun,
     Team,
@@ -27,6 +32,8 @@ from agents_core.models import (
     User,
     UserApiKey,
     UserSkill,
+    WorkflowRun,
+    WorkflowRunStep,
     db,
 )
 from agents_core.services.s3_service import S3Service
@@ -89,6 +96,77 @@ def hard_delete_chats(chat_ids: Iterable[str], delete_files: bool = True) -> int
             except Exception:
                 logger.exception("Failed to delete stored files for chat %s", chat_id)
     return deleted
+
+
+def delete_analyses_and_runs(
+    analysis_ids: Iterable[str], run_ids: Iterable[str]
+) -> Dict[str, int]:
+    """Delete document analyses and workflow runs with their cells and steps.
+    Token usage rows are kept, as for chats."""
+    analysis_ids, run_ids = list(analysis_ids), list(run_ids)
+    if run_ids:
+        WorkflowRunStep.query.filter(WorkflowRunStep.run_id.in_(run_ids)).delete(
+            synchronize_session=False
+        )
+        WorkflowRun.query.filter(WorkflowRun.id.in_(run_ids)).delete(
+            synchronize_session=False
+        )
+    if analysis_ids:
+        WorkflowRunStep.query.filter(
+            WorkflowRunStep.analysis_id.in_(analysis_ids)
+        ).update({WorkflowRunStep.analysis_id: None}, synchronize_session=False)
+        DocumentAnalysisResult.query.filter(
+            DocumentAnalysisResult.analysis_id.in_(analysis_ids)
+        ).delete(synchronize_session=False)
+        DocumentAnalysis.query.filter(DocumentAnalysis.id.in_(analysis_ids)).delete(
+            synchronize_session=False
+        )
+    db.session.commit()
+    return {"analyses": len(analysis_ids), "workflowRuns": len(run_ids)}
+
+
+def _ids(query) -> List[str]:
+    return [row[0] for row in query.all()]
+
+
+def delete_user_history(user: User) -> Dict[str, int]:
+    """Delete everything the user asked the AI: their chats, document
+    analyses and workflow runs. Saved prompts and documents stay."""
+    deleted_chats = hard_delete_chats(
+        _ids(db.session.query(Chat.id).filter_by(user_id=user.id))
+    )
+    deleted = delete_analyses_and_runs(
+        _ids(db.session.query(DocumentAnalysis.id).filter_by(owner_id=user.id)),
+        _ids(db.session.query(WorkflowRun.id).filter_by(owner_id=user.id)),
+    )
+    result = {"chats": deleted_chats, **deleted}
+    record_audit_log(
+        user, AUDIT_USER_HISTORY_DELETED, AUDIT_TARGET_USER, user.id, details=result
+    )
+    return result
+
+
+def purge_expired_team_work(now: datetime | None = None) -> Dict[str, Dict[str, int]]:
+    """Apply each team's retention policy to document analyses and workflow
+    runs. Returns deleted counts by team."""
+    now = now or datetime.utcnow()
+    results = {}
+    for team in Team.query.filter(Team.retention_days.isnot(None)).all():
+        cutoff = now - timedelta(days=max(team.retention_days, MIN_RETENTION_DAYS))
+        analysis_ids = _ids(
+            db.session.query(DocumentAnalysis.id).filter(
+                DocumentAnalysis.team_id == team.id,
+                DocumentAnalysis.updated_at < cutoff,
+            )
+        )
+        run_ids = _ids(
+            db.session.query(WorkflowRun.id).filter(
+                WorkflowRun.team_id == team.id, WorkflowRun.updated_at < cutoff
+            )
+        )
+        if analysis_ids or run_ids:
+            results[team.id] = delete_analyses_and_runs(analysis_ids, run_ids)
+    return results
 
 
 def purge_expired_team_chats(now: datetime | None = None) -> Dict[str, int]:
@@ -213,6 +291,13 @@ def erase_user(user_id: str, actor: User, allow_self: bool = False) -> Dict[str,
     deleted_chats = hard_delete_chats(
         [row[0] for row in db.session.query(Chat.id).filter_by(user_id=user.id)]
     )
+    deleted_work = delete_analyses_and_runs(
+        _ids(db.session.query(DocumentAnalysis.id).filter_by(owner_id=user.id)),
+        _ids(db.session.query(WorkflowRun.id).filter_by(owner_id=user.id)),
+    )
+    Prompt.query.filter_by(
+        owner_id=user.id, visibility=PROMPT_VISIBILITY_PERSONAL
+    ).delete()
     for team in owned_teams:
         Chat.query.filter_by(team_id=team.id).update({Chat.team_id: None})
         TeamInvite.query.filter_by(team_id=team.id).delete()
@@ -239,7 +324,12 @@ def erase_user(user_id: str, actor: User, allow_self: bool = False) -> Dict[str,
         AUDIT_USER_ERASED,
         AUDIT_TARGET_USER,
         user.id,
-        details={"deletedChats": deleted_chats, "ownedTeamsDeleted": len(owned_teams)},
+        details={
+            "deletedChats": deleted_chats,
+            "deletedAnalyses": deleted_work["analyses"],
+            "deletedWorkflowRuns": deleted_work["workflowRuns"],
+            "ownedTeamsDeleted": len(owned_teams),
+        },
         commit=False,
     )
     db.session.commit()

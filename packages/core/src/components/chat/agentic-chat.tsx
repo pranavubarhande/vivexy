@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { cn } from '@vivexy/ui/utils';
 import { toast } from 'sonner';
 import { takeQueuedPrompt } from '../../lib/prompts';
+import { setChatTeamId } from '../../lib/active-team';
 
 import { AgentSelector } from '@vivexy/core/chat/agent-selector';
 import { ModelSelector } from '@vivexy/core/chat/model-selector';
@@ -100,6 +101,8 @@ export interface AgenticChatConfig {
   className?: string;
   basePath?: string;
   hideChatHeader?: boolean;
+  /** Shows the GitHub repositories button and panel. On by default. */
+  showGithub?: boolean;
 }
 
 interface AgenticChatProps {
@@ -687,13 +690,20 @@ export const AgenticChat = ({
   const isEmpty = displayMessages.length === 0 && !isLoadingMessages;
   const [fillValue, setFillValue] = useState<string | undefined>();
 
-  // ---- A prompt handed over by the prompt library is sent once ready ----
+  // ---- Tell the team switcher which team this chat bills to ----
+  const chatDetailTeamId = chatDetail ? (chatDetail.teamId ?? null) : undefined;
   useEffect(() => {
-    if (chatId || isLoadingModels) return;
-    const queuedPrompt = takeQueuedPrompt();
+    setChatTeamId(chatId ? chatDetailTeamId : undefined);
+  }, [chatId, chatDetailTeamId]);
+  useEffect(() => () => setChatTeamId(undefined), []);
+
+  // ---- A prompt queued for this chat (or a new one) is sent once ready ----
+  useEffect(() => {
+    if (isLoadingModels || isLoadingMessages || !isEmpty) return;
+    const queuedPrompt = takeQueuedPrompt(chatId);
     if (queuedPrompt) void handleSend(queuedPrompt);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chatId, isLoadingModels]);
+  }, [chatId, isLoadingModels, isLoadingMessages, isEmpty]);
 
   const handleSaveArtifact = async (
     artifact: Artifact & { language?: string },
@@ -793,7 +803,9 @@ export const AgenticChat = ({
                   onModelSelect={handleModelSelect}
                   isStreaming={isStreaming}
                   showSidePanel={showSidePanel}
-                  onToggleGithub={toggleGithubPanel}
+                  onToggleGithub={
+                    config.showGithub === false ? undefined : toggleGithubPanel
+                  }
                 />
               </div>
 
@@ -874,7 +886,11 @@ export const AgenticChat = ({
                     artifactsCount={artifacts.length}
                     showSidePanel={showSidePanel}
                     onToggleArtifacts={toggleArtifactsPanel}
-                    onToggleGithub={toggleGithubPanel}
+                    onToggleGithub={
+                      config.showGithub === false
+                        ? undefined
+                        : toggleGithubPanel
+                    }
                   />
                 </div>
 

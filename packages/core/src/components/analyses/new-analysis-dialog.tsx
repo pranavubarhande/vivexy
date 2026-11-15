@@ -66,7 +66,9 @@ const analysisSchema = z
     kind: z.enum(['review', 'summary', 'timeline']),
     title: z.string().max(255),
     documentIds: z.array(z.string()).min(1, 'Choose at least one document'),
-    questions: z.array(questionSchema).max(ANALYSIS_MAX_QUESTIONS),
+    questions: z
+      .array(z.object({ label: z.string(), prompt: z.string() }))
+      .max(ANALYSIS_MAX_QUESTIONS),
     length: z.enum(['short', 'detailed']),
     modelId: z.string().min(1, 'Choose a model'),
   })
@@ -77,6 +79,19 @@ const analysisSchema = z
         code: 'custom',
         path: ['documentIds'],
         message: `A ${ANALYSIS_KIND_LABELS[data.kind].toLowerCase()} can cover at most ${limit} documents`,
+      });
+    }
+    // Questions only matter for a review; the hidden blank question a
+    // summary or timeline form still holds must not block it.
+    if (data.kind === 'review') {
+      data.questions.forEach((question, index) => {
+        questionSchema.safeParse(question).error?.issues.forEach((issue) =>
+          context.addIssue({
+            code: 'custom',
+            path: ['questions', index, ...issue.path],
+            message: issue.message,
+          })
+        );
       });
     }
     if (data.kind === 'review' && data.questions.length === 0) {
@@ -98,6 +113,8 @@ interface NewAnalysisDialogProps {
   scope: AnalysisScope;
   documents: StoredDocument[];
   initialKind?: AnalysisKind;
+  /** Only offer this kind, e.g. on a screen that lists one kind. */
+  lockKind?: boolean;
   questionPresets?: AnalysisQuestionInput[];
   onCreated: (analysis: Analysis) => void;
 }
@@ -108,6 +125,7 @@ export const NewAnalysisDialog = ({
   scope,
   documents,
   initialKind = 'review',
+  lockKind = false,
   questionPresets = [],
   onCreated,
 }: NewAnalysisDialogProps) => {
@@ -187,7 +205,11 @@ export const NewAnalysisDialog = ({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>New analysis</DialogTitle>
+          <DialogTitle>
+            {lockKind
+              ? `New ${ANALYSIS_KIND_LABELS[kind].toLowerCase()}`
+              : 'New analysis'}
+          </DialogTitle>
           <DialogDescription>{KIND_DESCRIPTIONS[kind]}</DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -196,28 +218,30 @@ export const NewAnalysisDialog = ({
             onSubmit={form.handleSubmit(onSubmit)}
             className="space-y-5"
           >
-            <FormField
-              control={form.control}
-              name="kind"
-              render={({ field }) => (
-                <FormItem>
-                  <Tabs
-                    value={field.value}
-                    onValueChange={(value) => field.onChange(value)}
-                  >
-                    <TabsList>
-                      {(
-                        Object.keys(ANALYSIS_KIND_LABELS) as AnalysisKind[]
-                      ).map((value) => (
-                        <TabsTrigger key={value} value={value}>
-                          {ANALYSIS_KIND_LABELS[value]}
-                        </TabsTrigger>
-                      ))}
-                    </TabsList>
-                  </Tabs>
-                </FormItem>
-              )}
-            />
+            {!lockKind && (
+              <FormField
+                control={form.control}
+                name="kind"
+                render={({ field }) => (
+                  <FormItem>
+                    <Tabs
+                      value={field.value}
+                      onValueChange={(value) => field.onChange(value)}
+                    >
+                      <TabsList>
+                        {(
+                          Object.keys(ANALYSIS_KIND_LABELS) as AnalysisKind[]
+                        ).map((value) => (
+                          <TabsTrigger key={value} value={value}>
+                            {ANALYSIS_KIND_LABELS[value]}
+                          </TabsTrigger>
+                        ))}
+                      </TabsList>
+                    </Tabs>
+                  </FormItem>
+                )}
+              />
+            )}
 
             <FormField
               control={form.control}

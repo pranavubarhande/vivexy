@@ -10,13 +10,15 @@ import {
   SelectValue,
 } from '@vivexy/ui/select';
 import { useTeams } from '@vivexy/core/hooks/useTeams';
-import { useActiveTeam } from '@vivexy/core/hooks/useActiveTeam';
+import { useActiveTeam, useChatTeam } from '@vivexy/core/hooks/useActiveTeam';
 
 const PERSONAL_VALUE = 'personal';
 
 export const TeamSwitcher = ({ enabled }: { enabled: boolean }) => {
   const { data: teams } = useTeams(enabled);
   const { activeTeamId, setActiveTeamId } = useActiveTeam();
+  const chatTeamId = useChatTeam();
+  const inChat = chatTeamId !== undefined;
 
   const activeTeamIsValid =
     !activeTeamId || !!teams?.some((team) => team.id === activeTeamId);
@@ -27,20 +29,30 @@ export const TeamSwitcher = ({ enabled }: { enabled: boolean }) => {
 
   if (!teams?.length) return null;
 
+  const selected = inChat ? chatTeamId : activeTeamId;
+
   return (
     <div className="group-data-[collapsible=icon]:hidden">
       <p className="mb-1 px-1 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground/70">
-        Usage billed to
+        {inChat ? 'This chat is billed to' : 'Usage billed to'}
       </p>
       <Select
+        disabled={inChat}
         value={
-          activeTeamIsValid && activeTeamId ? activeTeamId : PERSONAL_VALUE
+          selected && (inChat || activeTeamIsValid) ? selected : PERSONAL_VALUE
         }
         onValueChange={(value) =>
           setActiveTeamId(value === PERSONAL_VALUE ? null : value)
         }
       >
-        <SelectTrigger className="h-9 w-full bg-background/60">
+        <SelectTrigger
+          className="h-9 w-full bg-background/60"
+          title={
+            inChat
+              ? 'A chat stays with the team it was started in. Start a new chat to bill another team.'
+              : undefined
+          }
+        >
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
