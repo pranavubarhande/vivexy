@@ -12,6 +12,19 @@ import uuid as uuid_lib
 from dataclasses import asdict
 
 import redis as redis_lib
+from flask import (
+    Blueprint,
+    Response,
+    after_this_request,
+    current_app,
+    jsonify,
+    make_response,
+    request,
+    send_file,
+)
+from pydantic import ValidationError
+from werkzeug.utils import secure_filename
+
 from agents_core.agents.client_tool_store import resolve_client_tool
 from agents_core.agents.config import get_default_agent_id
 from agents_core.business_logic.artifacts import (
@@ -51,18 +64,6 @@ from agents_core.models.chat import Artifact, Chat
 from agents_core.schemas import ArtifactCreate, ChatCreate, MessageCreate
 from agents_core.services.s3_service import S3Service
 from agents_core.worker.dispatcher import dispatch_chat_job
-from flask import (
-    Blueprint,
-    Response,
-    after_this_request,
-    current_app,
-    jsonify,
-    make_response,
-    request,
-    send_file,
-)
-from pydantic import ValidationError
-from werkzeug.utils import secure_filename
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
 
@@ -1285,7 +1286,11 @@ def start_chat_stream():
 
         update_chat(
             chat_id,
-            {"last_model_id": model_db_id, "agent_id": get_default_agent_id()},
+            {
+                "last_model_id": model_db_id,
+                "agent_id": (chat_record and chat_record.agent_id)
+                or get_default_agent_id(),
+            },
             user_id,
         )
 

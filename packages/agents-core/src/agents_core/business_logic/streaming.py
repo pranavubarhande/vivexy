@@ -10,6 +10,9 @@ import uuid
 from concurrent.futures import Future, ThreadPoolExecutor
 from typing import Any, Dict, Generator, List, Optional, Set, Tuple, Union
 
+from dotenv import load_dotenv
+from langgraph.types import Command, Overwrite
+
 from agents_core.agents.agent_factory import create_agent
 from agents_core.agents.approval_store import create_approval_event, wait_for_approval
 from agents_core.agents.client_tool_store import (
@@ -20,15 +23,15 @@ from agents_core.agents.config import FileContext, get_default_agent_id
 from agents_core.business_logic.api_keys import get_decrypted_api_keys
 from agents_core.business_logic.artifacts import link_artifacts_to_message
 from agents_core.business_logic.chat import create_message
+from agents_core.business_logic.citation_check import (
+    check_citations,
+    cited_ids_in_order,
+)
 from agents_core.business_logic.compact import (
     compact_chat,
     estimate_token_count,
     get_compacted_messages,
     should_auto_compact,
-)
-from agents_core.business_logic.citation_check import (
-    check_citations,
-    cited_ids_in_order,
 )
 from agents_core.business_logic.features import disabled_features_for_user
 from agents_core.business_logic.team_policy import maybe_send_budget_alerts
@@ -57,8 +60,6 @@ from agents_core.tools.chat.chat_tools import (
     generate_chat_title_func,
     set_chat_title_func,
 )
-from dotenv import load_dotenv
-from langgraph.types import Command, Overwrite
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -101,8 +102,9 @@ def run_agent_stream(
         except Exception:
             pass
 
+        chat_record = Chat.query.filter_by(id=chat_id).first()
         agent = create_agent(
-            agent_id=get_default_agent_id(),
+            agent_id=(chat_record and chat_record.agent_id) or get_default_agent_id(),
             provider=model_provider,
             model_id=model_id,
             chat_id=chat_id,
